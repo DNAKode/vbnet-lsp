@@ -342,6 +342,40 @@ Each finding should be logged with:
 - **Impact**: Should support similar CLI arguments
 - **Action**: Implement CLI arg parsing in our language server
 
+### Finding: Cross-Platform Support Strategy
+- **Date**: 2026-01-09
+- **Source**:
+  - `_external/vscode-csharp/src/shared/platform.ts`
+  - `_external/vscode-csharp/src/lsptoolshost/activate.ts:158-179`
+  - `_external/vscode-csharp/src/lsptoolshost/dotnetRuntime/dotnetRuntimeExtensionResolver.ts`
+- **Finding**:
+  Platform detection via `PlatformInformation.GetCurrent()`:
+  - Windows: `win32`, arch from `PROCESSOR_ARCHITECTURE` env var
+  - macOS: `darwin`, arch via `uname -m`
+  - Linux: `linux` or `linux-musl` (Alpine), arch via `uname -m`, distro from `/etc/os-release`
+
+  Server executable per platform:
+  - Windows: `.exe` native binary
+  - macOS: `.dll` run via `dotnet` (code signing issue with Windows-built binaries)
+  - Linux: Native binary or `.dll` fallback
+
+  .NET Runtime acquisition:
+  - Uses `ms-dotnettools.vscode-dotnet-runtime` extension
+  - First tries `dotnet.findPath` to locate existing runtime
+  - Falls back to `dotnet.acquire` to download runtime
+  - On Linux, runs `dotnet.ensureDotnetDependencies` for native libs
+
+  Platform-specific VSIX packages:
+  - `win32-x64`, `win32-arm64`, `win32-ia32`
+  - `linux-x64`, `linux-arm64`, `linux-armhf`
+  - `alpine-x64`, `alpine-arm64` (musl libc)
+  - `darwin-x64`, `darwin-arm64`
+- **Impact**: We must provide the same cross-platform support
+- **Action**:
+  - Phase 1 (MVP): Ship as `.dll`, run via `dotnet` on all platforms
+  - Phase 2: Add dependency on `ms-dotnettools.vscode-dotnet-runtime`
+  - Phase 3+: Consider platform-specific VSIX with native binaries for performance
+
 #### [Template - Copy for new findings]
 ```
 ### Finding: [Title]
