@@ -284,6 +284,64 @@ Each finding should be logged with:
 
 ### Findings
 
+### Finding: C# Extension Uses Named Pipes, Not stdio
+- **Date**: 2026-01-09
+- **Source**: `_external/vscode-csharp/src/lsptoolshost/server/roslynLanguageServer.ts:762-821`
+- **Finding**: The C# extension spawns the language server as a child process, then connects via **named pipes** (not stdio). Server outputs pipe name as JSON to stdout: `{"pipeName":"..."}`. Extension then connects using `net.createConnection()`.
+- **Impact**: We have a choice: follow this pattern for better performance, or use simpler stdio for MVP
+- **Action**: For MVP, consider using stdio first (simpler), can migrate to named pipes later if needed for performance
+
+### Finding: Bundled Roslyn Language Server
+- **Date**: 2026-01-09
+- **Source**: `_external/vscode-csharp/src/lsptoolshost/activate.ts:158-179`
+- **Finding**: C# extension bundles `Microsoft.CodeAnalysis.LanguageServer.exe/.dll` at `.roslyn/Microsoft.CodeAnalysis.LanguageServer`. This is a pre-built Roslyn-based language server.
+- **Impact**: We need to build our own VB.NET language server using Roslyn APIs
+- **Action**: Create VbNet.LanguageServer project using Roslyn for VB.NET
+
+### Finding: Solution Discovery Pattern
+- **Date**: 2026-01-09
+- **Source**: `_external/vscode-csharp/src/lsptoolshost/server/roslynLanguageServer.ts:526-579`
+- **Finding**:
+  1. Check `defaultSolution` setting first
+  2. Search for `**/*.sln` files (max 2)
+  3. If 1 found → auto-open
+  4. If multiple → prompt user to choose
+  5. If none → search for `**/*.csproj` files
+- **Impact**: Should follow same pattern for VB.NET but search for `.vbproj`
+- **Action**: Implement same discovery logic in our extension
+
+### Finding: Custom LSP Notifications for Solution Loading
+- **Date**: 2026-01-09
+- **Source**: `_external/vscode-csharp/src/lsptoolshost/server/roslynProtocol.ts` (referenced)
+- **Finding**: Uses custom notifications:
+  - `roslyn/openSolution` - Tell server to load solution
+  - `roslyn/openProject` - Tell server to load projects
+  - `roslyn/projectInitializationComplete` - Server signals projects loaded
+- **Impact**: May need similar custom protocol extensions
+- **Action**: Define custom notifications in our protocol
+
+### Finding: Extension Entry Point Pattern
+- **Date**: 2026-01-09
+- **Source**: `_external/vscode-csharp/src/main.ts`
+- **Finding**:
+  - Entry: `activate(context)` returns exports
+  - Non-blocking: Server starts without blocking activation
+  - Platform detection via `PlatformInformation.GetCurrent()`
+  - Downloads runtime dependencies (debugger, etc.)
+- **Impact**: Follow same pattern for non-blocking activation
+- **Action**: Structure our extension.ts similarly
+
+### Finding: Server Arguments
+- **Date**: 2026-01-09
+- **Source**: `_external/vscode-csharp/src/lsptoolshost/server/roslynLanguageServer.ts:623-706`
+- **Finding**: Key server arguments:
+  - `--debug` - Wait for debugger attachment
+  - `--logLevel` - Set logging level (Trace/Debug/Information/Warning/Error)
+  - `--extension` - Load additional extension DLLs
+  - `--extensionLogDirectory` - Log output directory
+- **Impact**: Should support similar CLI arguments
+- **Action**: Implement CLI arg parsing in our language server
+
 #### [Template - Copy for new findings]
 ```
 ### Finding: [Title]
