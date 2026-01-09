@@ -310,6 +310,13 @@ The language server is organized into five distinct layers:
 
 ```
 vbnet-lsp/
+├── _external/                          # Gitignored - reference repositories
+│   ├── vscode-csharp/                  # C# extension (architecture reference)
+│   └── netcoredbg/                     # Samsung debugger (DAP reference)
+│
+├── _test/                              # Gitignored - test infrastructure
+│   └── dwsim/                          # Large VB.NET project for testing
+│
 ├── src/
 │   ├── extension/                      # VS Code extension (TypeScript)
 │   │   ├── src/
@@ -333,17 +340,16 @@ vbnet-lsp/
 │   ├── extension.test/                 # Extension unit tests (TypeScript)
 │   ├── VbNet.LanguageServer.Tests/     # Server unit tests (C#)
 │   ├── VbNet.IntegrationTests/         # End-to-end tests
-│   └── TestProjects/
+│   └── TestProjects/                   # Small test projects (tracked)
 │       ├── SmallProject/               # ~5-10 files
-│       ├── MediumProject/              # ~50 files, multi-project
-│       └── dwsim/                      # Git submodule to DWSIM fork
+│       └── MediumProject/              # ~50 files, multi-project
 │
 ├── docs/
-│   ├── README.md                       # Documentation index
 │   ├── architecture.md                 # SINGLE SOURCE OF TRUTH
 │   ├── development.md                  # Dev setup and workflow
 │   ├── configuration.md                # User configuration guide
-│   └── features.md                     # Feature support matrix
+│   ├── features.md                     # Feature support matrix
+│   └── research-plan.md                # External repo examination plans
 │
 ├── .github/
 │   └── workflows/
@@ -364,6 +370,9 @@ vbnet-lsp/
 ├── CODE_OF_CONDUCT.md
 └── vbnet-lsp.sln                       # Main solution file
 ```
+
+**Note**: `_external/` and `_test/` directories are gitignored and must be set up locally.
+See `docs/development.md` Section 2.1 for setup instructions.
 
 ---
 

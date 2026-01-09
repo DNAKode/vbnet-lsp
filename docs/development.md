@@ -99,6 +99,109 @@ dotnet test
 
 ---
 
+## 2.1 Local Development Directories
+
+**IMPORTANT**: The following directories are gitignored and must be set up locally. These setup steps must be followed exactly to recreate the development environment.
+
+### _external/ - Reference Repositories
+
+Contains cloned reference repositories for architecture verification and pattern extraction. These are read-only references - we never modify them.
+
+```bash
+# Create directory (if not exists)
+mkdir -p _external
+cd _external
+
+# C# for Visual Studio Code - PRIMARY REFERENCE
+# Architecture patterns, LSP integration, TypeScript extension structure
+git clone https://github.com/dotnet/vscode-csharp.git
+# Size: ~200MB, Clone time: 2-5 minutes
+
+# Samsung netcoredbg - Open-source .NET debugger
+# DAP protocol reference, debugger integration patterns
+git clone https://github.com/Samsung/netcoredbg.git
+# Size: ~50MB, Clone time: <1 minute
+
+# (Optional) Roslyn - Deep compiler reference
+# Only clone if needed for deep Roslyn API investigation
+# git clone https://github.com/dotnet/roslyn.git
+# Size: ~2GB, Clone time: 10-20 minutes
+# WARNING: Very large repository
+
+cd ..
+```
+
+**Verification**:
+```bash
+ls _external/
+# Should show: vscode-csharp/  netcoredbg/
+```
+
+### _test/ - Test Infrastructure
+
+Contains test projects for validation and performance testing. DWSIM is particularly important for real-world performance validation.
+
+```bash
+# Create directory (if not exists)
+mkdir -p _test
+cd _test
+
+# DWSIM - Large real-world VB.NET codebase
+# Performance benchmarking, real-world validation, edge case discovery
+git clone https://github.com/DanWBR/dwsim.git
+# Size: ~500MB, Clone time: 5-10 minutes
+# Note: Contains 100+ VB.NET files across multiple projects
+
+cd ..
+```
+
+**Verification**:
+```bash
+ls _test/
+# Should show: dwsim/
+
+# Verify DWSIM VB.NET content
+find _test/dwsim -name "*.vb" | head -20
+```
+
+### Directory Structure After Setup
+
+```
+vbnet-lsp/
+├── _external/                    # Gitignored - reference repos
+│   ├── vscode-csharp/           # C# extension (primary reference)
+│   └── netcoredbg/              # Samsung debugger
+├── _test/                        # Gitignored - test infrastructure
+│   └── dwsim/                   # Large VB.NET test project
+├── src/                          # Tracked - our source code
+├── test/                         # Tracked - our test code
+└── docs/                         # Tracked - documentation
+```
+
+### Why These Are Gitignored
+
+1. **Size**: Reference repos are large (vscode-csharp ~200MB, roslyn ~2GB)
+2. **External ownership**: These repos are maintained by others
+3. **Reproducibility**: Clone commands are documented; anyone can recreate
+4. **Cleanliness**: Keeps our repo focused on our code
+
+### Updating Reference Repositories
+
+Periodically update to get latest changes:
+
+```bash
+# Update C# extension reference
+cd _external/vscode-csharp && git pull && cd ../..
+
+# Update netcoredbg reference
+cd _external/netcoredbg && git pull && cd ../..
+
+# Update DWSIM test project
+cd _test/dwsim && git pull && cd ../..
+```
+
+---
+
 ## 3. Building the Project
 
 ### Build Language Server

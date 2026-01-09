@@ -490,3 +490,10 @@ $RECYCLE.BIN/
 *.swp
 *.swo
 *~
+
+## Local Development (not tracked - see docs/development.md for setup)
+# External reference repositories (C# extension, netcoredbg, roslyn)
+_external/
+
+# Test infrastructure (DWSIM, sample projects)
+_test/
