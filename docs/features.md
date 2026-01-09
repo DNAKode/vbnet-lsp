@@ -436,8 +436,8 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 ## Feature Requests
 
 To request a feature or vote on existing requests:
-- [GitHub Issues](https://github.com/YOUR-ORG/vbnet-lsp/issues)
-- [GitHub Discussions](https://github.com/YOUR-ORG/vbnet-lsp/discussions)
+- [GitHub Issues](https://github.com/DNAKode/vbnet-lsp/issues)
+- [GitHub Discussions](https://github.com/DNAKode/vbnet-lsp/discussions)
 
 ---
 

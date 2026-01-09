@@ -532,8 +532,8 @@ If configuration issues persist:
 1. **Check output panel**: "View > Output" > "VB.NET Language Support"
 2. **Enable debug logging**: `"vbnetLs.logLevel": "debug"`
 3. **Restart language server**: Command Palette > "VB.NET: Restart Language Server"
-4. **Check GitHub issues**: https://github.com/YOUR-ORG/vbnet-lsp/issues
-5. **Ask for help**: https://github.com/YOUR-ORG/vbnet-lsp/discussions
+4. **Check GitHub issues**: https://github.com/DNAKode/vbnet-lsp/issues
+5. **Ask for help**: https://github.com/DNAKode/vbnet-lsp/discussions
 
 ---
 

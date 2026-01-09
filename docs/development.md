@@ -59,7 +59,7 @@ Last Updated: 2026-01-09
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR-ORG/vbnet-lsp.git
+git clone https://github.com/DNAKode/vbnet-lsp.git
 cd vbnet-lsp
 ```
 

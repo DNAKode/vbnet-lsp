@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project Name:** VB.NET Language Support
-**GitHub Organization:** TBD (new organization to be created)
+**GitHub Organization:** DNA Kode (DNAKode)
 **Repository:** vbnet-lsp
 **Display Name:** VB.NET Language Support
 **VS Code Extension Name:** VB.NET Language Support
@@ -305,7 +305,7 @@ The language server is organized into five distinct layers:
 
 ## 7. Repository Structure
 
-**GitHub Organization:** TBD (new organization)
+**GitHub Organization:** DNA Kode (DNAKode)
 **Repository Name:** `vbnet-lsp`
 
 ```

@@ -45,7 +45,7 @@ Currently, VB.NET Dev Kit is in early development. To build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR-ORG/vbnet-devkit.git
+git clone https://github.com/DNAKode/vbnet-lsp.git
 cd vbnet-devkit
 
 # Build the language server
@@ -162,8 +162,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/YOUR-ORG/vbnet-lsp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR-ORG/vbnet-lsp/discussions)
+- **Issues**: [GitHub Issues](https://github.com/DNAKode/vbnet-lsp/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/DNAKode/vbnet-lsp/discussions)
 - **Documentation**: [docs/](docs/)
 
 ---
