@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\Work\\vbnet-lsp\" /s /ah)",
+      "Bash(git add:*)"
+    ]
+  }
+}
