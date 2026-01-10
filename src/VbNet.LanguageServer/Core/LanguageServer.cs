@@ -29,6 +29,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly CompletionService _completionService;
     private readonly HoverService _hoverService;
     private readonly DefinitionService _definitionService;
+    private readonly ReferencesService _referencesService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -77,6 +78,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<DefinitionService>());
 
+        _referencesService = new ReferencesService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<ReferencesService>());
+
         RegisterHandlers();
     }
 
@@ -122,6 +128,7 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<CompletionItem, CompletionItem>("completionItem/resolve", HandleCompletionResolveAsync);
         _dispatcher.RegisterRequest<HoverParams, Hover?>("textDocument/hover", HandleHoverAsync);
         _dispatcher.RegisterRequest<DefinitionParams, Location[]>("textDocument/definition", HandleDefinitionAsync);
+        _dispatcher.RegisterRequest<ReferenceParams, Location[]>("textDocument/references", HandleReferencesAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -382,6 +389,16 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _definitionService.GetDefinitionAsync(@params, ct);
     }
 
+    private async Task<Location[]> HandleReferencesAsync(ReferenceParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<Location>();
+        }
+
+        return await _referencesService.GetReferencesAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -462,6 +479,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the definition service.
     /// </summary>
     public DefinitionService DefinitionService => _definitionService;
+
+    /// <summary>
+    /// Gets the references service.
+    /// </summary>
+    public ReferencesService ReferencesService => _referencesService;
 
     public async ValueTask DisposeAsync()
     {
