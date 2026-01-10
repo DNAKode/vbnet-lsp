@@ -1,3 +1,0 @@
-info: Program[0]
-      Server started with process ID 4520
-{"pipeName":"\\\\.\\pipe\\6ff348e8"}
