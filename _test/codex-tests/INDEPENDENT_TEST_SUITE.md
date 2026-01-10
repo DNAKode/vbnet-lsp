@@ -133,6 +133,7 @@ Approach:
 Scaffolding:
 - `_test/codex-tests/dwsim/run-tests.ps1` invokes the VB.NET LSP smoke harness with a DWSIM root.
 - Optional VS Code headless open check using the VS Code harness with `FIXTURE_WORKSPACE=_test/dwsim`.
+- Service tests (Phase 1): drive requests from `_test/codex-tests/vbnet-lsp/fixtures/services/service-tests.json` once services are implemented.
 
 ## Feature coverage map
 
@@ -177,6 +178,7 @@ Required infrastructure:
 - Local Roslyn LSP smoke test harness (experimental) to validate starting a locally built LSP server without VS Code.
 - Protocol method source-of-truth loading (read roslynProtocol.ts) to exercise custom extension methods in tests.
 - Protocol anomaly logging (JSONL) and automatic inclusion in `INDEPENDENT_TEST_RESULTS.md` after each run.
+- Service-level fixture manifest for Phase 1 services (completion, hover, definition, references, rename, symbols).
 - Fixture projects and deterministic test data:
   - SmallProject and MediumProject in `test/TestProjects`.
   - DWSIM in `_test/dwsim` (cloned, not shipped).
@@ -184,6 +186,7 @@ Required infrastructure:
   - C# fixtures for harness validation (`fixtures/basic`, `fixtures/linq`, `fixtures/generics`).
   - VB.NET fixtures for smoke testing text sync (`vbnet-lsp/fixtures/basic`).
   - VB.NET diagnostics fixture solution (`vbnet-lsp/fixtures/diagnostics`) with intentional compile errors.
+  - VB.NET services fixture (`vbnet-lsp/fixtures/services`) with markers and a JSON manifest for service requests.
 - Telemetry-free default operation; tests must disable any telemetry.
 - CI workflows for Windows, Linux, macOS.
 
@@ -318,6 +321,7 @@ What is already implemented in `_test/codex-tests/vbnet-lsp`:
 - Diagnostics mode in the smoke harness that waits for `textDocument/publishDiagnostics` on the fixture file and retries didOpen/didChange once if none arrive.
 - Diagnostics settings injection (via `workspace/configuration` and `workspace/didChangeConfiguration`) plus expected diagnostic code checks in the smoke harness.
 - Diagnostics harness can optionally send `textDocument/didSave` for `openSave`/`saveOnly` mode validation.
+- Service fixture scaffolding for Phase 1 services: `_test/codex-tests/vbnet-lsp/fixtures/services/` and `service-tests.json`.
 
 Key paths and artifacts:
 - Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
@@ -330,6 +334,7 @@ Key paths and artifacts:
 - VB.NET smoke harness: `_test/codex-tests/vbnet-lsp/VbNetLspSmokeTest/`
 - VB.NET fixtures: `_test/codex-tests/vbnet-lsp/fixtures/basic/`
 - VB.NET diagnostics fixture: `_test/codex-tests/vbnet-lsp/fixtures/diagnostics/`
+- VB.NET services fixtures: `_test/codex-tests/vbnet-lsp/fixtures/services/`
 - VB.NET snapshots: `_test/codex-tests/vbnet-lsp/snapshots/`
 - DWSIM harness: `_test/codex-tests/dwsim/`
 

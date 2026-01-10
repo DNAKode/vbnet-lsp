@@ -1,0 +1,54 @@
+{
+  "workspace": "_test/codex-tests/vbnet-lsp/fixtures/services",
+  "file": "_test/codex-tests/vbnet-lsp/fixtures/services/ServiceSamples.vb",
+  "tests": [
+    {
+      "id": "completion_text",
+      "method": "textDocument/completion",
+      "marker": "completion_text",
+      "expectation": "non_empty"
+    },
+    {
+      "id": "completion_extension",
+      "method": "textDocument/completion",
+      "marker": "completion_extension",
+      "expectation": "contains:DoubleIt"
+    },
+    {
+      "id": "hover_text",
+      "method": "textDocument/hover",
+      "marker": "hover_text",
+      "expectation": "non_null"
+    },
+    {
+      "id": "definition_add",
+      "method": "textDocument/definition",
+      "marker": "definition_add",
+      "expectation": "non_empty"
+    },
+    {
+      "id": "references_greet",
+      "method": "textDocument/references",
+      "marker": "references_greet",
+      "expectation": "non_empty"
+    },
+    {
+      "id": "rename_sum",
+      "method": "textDocument/rename",
+      "marker": "definition_add",
+      "expectation": "workspace_edit"
+    },
+    {
+      "id": "symbols_document",
+      "method": "textDocument/documentSymbol",
+      "marker": "completion_text",
+      "expectation": "non_empty"
+    },
+    {
+      "id": "symbols_workspace",
+      "method": "workspace/symbol",
+      "marker": "completion_text",
+      "expectation": "non_empty"
+    }
+  ]
+}
