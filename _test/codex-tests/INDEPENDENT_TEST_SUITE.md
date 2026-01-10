@@ -158,6 +158,7 @@ Required infrastructure:
   - DWSIM in `_test/dwsim` (cloned, not shipped).
   - Optional additional OSS VB.NET project(s) for feature correctness.
   - C# fixtures for harness validation (`fixtures/basic`, `fixtures/linq`, `fixtures/generics`).
+  - VB.NET fixtures for smoke testing text sync (`vbnet-lsp/fixtures/basic`).
 - Telemetry-free default operation; tests must disable any telemetry.
 - CI workflows for Windows, Linux, macOS.
 
@@ -277,6 +278,11 @@ What is already implemented in `_test/codex-tests/csharp-lsp`:
 - A top-level test runner script (`_test/codex-tests/run-tests.ps1`) to rerun the C# harnesses (node and dotnet) consistently.
 - Additional fixture solutions to broaden feature coverage: LINQ extension methods and generic interface invocation.
 
+What is already implemented in `_test/codex-tests/vbnet-lsp`:
+- VB.NET LSP smoke harness (`VbNetLspSmokeTest`) that performs initialize/initialized, text document lifecycle notifications, and shutdown/exit over named pipes or stdio.
+- A VB.NET test runner (`vbnet-lsp/run-tests.ps1`) that builds the server, snapshots binaries, and runs the smoke test.
+- A basic VB.NET fixture file used for didOpen/didChange/didSave/didClose coverage.
+
 Key paths and artifacts:
 - Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
 - C# extension protocol definitions: `_external/vscode-csharp/src/lsptoolshost/server/roslynProtocol.ts`
@@ -285,12 +291,16 @@ Key paths and artifacts:
 - Fixture solution: `_test/codex-tests/csharp-lsp/fixtures/basic/`
 - Additional fixtures: `_test/codex-tests/csharp-lsp/fixtures/linq/`, `_test/codex-tests/csharp-lsp/fixtures/generics/`
 - VS Code harness scaffold: `_test/codex-tests/clients/vscode/`
+- VB.NET smoke harness: `_test/codex-tests/vbnet-lsp/VbNetLspSmokeTest/`
+- VB.NET fixtures: `_test/codex-tests/vbnet-lsp/fixtures/basic/`
+- VB.NET snapshots: `_test/codex-tests/vbnet-lsp/snapshots/`
 
 Validated behavior:
 - Named pipe connection works from the C# harness and completes LSP handshake.
 - `solution/open` notification uses the method name resolved from `roslynProtocol.ts` and is sent after initialization.
 - Feature tests against the fixture solution succeed (completion/hover/definition/references/document symbols), though the project initialization notification timed out during the run.
 - VS Code client harness runs successfully against the C# extension (`ms-dotnettools.csharp`) using a local VS Code installation, with hover/definition/completion/document symbols passing on the basic fixture.
+- VB.NET smoke harness runs against the Phase 1 server scaffold, including text document lifecycle notifications; connection drop during shutdown is handled on the client side.
 
 Known issues / TODO for future agents:
 - The C# harness uses StreamJsonRpc and named pipes; no logs are produced under `_test/codex-tests/csharp-lsp/logs` yet (likely due to server logging behavior or paths). Consider passing a writable, absolute log directory and verifying server log output.
