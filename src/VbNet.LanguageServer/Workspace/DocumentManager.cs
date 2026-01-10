@@ -32,6 +32,9 @@ public sealed class DocumentManager
     {
         _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Subscribe to workspace changes to reassociate documents after load
+        _workspaceManager.SolutionChanged += OnSolutionChanged;
     }
 
     /// <summary>
@@ -277,6 +280,62 @@ public sealed class DocumentManager
         character = Math.Max(0, character);
 
         return textLine.Start + character;
+    }
+
+    /// <summary>
+    /// Handles solution change events from the workspace.
+    /// Reassociates open documents with workspace documents after workspace loads.
+    /// </summary>
+    private void OnSolutionChanged(object? sender, SolutionChangedEventArgs e)
+    {
+        if (e.Kind == SolutionChangeKind.Loaded || e.Kind == SolutionChangeKind.Reloaded || e.Kind == SolutionChangeKind.ProjectAdded)
+        {
+            ReassociateDocumentsWithWorkspace();
+        }
+    }
+
+    /// <summary>
+    /// Reassociates open documents with their corresponding workspace documents.
+    /// This is called after the workspace loads to fix documents that were opened
+    /// before the workspace was ready.
+    /// </summary>
+    public void ReassociateDocumentsWithWorkspace()
+    {
+        _logger.LogDebug("Reassociating open documents with workspace");
+        var reassociatedCount = 0;
+
+        foreach (var kvp in _openDocuments)
+        {
+            var uri = kvp.Key;
+            var openDoc = kvp.Value;
+
+            // Skip if already associated
+            if (openDoc.DocumentId != null)
+            {
+                continue;
+            }
+
+            // Try to find the document in the workspace
+            var document = _workspaceManager.GetDocumentByUri(uri);
+            if (document != null)
+            {
+                openDoc.DocumentId = document.Id;
+
+                // Sync the current text to the workspace
+                _workspaceManager.ApplyTextChange(document.Id, openDoc.Text);
+
+                _logger.LogDebug("Reassociated document: {Uri} -> {DocumentId}", uri, document.Id);
+                reassociatedCount++;
+
+                // Trigger diagnostics for this document
+                DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version));
+            }
+        }
+
+        if (reassociatedCount > 0)
+        {
+            _logger.LogInformation("Reassociated {Count} open document(s) with workspace", reassociatedCount);
+        }
     }
 }
 

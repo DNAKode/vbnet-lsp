@@ -164,6 +164,22 @@ ls _test/
 find _test/dwsim -name "*.vb" | head -20
 ```
 
+### _test/codex-tests/ - Independent Verification (DO NOT USE DIRECTLY)
+
+**IMPORTANT**: The `_test/codex-tests/` directory contains an independent test verification suite maintained separately from regular development. This suite is used for external validation of the language server by an independent reviewer.
+
+**Rules for this directory:**
+1. **DO NOT run tests from here** during regular development
+2. **DO NOT modify files** in this directory
+3. **Read-only access** - You may read the test suite and results documents to understand testing status
+4. **Exclude from commits** - When committing, do not stage changes from `_test/codex-tests/`
+5. **Use test/VbNet.LanguageServer.Tests/** for regular development testing instead
+
+**What you CAN do:**
+- Read `_test/codex-tests/INDEPENDENT_TEST_SUITE.md` to understand test coverage
+- Read `_test/codex-tests/INDEPENDENT_TEST_RESULTS.md` to see independent verification status
+- Act on findings from these documents (fix issues found by independent testing)
+
 ### Directory Structure After Setup
 
 ```
@@ -172,9 +188,10 @@ vbnet-lsp/
 │   ├── vscode-csharp/           # C# extension (primary reference)
 │   └── netcoredbg/              # Samsung debugger
 ├── _test/                        # Gitignored - test infrastructure
+│   ├── codex-tests/             # Independent verification (DO NOT USE)
 │   └── dwsim/                   # Large VB.NET test project
 ├── src/                          # Tracked - our source code
-├── test/                         # Tracked - our test code
+├── test/                         # Tracked - our test code (USE THIS!)
 └── docs/                         # Tracked - documentation
 ```
 
@@ -723,6 +740,6 @@ dotnet test
 
 ---
 
-**Last Updated**: 2026-01-09
+**Last Updated**: 2026-01-10
 
 **Maintained by**: VB.NET Language Support Contributors

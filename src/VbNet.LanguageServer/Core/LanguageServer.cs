@@ -26,6 +26,7 @@ public sealed class LanguageServer : IAsyncDisposable
 
     // Services layer components
     private readonly DiagnosticsService _diagnosticsService;
+    private readonly CompletionService _completionService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -58,6 +59,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             PublishDiagnosticsAsync,
             loggerFactory.CreateLogger<DiagnosticsService>());
+
+        _completionService = new CompletionService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<CompletionService>());
 
         RegisterHandlers();
     }
@@ -93,11 +99,15 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<object?, object?>("shutdown", HandleShutdownAsync);
         _dispatcher.RegisterNotification("exit", HandleExitAsync);
 
-        // Text document synchronization (will be connected to DocumentManager in Phase 1)
+        // Text document synchronization
         _dispatcher.RegisterNotification<DidOpenTextDocumentParams>("textDocument/didOpen", HandleDidOpenAsync);
         _dispatcher.RegisterNotification<DidCloseTextDocumentParams>("textDocument/didClose", HandleDidCloseAsync);
         _dispatcher.RegisterNotification<DidChangeTextDocumentParams>("textDocument/didChange", HandleDidChangeAsync);
         _dispatcher.RegisterNotification<DidSaveTextDocumentParams>("textDocument/didSave", HandleDidSaveAsync);
+
+        // Language features
+        _dispatcher.RegisterRequest<CompletionParams, CompletionList>("textDocument/completion", HandleCompletionAsync);
+        _dispatcher.RegisterRequest<CompletionItem, CompletionItem>("completionItem/resolve", HandleCompletionResolveAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -316,6 +326,30 @@ public sealed class LanguageServer : IAsyncDisposable
 
     #endregion
 
+    #region Language Features
+
+    private async Task<CompletionList> HandleCompletionAsync(CompletionParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return new CompletionList { IsIncomplete = false, Items = Array.Empty<CompletionItem>() };
+        }
+
+        return await _completionService.GetCompletionAsync(@params, ct);
+    }
+
+    private async Task<CompletionItem> HandleCompletionResolveAsync(CompletionItem? item, CancellationToken ct)
+    {
+        if (item == null)
+        {
+            return new CompletionItem { Label = "" };
+        }
+
+        return await _completionService.ResolveCompletionItemAsync(item, ct);
+    }
+
+    #endregion
+
     /// <summary>
     /// Builds the server capabilities based on what we support.
     /// Conservative in MVP - only advertise what's implemented and tested.
@@ -379,6 +413,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the diagnostics service.
     /// </summary>
     public DiagnosticsService DiagnosticsService => _diagnosticsService;
+
+    /// <summary>
+    /// Gets the completion service.
+    /// </summary>
+    public CompletionService CompletionService => _completionService;
 
     public async ValueTask DisposeAsync()
     {

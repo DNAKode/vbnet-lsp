@@ -1012,10 +1012,17 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 
 | Component | Tests |
 |-----------|-------|
-| JsonRpcTypes | 7 tests |
-| LspTypes | 8 tests |
-| DocumentManager | 6 tests |
-| **Total** | **21 tests passing** |
+| Protocol (JsonRpcTypes + LspTypes) | 15 tests |
+| Workspace (DocumentManager + WorkspaceManager) | 22 tests |
+| Services (DiagnosticsService) | 11 tests |
+| Integration (Diagnostics + Server) | 11 tests |
+| **Total** | **59 tests passing** |
+
+### Test Fixtures
+
+Located in `test/TestProjects/`:
+- **SmallProject/** - Valid VB.NET code for positive tests
+- **ErrorProject/** - Intentional errors for diagnostics tests
 
 ### Key Commits
 
@@ -1024,6 +1031,7 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 | fa87716 | Phase 1 scaffold (Protocol, Core, Host layers) |
 | 24c54d3 | Workspace Layer (WorkspaceManager, DocumentManager) |
 | 859efca | DiagnosticsService with debouncing |
+| 215b30f | Document reassociation fix, comprehensive test suite |
 
 ---
 
@@ -1034,6 +1042,7 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 | 2026-01-09 | 1.0 | Initial architecture document created during Phase 0 bootstrap |
 | 2026-01-10 | 1.1 | Updated transport decision (named pipes primary, stdio secondary); Fixed naming consistency (VbNet.LanguageServer); Added Decision Log appendix |
 | 2026-01-10 | 1.2 | Added Implementation Status appendix; Protocol, Core, Workspace, Host layers complete; DiagnosticsService implemented |
+| 2026-01-10 | 1.3 | Updated test coverage (59 tests); Added test fixtures documentation; Document reassociation fix |
 
 ---
 

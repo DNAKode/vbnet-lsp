@@ -208,4 +208,84 @@ public class DocumentManagerTests
         Assert.Contains(uri1, openDocs);
         Assert.Contains(uri2, openDocs);
     }
+
+    [Fact]
+    public void ReassociateDocumentsWithWorkspace_TriggersDocumentChanged()
+    {
+        var uri = "file:///c:/test/module1.vb";
+        var changedCount = 0;
+
+        _documentManager.DocumentChanged += (sender, args) =>
+        {
+            if (args.Uri == uri) changedCount++;
+        };
+
+        // Open a document (will have DocumentId = null since no workspace loaded)
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = uri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = "Module Module1\nEnd Module"
+            }
+        });
+
+        // First DocumentChanged event fired by HandleDidOpen
+        Assert.Equal(1, changedCount);
+
+        // Verify document is not associated (no workspace)
+        var doc = _documentManager.GetOpenDocument(uri);
+        Assert.NotNull(doc);
+        Assert.Null(doc.DocumentId);
+
+        // Call reassociate - since there's no workspace loaded, nothing should happen
+        _documentManager.ReassociateDocumentsWithWorkspace();
+
+        // No additional events since document couldn't be found in workspace
+        Assert.Equal(1, changedCount);
+    }
+
+    [Fact]
+    public void HandleDidOpen_DocumentIdIsNullWithoutWorkspace()
+    {
+        var uri = "file:///c:/test/module1.vb";
+
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = uri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = "Module Module1\nEnd Module"
+            }
+        });
+
+        var doc = _documentManager.GetOpenDocument(uri);
+        Assert.NotNull(doc);
+        Assert.Null(doc.DocumentId); // No workspace, so no DocumentId
+    }
+
+    [Fact]
+    public void GetRoslynDocument_ReturnsNullForStandaloneDocument()
+    {
+        var uri = "file:///c:/test/module1.vb";
+
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = uri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = "Module Module1\nEnd Module"
+            }
+        });
+
+        // Without a workspace, GetRoslynDocument should return null
+        var roslynDoc = _documentManager.GetRoslynDocument(uri);
+        Assert.Null(roslynDoc);
+    }
 }
