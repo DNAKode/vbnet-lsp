@@ -4,7 +4,10 @@ param(
     [string]$ServerPath = '_external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll',
     [string]$ProtocolPath = '_external\vscode-csharp\src\lsptoolshost\server\roslynProtocol.ts',
     [string]$SolutionPath = '_external\roslyn\Roslyn.sln',
-    [string]$LogDirectory = '_test\codex-tests\csharp-lsp\logs'
+    [string]$LogDirectory = '_test\codex-tests\csharp-lsp\logs',
+    [string]$FixtureSolutionPath = '_test\codex-tests\csharp-lsp\fixtures\basic\Basic.sln',
+    [string]$FixtureFilePath = '_test\codex-tests\csharp-lsp\fixtures\basic\Basic\Class1.cs',
+    [switch]$FeatureTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,9 +20,14 @@ function Invoke-CSharpDotnet {
         '--logDirectory', $LogDirectory,
         '--rootPath', '.',
         '--transport', $Transport,
-        '--solutionPath', $SolutionPath,
         '--protocolPath', $ProtocolPath
     )
+
+    if ($FeatureTests) {
+        $args += @('--solutionPath', $FixtureSolutionPath, '--testFile', $FixtureFilePath, '--featureTests')
+    } else {
+        $args += @('--solutionPath', $SolutionPath)
+    }
 
     dotnet run --project _test\codex-tests\csharp-lsp\CSharpLspSmokeTest\CSharpLspSmokeTest.csproj -- @args
 }

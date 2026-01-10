@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "dgSpecHash": "mN2Sn8kCrHI=",
+  "success": true,
+  "projectFilePath": "C:\\Work\\vbnet-lsp\\_test\\codex-tests\\csharp-lsp\\CSharpLspSmokeTest\\CSharpLspSmokeTest.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\messagepack\\2.5.187\\messagepack.2.5.187.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\messagepack.annotations\\2.5.187\\messagepack.annotations.2.5.187.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\microsoft.net.stringtools\\17.6.3\\microsoft.net.stringtools.17.6.3.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\microsoft.visualstudio.threading\\17.10.48\\microsoft.visualstudio.threading.17.10.48.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\microsoft.visualstudio.threading.analyzers\\17.10.48\\microsoft.visualstudio.threading.analyzers.17.10.48.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\microsoft.visualstudio.validation\\17.8.8\\microsoft.visualstudio.validation.17.8.8.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\nerdbank.streams\\2.11.74\\nerdbank.streams.2.11.74.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\newtonsoft.json\\13.0.1\\newtonsoft.json.13.0.1.nupkg.sha512",
+    "C:\\Users\\GovertvanDrimmelen\\.nuget\\packages\\streamjsonrpc\\2.21.10\\streamjsonrpc.2.21.10.nupkg.sha512"
+  ],
+  "logs": []
+}

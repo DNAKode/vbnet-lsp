@@ -8,6 +8,7 @@ language server can be started and driven via LSP without VS Code.
 - Launching `Microsoft.CodeAnalysis.LanguageServer` directly.
 - Connecting over stdio.
 - Basic LSP handshake (`initialize`, `initialized`, `shutdown`, `exit`).
+- Feature requests (completion, hover, definition, references, document symbols) when a test file is provided.
 
 ## Prerequisites
 
@@ -35,6 +36,30 @@ dotnet run --project _test\codex-tests\csharp-lsp\CSharpLspSmokeTest\CSharpLspSm
 Expected result:
 - The process exits with code 0.
 - A log directory is created with server logs.
+
+## Run via the top-level test script
+
+```powershell
+_test\codex-tests\run-tests.ps1 -Suite csharp-dotnet -Transport pipe -FeatureTests
+```
+
+## Run feature tests against the fixture solution
+
+The fixture is a small C# solution under `fixtures/basic` with a caret marker (`/*caret*/`) used as the test position.
+
+```powershell
+dotnet run --project _test\codex-tests\csharp-lsp\CSharpLspSmokeTest\CSharpLspSmokeTest.csproj `
+  --serverPath _external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll `
+  --logDirectory _test\codex-tests\csharp-lsp\logs `
+  --rootPath . `
+  --transport pipe `
+  --solutionPath _test\codex-tests\csharp-lsp\fixtures\basic\Basic.sln `
+  --protocolPath _external\vscode-csharp\src\lsptoolshost\server\roslynProtocol.ts `
+  --testFile _test\codex-tests\csharp-lsp\fixtures\basic\Basic\Class1.cs `
+  --featureTests
+```
+
+If the feature tests are slow, you can increase the feature timeout with `--featureTimeoutSeconds`.
 
 ## Run the Node named-pipe client
 

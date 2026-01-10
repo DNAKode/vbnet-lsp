@@ -167,6 +167,16 @@ External dependencies:
 - Emacs and lsp-mode for multi-editor tests (Phase 1 or Phase 2).
 - Roslyn repo (optional, for local baseline builds of Microsoft.CodeAnalysis.LanguageServer).
 
+Alternate client strategy (Phase 1-2 planning):
+- VS Code extension tests via `@vscode/test-electron` to run the C# (and later VB) extension in a controlled, automated instance of VS Code. This gives realistic extension activation, workspace trust, and editor integrations. Source: https://code.visualstudio.com/api/working-with-extensions/testing-extension
+- Proposed harness steps for VS Code:
+  1) Use `@vscode/test-electron` to download a pinned VS Code build in CI.
+  2) Launch with isolated directories (`--extensions-dir`, `--user-data-dir`, `--disable-extensions` except target).
+  3) Install the extension under test (local VSIX or dev path).
+  4) Open a fixture workspace, wait for activation, then use VS Code APIs to trigger hover/definition/completion and verify results.
+- Emacs batch tests with ERT + lsp-mode (headless) to validate basic LSP compliance and non-UI flows. Use a minimal Emacs config plus lsp-mode setup in CI, open a workspace, wait for diagnostics, then execute hover/definition/completion requests through `lsp-request`.
+- Keep the current LSP harness as the fast baseline (transport + protocol correctness) and treat VS Code/Emacs as integration tiers, not the primary gate.
+
 Data capture:
 - Standard test logs for LSP request/response.
 - Performance metrics capture (startup time, diagnostics latency, completion latency).
@@ -259,7 +269,8 @@ What is already implemented in `_test/codex-tests/csharp-lsp`:
 - A C# LSP smoke harness in C# (`CSharpLspSmokeTest`) that can start a locally built Roslyn LSP server and perform:
   - `initialize`, `initialized`, `shutdown`, `exit` over stdio or named pipes.
   - Optional `solution/open` notification using the method name parsed from the C# extension’s `roslynProtocol.ts` (source of truth).
-- A README with exact command lines for building Roslyn LSP and running the harness.
+- Feature-level LSP requests (completion, hover, definition, references, document symbols) against a small fixture solution using a caret marker to pick the test position.
+- A README with exact command lines for building Roslyn LSP, running the harness, and executing feature tests.
 - A Node client (`node-client.ts`) that connects to the named pipe and uses JSON-RPC over the extension’s transport. It completes the `initialize` + `shutdown` cycle and sends `solution/open` using the method name parsed from `roslynProtocol.ts`.
 - A top-level test runner script (`_test/codex-tests/run-tests.ps1`) to rerun the C# harnesses (node and dotnet) consistently.
 
@@ -267,21 +278,30 @@ Key paths and artifacts:
 - Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
 - C# extension protocol definitions: `_external/vscode-csharp/src/lsptoolshost/server/roslynProtocol.ts`
 - Smoke harness: `_test/codex-tests/csharp-lsp/CSharpLspSmokeTest/`
-- Node client (experimental): `_test/codex-tests/csharp-lsp/node-client.ts`
+- Node client: `_test/codex-tests/csharp-lsp/node-client.ts`
+- Fixture solution: `_test/codex-tests/csharp-lsp/fixtures/basic/`
 
 Validated behavior:
 - Named pipe connection works from the C# harness and completes LSP handshake.
 - `solution/open` notification uses the method name resolved from `roslynProtocol.ts` and is sent after initialization.
+- Feature tests against the fixture solution succeed (completion/hover/definition/references/document symbols), though the project initialization notification timed out during the run.
 
 Known issues / TODO for future agents:
 - The C# harness uses StreamJsonRpc and named pipes; no logs are produced under `_test/codex-tests/csharp-lsp/logs` yet (likely due to server logging behavior or paths). Consider passing a writable, absolute log directory and verifying server log output.
+- Project initialization completion did not arrive within the current timeout when using the fixture solution. Consider investigating the `workspace/projectInitializationComplete` notification timing or increasing the feature timeout.
 
 How to continue quickly:
 1) Build Roslyn LSP:  
    `dotnet build _external\roslyn\src\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\Microsoft.CodeAnalysis.LanguageServer.csproj -c Release`
 2) Run named-pipe smoke test with solution/open:  
    `dotnet run --project _test\codex-tests\csharp-lsp\CSharpLspSmokeTest\CSharpLspSmokeTest.csproj -- --serverPath _external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll --logDirectory _test\codex-tests\csharp-lsp\logs --rootPath . --transport pipe --solutionPath _external\roslyn\Roslyn.sln --protocolPath _external\vscode-csharp\src\lsptoolshost\server\roslynProtocol.ts`
+3) Run fixture feature tests:  
+   `dotnet run --project _test\codex-tests\csharp-lsp\CSharpLspSmokeTest\CSharpLspSmokeTest.csproj -- --serverPath _external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll --logDirectory _test\codex-tests\csharp-lsp\logs --rootPath . --transport pipe --solutionPath _test\codex-tests\csharp-lsp\fixtures\basic\Basic.sln --protocolPath _external\vscode-csharp\src\lsptoolshost\server\roslynProtocol.ts --testFile _test\codex-tests\csharp-lsp\fixtures\basic\Basic\Class1.cs --featureTests`
 
 Local-only items (do not commit):
 - `_external/roslyn` clone and build artifacts.
 - Any build outputs under `_test/codex-tests/csharp-lsp/CSharpLspSmokeTest/bin` and `obj`.
+
+Research notes:
+- VS Code extension testing guidance reviewed (testing-extension docs), for the planned alternate client harness using `@vscode/test-electron`.
+- Local experiment: `code --version` succeeds (VS Code 1.107.1 installed at `C:\Programs\Microsoft VS Code\bin\code.cmd`), so a VS Code CLI-based harness is feasible on this machine.

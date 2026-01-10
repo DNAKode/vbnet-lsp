@@ -15,6 +15,12 @@ internal sealed class Options
     public int TimeoutSeconds { get; set; } = 30;
     public string SolutionPath { get; set; } = string.Empty;
     public string RoslynProtocolPath { get; set; } = string.Empty;
+    public string TestFilePath { get; set; } = string.Empty;
+    public string TestMarker { get; set; } = "/*caret*/";
+    public int? TestLine { get; set; }
+    public int? TestCharacter { get; set; }
+    public bool FeatureTests { get; set; }
+    public int FeatureTimeoutSeconds { get; set; } = 60;
 }
 
 internal static class Program
@@ -41,7 +47,13 @@ internal static class Program
             return 3;
         }
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(options.TimeoutSeconds));
+        var totalTimeoutSeconds = options.TimeoutSeconds;
+        if (options.FeatureTests && !string.IsNullOrWhiteSpace(options.TestFilePath))
+        {
+            totalTimeoutSeconds += options.FeatureTimeoutSeconds;
+        }
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(totalTimeoutSeconds));
         var exitCode = await RunLspHandshakeAsync(process, options, cts.Token);
 
         try
@@ -144,6 +156,12 @@ internal static class Program
             formatter);
 
         using var rpc = new JsonRpc(handler);
+        var projectInitMethod = ResolveRoslynMethod(
+            options.RoslynProtocolPath,
+            "ProjectInitializationCompleteNotification",
+            "workspace/projectInitializationComplete");
+        var projectInitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        rpc.AddLocalRpcMethod(projectInitMethod, new Action<JsonElement>(_ => projectInitTcs.TrySetResult(true)));
         rpc.StartListening();
 
         var rootUri = string.IsNullOrWhiteSpace(options.RootPath)
@@ -165,16 +183,37 @@ internal static class Program
                 .WaitAsync(token);
             Console.WriteLine($"initialize: {initializeResult.ValueKind}");
 
+            Console.WriteLine("sending initialized...");
             await rpc.NotifyWithParameterObjectAsync("initialized", new { }).WaitAsync(token);
+            Console.WriteLine("initialized sent.");
 
             if (!string.IsNullOrWhiteSpace(options.SolutionPath))
             {
+                Console.WriteLine("sending solution/open...");
                 var solutionUri = new Uri(Path.GetFullPath(options.SolutionPath)).AbsoluteUri;
                 var method = ResolveRoslynMethod(
                     options.RoslynProtocolPath,
                     "OpenSolutionNotification",
                     "solution/open");
                 await rpc.NotifyWithParameterObjectAsync(method, new { solution = solutionUri }).WaitAsync(token);
+                Console.WriteLine("solution/open sent.");
+            }
+
+            if (options.FeatureTests && !string.IsNullOrWhiteSpace(options.TestFilePath))
+            {
+                Console.WriteLine("waiting for project initialization...");
+                var projectReady = await WaitForProjectInitializationAsync(projectInitTcs.Task, options.FeatureTimeoutSeconds);
+                Console.WriteLine(projectReady
+                    ? "Project initialization completed."
+                    : "Project initialization timed out; proceeding with feature tests.");
+
+                Console.WriteLine("running feature tests...");
+                using var featureCts = new CancellationTokenSource(TimeSpan.FromSeconds(options.FeatureTimeoutSeconds));
+                var featuresOk = await RunFeatureTestsAsync(rpc, options, featureCts.Token);
+                if (!featuresOk)
+                {
+                    return 6;
+                }
             }
 
             await rpc
@@ -290,10 +329,39 @@ internal static class Program
             {
                 options.RoslynProtocolPath = args[++i];
             }
+            else if (arg == "--testFile" && i + 1 < args.Length)
+            {
+                options.TestFilePath = args[++i];
+            }
+            else if (arg == "--testMarker" && i + 1 < args.Length)
+            {
+                options.TestMarker = args[++i];
+            }
+            else if (arg == "--testLine" && i + 1 < args.Length && int.TryParse(args[++i], out var line))
+            {
+                options.TestLine = line;
+            }
+            else if (arg == "--testChar" && i + 1 < args.Length && int.TryParse(args[++i], out var character))
+            {
+                options.TestCharacter = character;
+            }
+            else if (arg == "--featureTests")
+            {
+                options.FeatureTests = true;
+            }
             else if (arg == "--timeoutSeconds" && i + 1 < args.Length && int.TryParse(args[++i], out var timeout))
             {
                 options.TimeoutSeconds = timeout;
             }
+            else if (arg == "--featureTimeoutSeconds" && i + 1 < args.Length && int.TryParse(args[++i], out var featureTimeout))
+            {
+                options.FeatureTimeoutSeconds = featureTimeout;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.TestFilePath))
+        {
+            options.FeatureTests = true;
         }
 
         return options;
@@ -326,4 +394,167 @@ internal static class Program
 
         return fallback;
     }
+
+    private static async Task<bool> WaitForProjectInitializationAsync(Task<bool> projectInitTask, int timeoutSeconds)
+    {
+        var timeout = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+        var completed = await Task.WhenAny(projectInitTask, timeout);
+        return completed == projectInitTask;
+    }
+
+    private static async Task<bool> RunFeatureTestsAsync(JsonRpc rpc, Options options, CancellationToken token)
+    {
+        var doc = LoadTestDocument(options);
+        var position = new { line = doc.Position.Line, character = doc.Position.Character };
+        var textDocument = new { uri = doc.Uri };
+
+        await rpc.NotifyWithParameterObjectAsync("textDocument/didOpen", new
+        {
+            textDocument = new
+            {
+                uri = doc.Uri,
+                languageId = "csharp",
+                version = 1,
+                text = doc.Text
+            }
+        }).WaitAsync(token);
+
+        await Task.Delay(250, token);
+
+        var completion = await rpc
+            .InvokeWithParameterObjectAsync<JsonElement>("textDocument/completion", new { textDocument, position })
+            .WaitAsync(token);
+        var completionOk = TryFindCompletionItem(completion, "Add", out var completionCount);
+        Console.WriteLine($"completion: items={completionCount}, contains Add={completionOk}");
+
+        var hover = await rpc
+            .InvokeWithParameterObjectAsync<JsonElement>("textDocument/hover", new { textDocument, position })
+            .WaitAsync(token);
+        var hoverOk = hover.ValueKind != JsonValueKind.Null && hover.ValueKind != JsonValueKind.Undefined;
+        Console.WriteLine($"hover: {hover.ValueKind}");
+
+        var definition = await rpc
+            .InvokeWithParameterObjectAsync<JsonElement>("textDocument/definition", new { textDocument, position })
+            .WaitAsync(token);
+        var definitionOk = HasAnyResult(definition);
+        Console.WriteLine($"definition: {definition.ValueKind}");
+
+        var references = await rpc
+            .InvokeWithParameterObjectAsync<JsonElement>("textDocument/references", new
+            {
+                textDocument,
+                position,
+                context = new { includeDeclaration = true }
+            })
+            .WaitAsync(token);
+        var referencesOk = references.ValueKind == JsonValueKind.Array && references.GetArrayLength() > 0;
+        Console.WriteLine($"references: {references.ValueKind}");
+
+        var symbols = await rpc
+            .InvokeWithParameterObjectAsync<JsonElement>("textDocument/documentSymbol", new { textDocument })
+            .WaitAsync(token);
+        var symbolsOk = symbols.ValueKind == JsonValueKind.Array && symbols.GetArrayLength() > 0;
+        Console.WriteLine($"documentSymbol: {symbols.ValueKind}");
+
+        return completionOk && hoverOk && definitionOk && referencesOk && symbolsOk;
+    }
+
+    private static bool TryFindCompletionItem(JsonElement completion, string label, out int count)
+    {
+        count = 0;
+        if (completion.ValueKind == JsonValueKind.Array)
+        {
+            count = completion.GetArrayLength();
+            foreach (var item in completion.EnumerateArray())
+            {
+                if (item.TryGetProperty("label", out var labelElement) &&
+                    string.Equals(labelElement.GetString(), label, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (completion.ValueKind == JsonValueKind.Object &&
+            completion.TryGetProperty("items", out var itemsElement) &&
+            itemsElement.ValueKind == JsonValueKind.Array)
+        {
+            count = itemsElement.GetArrayLength();
+            foreach (var item in itemsElement.EnumerateArray())
+            {
+                if (item.TryGetProperty("label", out var labelElement) &&
+                    string.Equals(labelElement.GetString(), label, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private static bool HasAnyResult(JsonElement result)
+    {
+        if (result.ValueKind == JsonValueKind.Array)
+        {
+            return result.GetArrayLength() > 0;
+        }
+
+        return result.ValueKind == JsonValueKind.Object;
+    }
+
+    private static TestDocument LoadTestDocument(Options options)
+    {
+        if (!File.Exists(options.TestFilePath))
+        {
+            throw new FileNotFoundException("Test file not found.", options.TestFilePath);
+        }
+
+        var text = File.ReadAllText(options.TestFilePath);
+        var markerIndex = text.IndexOf(options.TestMarker, StringComparison.Ordinal);
+        if (markerIndex >= 0)
+        {
+            var position = GetPosition(text, markerIndex);
+            text = text.Remove(markerIndex, options.TestMarker.Length);
+            return new TestDocument(Path.GetFullPath(options.TestFilePath), text, position);
+        }
+
+        if (options.TestLine.HasValue && options.TestCharacter.HasValue)
+        {
+            return new TestDocument(
+                Path.GetFullPath(options.TestFilePath),
+                text,
+                new TextPosition(options.TestLine.Value, options.TestCharacter.Value));
+        }
+
+        throw new InvalidOperationException("No marker found and no --testLine/--testChar provided.");
+    }
+
+    private static TextPosition GetPosition(string text, int index)
+    {
+        var line = 0;
+        var lastNewline = -1;
+        for (var i = 0; i < index; i++)
+        {
+            if (text[i] == '\n')
+            {
+                line++;
+                lastNewline = i;
+            }
+        }
+
+        var character = index - lastNewline - 1;
+        return new TextPosition(line, character);
+    }
+
+    private readonly record struct TestDocument(string Path, string Text, TextPosition Position)
+    {
+        public string Uri => new Uri(Path).AbsoluteUri;
+    }
+
+    private readonly record struct TextPosition(int Line, int Character);
 }
