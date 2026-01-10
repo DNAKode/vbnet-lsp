@@ -27,6 +27,7 @@ public sealed class LanguageServer : IAsyncDisposable
     // Services layer components
     private readonly DiagnosticsService _diagnosticsService;
     private readonly CompletionService _completionService;
+    private readonly HoverService _hoverService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -64,6 +65,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _workspaceManager,
             _documentManager,
             loggerFactory.CreateLogger<CompletionService>());
+
+        _hoverService = new HoverService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<HoverService>());
 
         RegisterHandlers();
     }
@@ -108,6 +114,7 @@ public sealed class LanguageServer : IAsyncDisposable
         // Language features
         _dispatcher.RegisterRequest<CompletionParams, CompletionList>("textDocument/completion", HandleCompletionAsync);
         _dispatcher.RegisterRequest<CompletionItem, CompletionItem>("completionItem/resolve", HandleCompletionResolveAsync);
+        _dispatcher.RegisterRequest<HoverParams, Hover?>("textDocument/hover", HandleHoverAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -348,6 +355,16 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _completionService.ResolveCompletionItemAsync(item, ct);
     }
 
+    private async Task<Hover?> HandleHoverAsync(HoverParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return null;
+        }
+
+        return await _hoverService.GetHoverAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -418,6 +435,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the completion service.
     /// </summary>
     public CompletionService CompletionService => _completionService;
+
+    /// <summary>
+    /// Gets the hover service.
+    /// </summary>
+    public HoverService HoverService => _hoverService;
 
     public async ValueTask DisposeAsync()
     {
