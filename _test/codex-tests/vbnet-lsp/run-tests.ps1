@@ -5,12 +5,31 @@ param(
     [string]$Transport = 'pipe',
     [string]$LogLevel = 'Information',
     [string]$TestFilePath = '_test\codex-tests\vbnet-lsp\fixtures\basic\Basic.vb',
+    [string]$DiagnosticsRootPath = '_test\codex-tests\vbnet-lsp\fixtures\diagnostics',
+    [string]$DiagnosticsFilePath = '_test\codex-tests\vbnet-lsp\fixtures\diagnostics\DiagnosticsSample\Class1.vb',
+    [string]$DiagnosticsMode = 'openChange',
+    [int]$DebounceMs = 300,
+    [string]$ExpectedDiagnosticCode = 'BC30311',
+    [switch]$SendDidSave,
+    [string]$ProtocolLogPath = '_test\codex-tests\logs\protocol-anomalies.jsonl',
     [string]$SnapshotRoot = '_test\codex-tests\vbnet-lsp\snapshots',
     [switch]$SkipBuild,
-    [switch]$SkipSnapshot
+    [switch]$SkipSnapshot,
+    [switch]$Diagnostics
 )
 
 $ErrorActionPreference = 'Stop'
+if ([System.IO.Path]::IsPathRooted($ProtocolLogPath)) {
+    $protocolLogFullPath = $ProtocolLogPath
+} else {
+    $protocolLogFullPath = Join-Path (Resolve-Path '.').Path $ProtocolLogPath
+}
+New-Item -ItemType Directory -Path (Split-Path $protocolLogFullPath -Parent) -Force | Out-Null
+if (-not (Test-Path $protocolLogFullPath)) {
+    New-Item -ItemType File -Path $protocolLogFullPath -Force | Out-Null
+} else {
+    Clear-Content -Path $protocolLogFullPath
+}
 
 function Get-ServerOutputPath {
     param([string]$ProjectPath, [string]$Configuration)
@@ -42,7 +61,7 @@ function Snapshot-Server {
 }
 
 function Run-SmokeTest {
-    param([string]$ServerPath, [string]$RootPath, [string]$TestFile)
+    param([string]$ServerPath, [string]$RootPath, [string]$TestFile, [switch]$ExpectDiagnostics)
 
     $args = @(
         '--serverPath', $ServerPath,
@@ -50,8 +69,26 @@ function Run-SmokeTest {
         '--logLevel', $LogLevel,
         '--transport', $Transport,
         '--rootPath', $RootPath,
-        '--testFile', $TestFile
+        '--testFile', $TestFile,
+        '--protocolLog', $protocolLogFullPath
     )
+
+    if ($ExpectDiagnostics) {
+        $shouldSendDidSave = $SendDidSave -or ($DiagnosticsMode -in @('openSave','saveOnly'))
+        $args += @(
+            '--expectDiagnostics',
+            '--diagnosticsTimeoutSeconds', '60',
+            '--timeoutSeconds', '150',
+            '--workspaceLoadDelaySeconds', '5',
+            '--diagnosticsMode', $DiagnosticsMode,
+            '--debounceMs', $DebounceMs,
+            '--expectDiagnosticCode', $ExpectedDiagnosticCode
+        )
+
+        if ($shouldSendDidSave) {
+            $args += '--sendDidSave'
+        }
+    }
 
     & $DotnetPath run --project _test\codex-tests\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj -- @args
 }
@@ -72,5 +109,13 @@ if (-not $SkipSnapshot) {
     Write-Host "Snapshot saved to $snapshot"
 }
 
-$rootPath = Split-Path (Resolve-Path $TestFilePath)
-Run-SmokeTest -ServerPath $serverPath -RootPath $rootPath -TestFile $TestFilePath
+if ($Diagnostics) {
+    $rootPath = (Resolve-Path $DiagnosticsRootPath).Path
+    Run-SmokeTest -ServerPath $serverPath -RootPath $rootPath -TestFile $DiagnosticsFilePath -ExpectDiagnostics
+} else {
+    $rootPath = Split-Path (Resolve-Path $TestFilePath)
+    Run-SmokeTest -ServerPath $serverPath -RootPath $rootPath -TestFile $TestFilePath
+}
+
+$runLabel = if ($Diagnostics) { "VB.NET diagnostics Transport=$Transport" } else { "VB.NET smoke Transport=$Transport" }
+& _test\codex-tests\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -RunLabel $runLabel

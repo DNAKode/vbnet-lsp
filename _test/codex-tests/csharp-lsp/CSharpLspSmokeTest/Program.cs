@@ -21,6 +21,7 @@ internal sealed class Options
     public int? TestCharacter { get; set; }
     public bool FeatureTests { get; set; }
     public int FeatureTimeoutSeconds { get; set; } = 60;
+    public string ProtocolLogPath { get; set; } = string.Empty;
 }
 
 internal static class Program
@@ -41,9 +42,11 @@ internal static class Program
 
         Directory.CreateDirectory(options.LogDirectory);
 
+        var protocolLog = ProtocolLog.Create(options.ProtocolLogPath, "csharp-dotnet");
         var process = StartServer(options);
         if (process is null)
         {
+            protocolLog.Write("error", "Failed to start language server process.");
             return 3;
         }
 
@@ -54,7 +57,7 @@ internal static class Program
         }
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(totalTimeoutSeconds));
-        var exitCode = await RunLspHandshakeAsync(process, options, cts.Token);
+        var exitCode = await RunLspHandshakeAsync(process, options, protocolLog, cts.Token);
 
         try
         {
@@ -118,7 +121,7 @@ internal static class Program
         return process;
     }
 
-    private static async Task<int> RunLspHandshakeAsync(Process process, Options options, CancellationToken token)
+    private static async Task<int> RunLspHandshakeAsync(Process process, Options options, ProtocolLog protocolLog, CancellationToken token)
     {
         var formatter = new SystemTextJsonFormatter();
         formatter.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -133,13 +136,13 @@ internal static class Program
             using var pipeStream = ConnectToPipe(pipeName, token);
             inputStream = pipeStream;
             outputStream = pipeStream;
-            return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, token);
+            return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, protocolLog, token);
         }
         else
         {
             inputStream = process.StandardOutput.BaseStream;
             outputStream = process.StandardInput.BaseStream;
-            return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, token);
+            return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, protocolLog, token);
         }
     }
 
@@ -148,6 +151,7 @@ internal static class Program
         Stream outputStream,
         SystemTextJsonFormatter formatter,
         Options options,
+        ProtocolLog protocolLog,
         CancellationToken token)
     {
         var handler = new HeaderDelimitedMessageHandler(
@@ -182,6 +186,10 @@ internal static class Program
                 .InvokeWithParameterObjectAsync<JsonElement>("initialize", initParams)
                 .WaitAsync(token);
             Console.WriteLine($"initialize: {initializeResult.ValueKind}");
+            if (initializeResult.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            {
+                protocolLog.Write("error", "initialize returned null/undefined.");
+            }
 
             Console.WriteLine("sending initialized...");
             await rpc.NotifyWithParameterObjectAsync("initialized", new { }).WaitAsync(token);
@@ -206,12 +214,17 @@ internal static class Program
                 Console.WriteLine(projectReady
                     ? "Project initialization completed."
                     : "Project initialization timed out; proceeding with feature tests.");
+                if (!projectReady)
+                {
+                    protocolLog.Write("warn", "workspace/projectInitializationComplete did not arrive within timeout.");
+                }
 
                 Console.WriteLine("running feature tests...");
                 using var featureCts = new CancellationTokenSource(TimeSpan.FromSeconds(options.FeatureTimeoutSeconds));
                 var featuresOk = await RunFeatureTestsAsync(rpc, options, featureCts.Token);
                 if (!featuresOk)
                 {
+                    protocolLog.Write("error", "One or more feature tests failed.");
                     return 6;
                 }
             }
@@ -226,11 +239,13 @@ internal static class Program
         catch (OperationCanceledException)
         {
             Console.Error.WriteLine("Handshake timed out.");
+            protocolLog.Write("error", "Handshake timed out.");
             return 4;
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Handshake failed: {ex.Message}");
+            protocolLog.Write("error", $"Handshake failed: {ex.Message}");
             return 5;
         }
     }
@@ -356,6 +371,10 @@ internal static class Program
             else if (arg == "--featureTimeoutSeconds" && i + 1 < args.Length && int.TryParse(args[++i], out var featureTimeout))
             {
                 options.FeatureTimeoutSeconds = featureTimeout;
+            }
+            else if (arg == "--protocolLog" && i + 1 < args.Length)
+            {
+                options.ProtocolLogPath = args[++i];
             }
         }
 
@@ -557,4 +576,46 @@ internal static class Program
     }
 
     private readonly record struct TextPosition(int Line, int Character);
+
+    private sealed class ProtocolLog
+    {
+        private readonly string _path;
+        private readonly string _harness;
+
+        private ProtocolLog(string path, string harness)
+        {
+            _path = path;
+            _harness = harness;
+        }
+
+        public static ProtocolLog Create(string path, string harness)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return new ProtocolLog(string.Empty, harness);
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+            return new ProtocolLog(fullPath, harness);
+        }
+
+        public void Write(string severity, string message)
+        {
+            if (string.IsNullOrWhiteSpace(_path))
+            {
+                return;
+            }
+
+            var payload = new
+            {
+                timestamp = DateTimeOffset.Now.ToString("o"),
+                harness = _harness,
+                severity,
+                message
+            };
+
+            File.AppendAllText(_path, JsonSerializer.Serialize(payload) + Environment.NewLine);
+        }
+    }
 }

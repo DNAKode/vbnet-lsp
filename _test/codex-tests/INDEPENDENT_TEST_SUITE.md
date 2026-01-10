@@ -48,6 +48,8 @@ Targets:
 - Capability negotiation responses for enabled features.
 - Workspace loading flows for .sln and .vbproj.
 - Diagnostics push behavior under edits and saves.
+- Diagnostics mode configuration (`openChange`, `openSave`, `saveOnly`) and debounce timing.
+- Diagnostics debounce timing (expect publish after configured delay).
 - Custom protocol methods (if adopted) for solution/project loading.
 - Error handling paths: missing SDK, malformed requests, workspace reload.
 
@@ -64,6 +66,8 @@ Targets:
 - Incremental text synchronization, versioning and concurrency.
 - Core LSP features and their shape (completion, hover, definition, references, rename, symbols).
 - Document and workspace diagnostics timing and correctness.
+- Diagnostics mode matrix (default `openChange`, `openSave`, `saveOnly`) with explicit settings payloads.
+- PublishDiagnostics shape, severity mapping, and code description links (VB error codes).
 - Cancellation and timeout handling.
 - Windows-specific URI conversion correctness.
 
@@ -153,12 +157,14 @@ Required infrastructure:
 - LSP test harness (Node or .NET) capable of transport-agnostic communication.
 - Local Roslyn LSP smoke test harness (experimental) to validate starting a locally built LSP server without VS Code.
 - Protocol method source-of-truth loading (read roslynProtocol.ts) to exercise custom extension methods in tests.
+- Protocol anomaly logging (JSONL) and automatic inclusion in `INDEPENDENT_TEST_RESULTS.md` after each run.
 - Fixture projects and deterministic test data:
   - SmallProject and MediumProject in `test/TestProjects`.
   - DWSIM in `_test/dwsim` (cloned, not shipped).
   - Optional additional OSS VB.NET project(s) for feature correctness.
   - C# fixtures for harness validation (`fixtures/basic`, `fixtures/linq`, `fixtures/generics`).
   - VB.NET fixtures for smoke testing text sync (`vbnet-lsp/fixtures/basic`).
+  - VB.NET diagnostics fixture solution (`vbnet-lsp/fixtures/diagnostics`) with intentional compile errors.
 - Telemetry-free default operation; tests must disable any telemetry.
 - CI workflows for Windows, Linux, macOS.
 
@@ -289,6 +295,10 @@ What is already implemented in `_test/codex-tests/vbnet-lsp`:
 - VB.NET LSP smoke harness (`VbNetLspSmokeTest`) that performs initialize/initialized, text document lifecycle notifications, and shutdown/exit over named pipes or stdio.
 - A VB.NET test runner (`vbnet-lsp/run-tests.ps1`) that builds the server, snapshots binaries, and runs the smoke test.
 - A basic VB.NET fixture file used for didOpen/didChange/didSave/didClose coverage.
+- A diagnostics fixture solution with a VB compile error, used to validate `textDocument/publishDiagnostics`.
+- Diagnostics mode in the smoke harness that waits for `textDocument/publishDiagnostics` on the fixture file and retries didOpen/didChange once if none arrive.
+- Diagnostics settings injection (via `workspace/configuration` and `workspace/didChangeConfiguration`) plus expected diagnostic code checks in the smoke harness.
+- Diagnostics harness can optionally send `textDocument/didSave` for `openSave`/`saveOnly` mode validation.
 
 Key paths and artifacts:
 - Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
@@ -300,6 +310,7 @@ Key paths and artifacts:
 - VS Code harness scaffold: `_test/codex-tests/clients/vscode/`
 - VB.NET smoke harness: `_test/codex-tests/vbnet-lsp/VbNetLspSmokeTest/`
 - VB.NET fixtures: `_test/codex-tests/vbnet-lsp/fixtures/basic/`
+- VB.NET diagnostics fixture: `_test/codex-tests/vbnet-lsp/fixtures/diagnostics/`
 - VB.NET snapshots: `_test/codex-tests/vbnet-lsp/snapshots/`
 
 Validated behavior:
@@ -310,11 +321,13 @@ Validated behavior:
 - VB.NET smoke harness runs against the Phase 1 server scaffold, including text document lifecycle notifications; connection drop during shutdown is handled on the client side.
 - Emacs harness connects to Roslyn LSP over stdio and to the VB.NET server over stdio; Roslyn shutdown times out but is treated as non-fatal in the harness.
 - Full suite run (`run-tests.ps1 -Suite all`) completes: C# dotnet and node handshakes, VB.NET smoke (pipe), Emacs eglot checks.
+- VB.NET diagnostics smoke test currently does not receive any `textDocument/publishDiagnostics` for the diagnostic fixture (failure noted in results).
 
 Known issues / TODO for future agents:
 - The C# harness uses StreamJsonRpc and named pipes; no logs are produced under `_test/codex-tests/csharp-lsp/logs` yet (likely due to server logging behavior or paths). Consider passing a writable, absolute log directory and verifying server log output.
 - Project initialization completion did not arrive within the current timeout when using the fixture solution. Consider investigating the `workspace/projectInitializationComplete` notification timing or increasing the feature timeout.
 - VS Code extension install can fail with EPERM rename during `code --install-extension`. Clearing `clients/vscode/.vscode-test/extensions` and rerunning resolved the issue.
+- VB.NET diagnostics smoke test did not receive `textDocument/publishDiagnostics` after workspace load and didOpen/didChange (even after a retry). The harness now fails fast with a clear error; diagnostics publication likely needs investigation in the server.
 
 How to continue quickly:
 1) Build Roslyn LSP:  

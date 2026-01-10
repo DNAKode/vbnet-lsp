@@ -14,6 +14,7 @@ type Options = {
     serverPath: string;
     dotnetPath: string;
     logDirectory: string;
+    protocolLog?: string;
     rootPath?: string;
     solutionPath?: string;
     timeoutSeconds: number;
@@ -39,6 +40,8 @@ function parseArgs(argv: string[]): Options {
             options.dotnetPath = argv[++i];
         } else if (arg === "--logDirectory" && argv[i + 1]) {
             options.logDirectory = argv[++i];
+        } else if (arg === "--protocolLog" && argv[i + 1]) {
+            options.protocolLog = argv[++i];
         } else if (arg === "--rootPath" && argv[i + 1]) {
             options.rootPath = argv[++i];
         } else if (arg === "--solutionPath" && argv[i + 1]) {
@@ -61,6 +64,7 @@ function parseArgs(argv: string[]): Options {
 
 async function main() {
     const options = parseArgs(process.argv.slice(2));
+    const protocolLog = createProtocolLogger(options.protocolLog, "csharp-node");
 
     const serverArgs = [
         options.serverPath,
@@ -81,7 +85,11 @@ async function main() {
         process.stderr.write(`[server stderr] ${data}`);
     });
     server.on("exit", (code, signal) => {
-        process.stderr.write(`Server exited (code=${code}, signal=${signal ?? "none"}).\n`);
+        const message = `Server exited (code=${code}, signal=${signal ?? "none"}).`;
+        process.stderr.write(`${message}\n`);
+        if (code && code !== 0) {
+            protocolLog("error", message);
+        }
     });
 
     const pipeName = await readPipeName(server.stdout!);
@@ -101,6 +109,7 @@ async function main() {
     });
     socket.on("error", (err) => {
         process.stderr.write(`Socket error: ${err.message}\n`);
+        protocolLog("warn", `Socket error: ${err.message}`);
     });
 
     if (options.raw) {
@@ -153,15 +162,15 @@ async function main() {
         };
 
         process.stderr.write("Sending initialize...\n");
-        await withTimeout(connection.sendRequest("initialize", initParams), options.timeoutSeconds);
+        await withTimeout(sendRequest(protocolLog, connection, "initialize", initParams), options.timeoutSeconds);
         process.stderr.write("Initialize completed.\n");
 
-        await Promise.resolve(connection.sendNotification("initialized", {}));
+        await Promise.resolve(sendNotification(protocolLog, connection, "initialized", {}));
 
         if (options.solutionPath) {
             const solutionUri = toFileUri(options.solutionPath);
             await Promise.resolve(
-                connection.sendNotification(RoslynProtocol.OpenSolutionNotification.type.method, {
+                sendNotification(protocolLog, connection, RoslynProtocol.OpenSolutionNotification.type.method, {
                     solution: solutionUri,
                 })
             );
@@ -169,18 +178,20 @@ async function main() {
 
         try {
             process.stderr.write("Sending shutdown...\n");
-            await withTimeout(connection.sendRequest("shutdown", {}), options.timeoutSeconds);
+            await withTimeout(sendRequest(protocolLog, connection, "shutdown", {}), options.timeoutSeconds);
             process.stderr.write("Shutdown completed.\n");
 
             if (!socketClosed && !socket.destroyed && !socket.writableEnded) {
                 try {
-                    await Promise.resolve(connection.sendNotification("exit", {}));
+                    await Promise.resolve(sendNotification(protocolLog, connection, "exit", {}));
                 } catch (err) {
                     process.stderr.write(`Exit notification failed: ${err instanceof Error ? err.message : String(err)}\n`);
+                    protocolLog("warn", `Exit notification failed: ${err instanceof Error ? err.message : String(err)}`);
                 }
             }
         } catch (err) {
             process.stderr.write(`Shutdown failed: ${err instanceof Error ? err.message : String(err)}\n`);
+            protocolLog("error", `Shutdown failed: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
 
@@ -235,6 +246,7 @@ async function withTimeout<T>(promise: Thenable<T>, seconds: number): Promise<T>
 }
 
 async function runRawHandshake(socket: net.Socket, options: Options): Promise<void> {
+    const protocolLog = createProtocolLogger(options.protocolLog, "csharp-node");
     const rootUri = options.rootPath ? toFileUri(options.rootPath) : null;
     const initParams = {
         processId: process.pid,
@@ -243,18 +255,18 @@ async function runRawHandshake(socket: net.Socket, options: Options): Promise<vo
         clientInfo: { name: "CodexCSharpLspNodeClient", version: "0.1" },
     };
 
-    await sendRequestRaw(socket, 1, "initialize", initParams, options.timeoutSeconds);
-    sendNotificationRaw(socket, "initialized", {});
+    await sendRequestRaw(protocolLog, socket, 1, "initialize", initParams, options.timeoutSeconds);
+    sendNotificationRaw(protocolLog, socket, "initialized", {});
 
     if (options.solutionPath) {
         const solutionUri = toFileUri(options.solutionPath);
-        sendNotificationRaw(socket, RoslynProtocol.OpenSolutionNotification.type.method, {
+        sendNotificationRaw(protocolLog, socket, RoslynProtocol.OpenSolutionNotification.type.method, {
             solution: solutionUri,
         });
     }
 
-    await sendRequestRaw(socket, 2, "shutdown", {}, options.timeoutSeconds);
-    sendNotificationRaw(socket, "exit", {});
+    await sendRequestRaw(protocolLog, socket, 2, "shutdown", {}, options.timeoutSeconds);
+    sendNotificationRaw(protocolLog, socket, "exit", {});
 }
 
 async function waitForSocketClose(socket: net.Socket, timeoutSeconds: number): Promise<void> {
@@ -272,29 +284,42 @@ async function waitForSocketClose(socket: net.Socket, timeoutSeconds: number): P
     });
 }
 
-function sendNotificationRaw(socket: net.Socket, method: string, params: unknown) {
-    const payload = JSON.stringify({ jsonrpc: "2.0", method, params });
+function sendNotificationRaw(
+    protocolLog: (severity: string, message: string) => void,
+    socket: net.Socket,
+    method: string,
+    params: unknown
+) {
+    const safeParams = ensureParams(protocolLog, method, params);
+    const payload = JSON.stringify({ jsonrpc: "2.0", method, params: safeParams });
     const header = `Content-Length: ${Buffer.byteLength(payload, "utf8")}\r\n\r\n`;
     socket.write(Buffer.from(header, "utf8"));
     socket.write(Buffer.from(payload, "utf8"));
 }
 
 async function sendRequestRaw(
+    protocolLog: (severity: string, message: string) => void,
     socket: net.Socket,
     id: number,
     method: string,
     params: unknown,
     timeoutSeconds: number
 ): Promise<void> {
-    const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params });
+    const safeParams = ensureParams(protocolLog, method, params);
+    const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params: safeParams });
     const header = `Content-Length: ${Buffer.byteLength(payload, "utf8")}\r\n\r\n`;
     socket.write(Buffer.from(header, "utf8"));
     socket.write(Buffer.from(payload, "utf8"));
 
-    await waitForResponse(socket, id, timeoutSeconds);
+    await waitForResponse(protocolLog, socket, id, timeoutSeconds);
 }
 
-async function waitForResponse(socket: net.Socket, id: number, timeoutSeconds: number): Promise<void> {
+async function waitForResponse(
+    protocolLog: (severity: string, message: string) => void,
+    socket: net.Socket,
+    id: number,
+    timeoutSeconds: number
+): Promise<void> {
     let buffer = Buffer.alloc(0);
 
     return await new Promise<void>((resolve, reject) => {
@@ -329,6 +354,9 @@ async function waitForResponse(socket: net.Socket, id: number, timeoutSeconds: n
                 buffer = buffer.slice(bodyEnd);
 
                 const json = JSON.parse(body);
+                if (json.error) {
+                    protocolLog("error", `Response error for id=${id}: ${JSON.stringify(json.error)}`);
+                }
                 if (json.id === id) {
                     cleanup();
                     resolve();
@@ -364,3 +392,66 @@ main().catch((err) => {
     console.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
 });
+
+function ensureParams(
+    protocolLog: (severity: string, message: string) => void,
+    method: string,
+    params: unknown
+): Record<string, unknown> | unknown[] | string | number | boolean | null {
+    if (!method) {
+        protocolLog("error", "Attempted to send request/notification with empty method.");
+    }
+
+    if (params === undefined) {
+        protocolLog("warn", `Missing params for ${method}; sending empty object.`);
+        return {};
+    }
+
+    if (params === null) {
+        protocolLog("warn", `Null params for ${method}; sending empty object.`);
+        return {};
+    }
+
+    return params;
+}
+
+function createProtocolLogger(
+    logPath: string | undefined,
+    harness: string
+): (severity: string, message: string) => void {
+    if (!logPath) {
+        return () => undefined;
+    }
+
+    const fullPath = path.resolve(logPath);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    return (severity: string, message: string) => {
+        const payload = {
+            timestamp: new Date().toISOString(),
+            harness,
+            severity,
+            message,
+        };
+        fs.appendFileSync(fullPath, `${JSON.stringify(payload)}\n`);
+    };
+}
+
+function sendNotification(
+    protocolLog: (severity: string, message: string) => void,
+    connection: ReturnType<typeof createMessageConnection>,
+    method: string,
+    params: unknown
+): Thenable<void> {
+    const safeParams = ensureParams(protocolLog, method, params);
+    return connection.sendNotification(method, safeParams);
+}
+
+function sendRequest(
+    protocolLog: (severity: string, message: string) => void,
+    connection: ReturnType<typeof createMessageConnection>,
+    method: string,
+    params: unknown
+): Thenable<unknown> {
+    const safeParams = ensureParams(protocolLog, method, params);
+    return connection.sendRequest(method, safeParams);
+}
