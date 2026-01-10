@@ -30,6 +30,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly HoverService _hoverService;
     private readonly DefinitionService _definitionService;
     private readonly ReferencesService _referencesService;
+    private readonly RenameService _renameService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -83,6 +84,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<ReferencesService>());
 
+        _renameService = new RenameService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<RenameService>());
+
         RegisterHandlers();
     }
 
@@ -129,6 +135,8 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<HoverParams, Hover?>("textDocument/hover", HandleHoverAsync);
         _dispatcher.RegisterRequest<DefinitionParams, Location[]>("textDocument/definition", HandleDefinitionAsync);
         _dispatcher.RegisterRequest<ReferenceParams, Location[]>("textDocument/references", HandleReferencesAsync);
+        _dispatcher.RegisterRequest<PrepareRenameParams, PrepareRenameResult?>("textDocument/prepareRename", HandlePrepareRenameAsync);
+        _dispatcher.RegisterRequest<RenameParams, WorkspaceEdit?>("textDocument/rename", HandleRenameAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -399,6 +407,26 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _referencesService.GetReferencesAsync(@params, ct);
     }
 
+    private async Task<PrepareRenameResult?> HandlePrepareRenameAsync(PrepareRenameParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return null;
+        }
+
+        return await _renameService.PrepareRenameAsync(@params, ct);
+    }
+
+    private async Task<WorkspaceEdit?> HandleRenameAsync(RenameParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return null;
+        }
+
+        return await _renameService.RenameAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -484,6 +512,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the references service.
     /// </summary>
     public ReferencesService ReferencesService => _referencesService;
+
+    /// <summary>
+    /// Gets the rename service.
+    /// </summary>
+    public RenameService RenameService => _renameService;
 
     public async ValueTask DisposeAsync()
     {
