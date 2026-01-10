@@ -28,6 +28,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly DiagnosticsService _diagnosticsService;
     private readonly CompletionService _completionService;
     private readonly HoverService _hoverService;
+    private readonly DefinitionService _definitionService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -70,6 +71,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _workspaceManager,
             _documentManager,
             loggerFactory.CreateLogger<HoverService>());
+
+        _definitionService = new DefinitionService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<DefinitionService>());
 
         RegisterHandlers();
     }
@@ -115,6 +121,7 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<CompletionParams, CompletionList>("textDocument/completion", HandleCompletionAsync);
         _dispatcher.RegisterRequest<CompletionItem, CompletionItem>("completionItem/resolve", HandleCompletionResolveAsync);
         _dispatcher.RegisterRequest<HoverParams, Hover?>("textDocument/hover", HandleHoverAsync);
+        _dispatcher.RegisterRequest<DefinitionParams, Location[]>("textDocument/definition", HandleDefinitionAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -365,6 +372,16 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _hoverService.GetHoverAsync(@params, ct);
     }
 
+    private async Task<Location[]> HandleDefinitionAsync(DefinitionParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<Location>();
+        }
+
+        return await _definitionService.GetDefinitionAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -440,6 +457,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the hover service.
     /// </summary>
     public HoverService HoverService => _hoverService;
+
+    /// <summary>
+    /// Gets the definition service.
+    /// </summary>
+    public DefinitionService DefinitionService => _definitionService;
 
     public async ValueTask DisposeAsync()
     {
