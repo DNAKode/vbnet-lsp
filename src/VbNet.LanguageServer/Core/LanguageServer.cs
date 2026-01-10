@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.Logging;
 using VbNet.LanguageServer.Protocol;
+using VbNet.LanguageServer.Services;
 using VbNet.LanguageServer.Workspace;
 
 namespace VbNet.LanguageServer.Core;
@@ -22,6 +23,9 @@ public sealed class LanguageServer : IAsyncDisposable
     // Workspace layer components
     private readonly WorkspaceManager _workspaceManager;
     private readonly DocumentManager _documentManager;
+
+    // Services layer components
+    private readonly DiagnosticsService _diagnosticsService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -47,6 +51,13 @@ public sealed class LanguageServer : IAsyncDisposable
         // Initialize workspace layer
         _workspaceManager = new WorkspaceManager(loggerFactory.CreateLogger<WorkspaceManager>());
         _documentManager = new DocumentManager(_workspaceManager, loggerFactory.CreateLogger<DocumentManager>());
+
+        // Initialize services layer
+        _diagnosticsService = new DiagnosticsService(
+            _workspaceManager,
+            _documentManager,
+            PublishDiagnosticsAsync,
+            loggerFactory.CreateLogger<DiagnosticsService>());
 
         RegisterHandlers();
     }
@@ -356,10 +367,24 @@ public sealed class LanguageServer : IAsyncDisposable
         return _dispatcher.SendNotificationAsync(method, parameters, ct);
     }
 
+    /// <summary>
+    /// Helper method for publishing diagnostics (passed to DiagnosticsService).
+    /// </summary>
+    private Task PublishDiagnosticsAsync(string method, PublishDiagnosticsParams parameters, CancellationToken ct)
+    {
+        return _dispatcher.SendNotificationAsync(method, parameters, ct);
+    }
+
+    /// <summary>
+    /// Gets the diagnostics service.
+    /// </summary>
+    public DiagnosticsService DiagnosticsService => _diagnosticsService;
+
     public async ValueTask DisposeAsync()
     {
         _shutdownCts.Cancel();
         _shutdownCts.Dispose();
+        _diagnosticsService.Dispose();
         await _workspaceManager.DisposeAsync();
         await _transport.DisposeAsync();
     }
