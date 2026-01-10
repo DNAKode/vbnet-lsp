@@ -46,6 +46,7 @@ _test\codex-tests\run-tests.ps1 -Suite csharp-dotnet -Transport pipe -FeatureTes
 ## Run feature tests against the fixture solution
 
 The fixture is a small C# solution under `fixtures/basic` with a caret marker (`/*caret*/`) used as the test position.
+Additional fixtures are available under `fixtures/linq` and `fixtures/generics`.
 
 ```powershell
 dotnet run --project _test\codex-tests\csharp-lsp\CSharpLspSmokeTest\CSharpLspSmokeTest.csproj `

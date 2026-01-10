@@ -157,6 +157,7 @@ Required infrastructure:
   - SmallProject and MediumProject in `test/TestProjects`.
   - DWSIM in `_test/dwsim` (cloned, not shipped).
   - Optional additional OSS VB.NET project(s) for feature correctness.
+  - C# fixtures for harness validation (`fixtures/basic`, `fixtures/linq`, `fixtures/generics`).
 - Telemetry-free default operation; tests must disable any telemetry.
 - CI workflows for Windows, Linux, macOS.
 
@@ -176,6 +177,7 @@ Alternate client strategy (Phase 1-2 planning):
   4) Open a fixture workspace, wait for activation, then use VS Code APIs to trigger hover/definition/completion and verify results.
 - Emacs batch tests with ERT + lsp-mode (headless) to validate basic LSP compliance and non-UI flows. Use a minimal Emacs config plus lsp-mode setup in CI, open a workspace, wait for diagnostics, then execute hover/definition/completion requests through `lsp-request`.
 - Keep the current LSP harness as the fast baseline (transport + protocol correctness) and treat VS Code/Emacs as integration tiers, not the primary gate.
+- A minimal VS Code harness scaffold now exists under `_test/codex-tests/clients/vscode` to run smoke tests inside VS Code using `@vscode/test-electron`.
 
 Data capture:
 - Standard test logs for LSP request/response.
@@ -273,6 +275,7 @@ What is already implemented in `_test/codex-tests/csharp-lsp`:
 - A README with exact command lines for building Roslyn LSP, running the harness, and executing feature tests.
 - A Node client (`node-client.ts`) that connects to the named pipe and uses JSON-RPC over the extension’s transport. It completes the `initialize` + `shutdown` cycle and sends `solution/open` using the method name parsed from `roslynProtocol.ts`.
 - A top-level test runner script (`_test/codex-tests/run-tests.ps1`) to rerun the C# harnesses (node and dotnet) consistently.
+- Additional fixture solutions to broaden feature coverage: LINQ extension methods and generic interface invocation.
 
 Key paths and artifacts:
 - Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
@@ -280,15 +283,19 @@ Key paths and artifacts:
 - Smoke harness: `_test/codex-tests/csharp-lsp/CSharpLspSmokeTest/`
 - Node client: `_test/codex-tests/csharp-lsp/node-client.ts`
 - Fixture solution: `_test/codex-tests/csharp-lsp/fixtures/basic/`
+- Additional fixtures: `_test/codex-tests/csharp-lsp/fixtures/linq/`, `_test/codex-tests/csharp-lsp/fixtures/generics/`
+- VS Code harness scaffold: `_test/codex-tests/clients/vscode/`
 
 Validated behavior:
 - Named pipe connection works from the C# harness and completes LSP handshake.
 - `solution/open` notification uses the method name resolved from `roslynProtocol.ts` and is sent after initialization.
 - Feature tests against the fixture solution succeed (completion/hover/definition/references/document symbols), though the project initialization notification timed out during the run.
+- VS Code client harness runs successfully against the C# extension (`ms-dotnettools.csharp`) using a local VS Code installation, with hover/definition/completion/document symbols passing on the basic fixture.
 
 Known issues / TODO for future agents:
 - The C# harness uses StreamJsonRpc and named pipes; no logs are produced under `_test/codex-tests/csharp-lsp/logs` yet (likely due to server logging behavior or paths). Consider passing a writable, absolute log directory and verifying server log output.
 - Project initialization completion did not arrive within the current timeout when using the fixture solution. Consider investigating the `workspace/projectInitializationComplete` notification timing or increasing the feature timeout.
+- VS Code extension install can fail with EPERM rename during `code --install-extension`. Clearing `clients/vscode/.vscode-test/extensions` and rerunning resolved the issue.
 
 How to continue quickly:
 1) Build Roslyn LSP:  
@@ -305,3 +312,4 @@ Local-only items (do not commit):
 Research notes:
 - VS Code extension testing guidance reviewed (testing-extension docs), for the planned alternate client harness using `@vscode/test-electron`.
 - Local experiment: `code --version` succeeds (VS Code 1.107.1 installed at `C:\Programs\Microsoft VS Code\bin\code.cmd`), so a VS Code CLI-based harness is feasible on this machine.
+- Added a VS Code harness scaffold with `@vscode/test-electron` and a minimal test host extension; executed successfully against C# extension after installing into an isolated extensions directory.

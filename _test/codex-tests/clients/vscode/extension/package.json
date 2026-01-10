@@ -1,0 +1,15 @@
+{
+  "name": "codex-vscode-test-host",
+  "displayName": "Codex VS Code Test Host",
+  "version": "0.0.1",
+  "private": true,
+  "publisher": "codex",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {}
+}
