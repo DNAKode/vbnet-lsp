@@ -151,6 +151,8 @@ Protocol aspects:
 
 Required infrastructure:
 - LSP test harness (Node or .NET) capable of transport-agnostic communication.
+- Local Roslyn LSP smoke test harness (experimental) to validate starting a locally built LSP server without VS Code.
+- Protocol method source-of-truth loading (read roslynProtocol.ts) to exercise custom extension methods in tests.
 - Fixture projects and deterministic test data:
   - SmallProject and MediumProject in `test/TestProjects`.
   - DWSIM in `_test/dwsim` (cloned, not shipped).
@@ -163,6 +165,7 @@ External dependencies:
 - VS Code for extension tests.
 - netcoredbg binary for debugger tests (Phase 2).
 - Emacs and lsp-mode for multi-editor tests (Phase 1 or Phase 2).
+- Roslyn repo (optional, for local baseline builds of Microsoft.CodeAnalysis.LanguageServer).
 
 Data capture:
 - Standard test logs for LSP request/response.
@@ -173,6 +176,7 @@ Data capture:
 
 Phase 0 (Bootstrap):
 - Define LSP test harness scaffold.
+- Validate a minimal stdio-based LSP handshake against a locally built Roslyn language server.
 - Unit tests for text change application and LSP type conversions.
 - Component tests for initialize/shutdown and configuration parsing.
 
@@ -217,7 +221,7 @@ Regression gates:
 ## Risk areas and mitigations
 
 Risk: Transport mismatch (stdio vs named pipes).
-Mitigation: Make harness transport-agnostic; run transport tests based on configured server mode.
+Mitigation: Make harness transport-agnostic; run transport tests based on configured server mode. The current experimental harness validates stdio for Roslyn LSP; extend to named pipes when parity testing begins.
 
 Risk: URI handling on Windows.
 Mitigation: Include Windows-specific URI conversion tests in LSP integration suite.
@@ -248,3 +252,39 @@ This plan aligns with:
 ## Summary
 
 This test suite provides a comprehensive, phased path to high confidence: fast unit tests, robust LSP integration, VS Code extension validation, multi-editor protocol verification, and real-world performance checks. It is designed to be automated, incremental, and aligned with the project's architecture and stated goals.
+
+## Status (parking context for future runs)
+
+What is already implemented in `_test/codex-tests/csharp-lsp`:
+- A C# LSP smoke harness in C# (`CSharpLspSmokeTest`) that can start a locally built Roslyn LSP server and perform:
+  - `initialize`, `initialized`, `shutdown`, `exit` over stdio or named pipes.
+  - Optional `solution/open` notification using the method name parsed from the C# extension’s `roslynProtocol.ts` (source of truth).
+- A README with exact command lines for building Roslyn LSP and running the harness.
+- An experimental Node client (`node-client.ts`) that connects to the named pipe and attempts to use C# extension protocol definitions, but currently fails to complete JSON-RPC requests (write-after-end / timeout). It is retained for future debugging, not required for the working path.
+
+Key paths and artifacts:
+- Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
+- C# extension protocol definitions: `_external/vscode-csharp/src/lsptoolshost/server/roslynProtocol.ts`
+- Smoke harness: `_test/codex-tests/csharp-lsp/CSharpLspSmokeTest/`
+- Node client (experimental): `_test/codex-tests/csharp-lsp/node-client.ts`
+
+Validated behavior:
+- Named pipe connection works from the C# harness and completes LSP handshake.
+- `solution/open` notification uses the method name resolved from `roslynProtocol.ts` and is sent after initialization.
+
+Known issues / TODO for future agents:
+- Node client raw JSON-RPC and vscode-jsonrpc attempts currently fail (server closes or write-after-end). If you want Node-based testing, investigate:
+  - Whether Roslyn LSP expects a specific initialization capabilities shape.
+  - Whether the server closes the pipe if the first message isn’t parsed (e.g., due to framing, encoding, or message order).
+  - Whether a small delay between pipe connection and first write is required.
+- The C# harness uses StreamJsonRpc and named pipes; no logs are produced under `_test/codex-tests/csharp-lsp/logs` yet (likely due to server logging behavior or paths). Consider passing a writable, absolute log directory and verifying server log output.
+
+How to continue quickly:
+1) Build Roslyn LSP:  
+   `dotnet build _external\roslyn\src\LanguageServer\Microsoft.CodeAnalysis.LanguageServer\Microsoft.CodeAnalysis.LanguageServer.csproj -c Release`
+2) Run named-pipe smoke test with solution/open:  
+   `dotnet run --project _test\codex-tests\csharp-lsp\CSharpLspSmokeTest\CSharpLspSmokeTest.csproj -- --serverPath _external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll --logDirectory _test\codex-tests\csharp-lsp\logs --rootPath . --transport pipe --solutionPath _external\roslyn\Roslyn.sln --protocolPath _external\vscode-csharp\src\lsptoolshost\server\roslynProtocol.ts`
+
+Local-only items (do not commit):
+- `_external/roslyn` clone and build artifacts.
+- Any build outputs under `_test/codex-tests/csharp-lsp/CSharpLspSmokeTest/bin` and `obj`.
