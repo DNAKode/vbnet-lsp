@@ -7,6 +7,7 @@ param(
     [string]$WorkspaceRoot = '_test\dwsim',
     [string]$TestFilePath = '_test\dwsim\DWSIM\ApplicationEvents.vb',
     [string]$ProtocolLogPath = '_test\codex-tests\logs\protocol-anomalies.jsonl',
+    [string]$TimingLogPath = '_test\codex-tests\logs\timing.jsonl',
     [switch]$SkipBuild
 )
 
@@ -22,6 +23,18 @@ if (-not (Test-Path $protocolLogFullPath)) {
     New-Item -ItemType File -Path $protocolLogFullPath -Force | Out-Null
 } else {
     Clear-Content -Path $protocolLogFullPath
+}
+
+if ([System.IO.Path]::IsPathRooted($TimingLogPath)) {
+    $timingLogFullPath = $TimingLogPath
+} else {
+    $timingLogFullPath = Join-Path (Resolve-Path '.').Path $TimingLogPath
+}
+New-Item -ItemType Directory -Path (Split-Path $timingLogFullPath -Parent) -Force | Out-Null
+if (-not (Test-Path $timingLogFullPath)) {
+    New-Item -ItemType File -Path $timingLogFullPath -Force | Out-Null
+} else {
+    Clear-Content -Path $timingLogFullPath
 }
 
 function Get-ServerOutputPath {
@@ -60,7 +73,9 @@ $smokeArgs = @(
     '--transport', $Transport,
     '--rootPath', $rootPath,
     '--testFile', $testFile,
-    '--protocolLog', $protocolLogFullPath
+    '--protocolLog', $protocolLogFullPath,
+    '--timingLog', $timingLogFullPath,
+    '--timingLabel', 'DWSIM'
 )
 
 Write-Host "Running DWSIM smoke against: $rootPath"
@@ -73,4 +88,4 @@ $duration = Measure-Command {
 Write-Host ("DWSIM smoke duration: {0:n2}s" -f $duration.TotalSeconds)
 
 $runLabel = "DWSIM smoke Transport=$Transport"
-& _test\codex-tests\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -RunLabel $runLabel
+& _test\codex-tests\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel

@@ -15,3 +15,5 @@ _test\codex-tests\dwsim\run-tests.ps1
 - Uses `_test/dwsim` as the workspace root and `DWSIM/ApplicationEvents.vb` as the
   initial test file.
 - Intended to evolve into performance and functional testing at scale.
+- Captures timing events (server start, solution load, didOpen) into
+  `_test/codex-tests/logs/timing.jsonl` and summarizes them in the test results.

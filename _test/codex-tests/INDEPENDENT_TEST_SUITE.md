@@ -128,6 +128,7 @@ Approach:
 - Add timing capture in the DWSIM harness and record results in `INDEPENDENT_TEST_RESULTS.md`.
 - Extend to diagnostics once publishDiagnostics is working in smaller fixtures.
 - Track external restore requirements (NuGet packages) and record missing-package diagnostics as part of readiness gates.
+- Capture timing milestones (server start, solution load, first didOpen) in the DWSIM harness and record them in `INDEPENDENT_TEST_RESULTS.md`.
 
 Scaffolding:
 - `_test/codex-tests/dwsim/run-tests.ps1` invokes the VB.NET LSP smoke harness with a DWSIM root.

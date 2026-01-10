@@ -12,6 +12,7 @@ param(
     [string]$ExpectedDiagnosticCode = 'BC30311',
     [switch]$SendDidSave,
     [string]$ProtocolLogPath = '_test\codex-tests\logs\protocol-anomalies.jsonl',
+    [string]$TimingLogPath = '_test\codex-tests\logs\timing.jsonl',
     [string]$SnapshotRoot = '_test\codex-tests\vbnet-lsp\snapshots',
     [switch]$SkipBuild,
     [switch]$SkipSnapshot,
@@ -29,6 +30,18 @@ if (-not (Test-Path $protocolLogFullPath)) {
     New-Item -ItemType File -Path $protocolLogFullPath -Force | Out-Null
 } else {
     Clear-Content -Path $protocolLogFullPath
+}
+
+if ([System.IO.Path]::IsPathRooted($TimingLogPath)) {
+    $timingLogFullPath = $TimingLogPath
+} else {
+    $timingLogFullPath = Join-Path (Resolve-Path '.').Path $TimingLogPath
+}
+New-Item -ItemType Directory -Path (Split-Path $timingLogFullPath -Parent) -Force | Out-Null
+if (-not (Test-Path $timingLogFullPath)) {
+    New-Item -ItemType File -Path $timingLogFullPath -Force | Out-Null
+} else {
+    Clear-Content -Path $timingLogFullPath
 }
 
 function Get-ServerOutputPath {
@@ -70,7 +83,8 @@ function Run-SmokeTest {
         '--transport', $Transport,
         '--rootPath', $RootPath,
         '--testFile', $TestFile,
-        '--protocolLog', $protocolLogFullPath
+        '--protocolLog', $protocolLogFullPath,
+        '--timingLog', $timingLogFullPath
     )
 
     if ($ExpectDiagnostics) {
@@ -118,4 +132,4 @@ if ($Diagnostics) {
 }
 
 $runLabel = if ($Diagnostics) { "VB.NET diagnostics Transport=$Transport" } else { "VB.NET smoke Transport=$Transport" }
-& _test\codex-tests\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -RunLabel $runLabel
+& _test\codex-tests\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel

@@ -37,6 +37,7 @@ This document captures the current status of independent testing for the VB.NET 
 - Identified DWSIM solution entry points (`_test/dwsim/DWSIM.sln` plus plugin solutions) and added DWSIM smoke scaffolding.
 - Verified headless VS Code can open the DWSIM workspace via the VS Code harness (workspace open test passes).
 - Ran the DWSIM smoke harness against `_test/dwsim`; workspace load completed with missing NuGet package warnings and unsupported C# project diagnostics.
+- Added timing capture for DWSIM (server start, initialize response, solution loading/loaded, didOpen) and recorded the latest timings below.
 
 ## Open items / next steps
 
@@ -97,3 +98,11 @@ This document captures the current status of independent testing for the VB.NET 
 Run: DWSIM smoke Transport=pipe
 
 None detected.
+## Timing summary (latest run)
+Run: DWSIM smoke Transport=pipe
+
+- [DWSIM] server_starting (255.03 ms)
+- [DWSIM] initialize_response (453.98 ms)
+- [DWSIM] solution_loading (780.79 ms)
+- [DWSIM] solution_loaded (6917.42 ms)
+- [DWSIM] didOpen_sent (6919.78 ms)

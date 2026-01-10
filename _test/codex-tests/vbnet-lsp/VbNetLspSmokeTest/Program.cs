@@ -21,6 +21,8 @@ internal sealed class Options
     public string ExpectedDiagnosticCode { get; set; } = string.Empty;
     public bool SendDidSave { get; set; }
     public string ProtocolLogPath { get; set; } = string.Empty;
+    public string TimingLogPath { get; set; } = string.Empty;
+    public string TimingLabel { get; set; } = string.Empty;
 }
 
 internal static class Program
@@ -35,7 +37,9 @@ internal static class Program
         }
 
         var protocolLog = ProtocolLog.Create(options.ProtocolLogPath, "vbnet-smoke");
-        var process = StartServer(options);
+        var timingLog = TimingLog.Create(options.TimingLogPath, options.TimingLabel);
+        var stopwatch = Stopwatch.StartNew();
+        var process = StartServer(options, timingLog, stopwatch);
         if (process is null)
         {
             protocolLog.Write("error", "Failed to start VB.NET language server.");
@@ -43,7 +47,7 @@ internal static class Program
         }
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(options.TimeoutSeconds));
-        var exitCode = await RunLspHandshakeAsync(process, options, protocolLog, cts.Token);
+        var exitCode = await RunLspHandshakeAsync(process, options, protocolLog, timingLog, stopwatch, cts.Token);
 
         try
         {
@@ -60,7 +64,7 @@ internal static class Program
         return exitCode;
     }
 
-    private static Process? StartServer(Options options)
+    private static Process? StartServer(Options options, TimingLog timingLog, Stopwatch stopwatch)
     {
         var args = new List<string>
         {
@@ -96,6 +100,7 @@ internal static class Program
             if (!string.IsNullOrWhiteSpace(e.Data))
             {
                 Console.Error.WriteLine($"[server stderr] {e.Data}");
+                timingLog.TryMarkFromServerLine(e.Data, stopwatch);
             }
         };
 
@@ -109,7 +114,13 @@ internal static class Program
         return process;
     }
 
-    private static async Task<int> RunLspHandshakeAsync(Process process, Options options, ProtocolLog protocolLog, CancellationToken token)
+    private static async Task<int> RunLspHandshakeAsync(
+        Process process,
+        Options options,
+        ProtocolLog protocolLog,
+        TimingLog timingLog,
+        Stopwatch stopwatch,
+        CancellationToken token)
     {
         var formatter = new SystemTextJsonFormatter();
         formatter.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -124,12 +135,12 @@ internal static class Program
             using var pipeStream = ConnectToPipe(pipeName);
             inputStream = pipeStream;
             outputStream = pipeStream;
-            return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, protocolLog, token);
+            return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, protocolLog, timingLog, stopwatch, token);
         }
 
         inputStream = process.StandardOutput.BaseStream;
         outputStream = process.StandardInput.BaseStream;
-        return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, protocolLog, token);
+        return await RunRpcOverStreamAsync(inputStream, outputStream, formatter, options, protocolLog, timingLog, stopwatch, token);
     }
 
     private static async Task<int> RunRpcOverStreamAsync(
@@ -138,6 +149,8 @@ internal static class Program
         SystemTextJsonFormatter formatter,
         Options options,
         ProtocolLog protocolLog,
+        TimingLog timingLog,
+        Stopwatch stopwatch,
         CancellationToken token)
     {
         var handler = new HeaderDelimitedMessageHandler(
@@ -231,6 +244,7 @@ internal static class Program
             {
                 protocolLog.Write("error", "initialize returned null/undefined.");
             }
+            timingLog.Mark("initialize_response", stopwatch);
 
             await rpc.NotifyWithParameterObjectAsync("initialized", new { }).WaitAsync(token);
             if (settingsPayload != null)
@@ -243,7 +257,7 @@ internal static class Program
 
             if (!string.IsNullOrWhiteSpace(options.TestFilePath))
             {
-                var diagnosticsReceived = await RunDocumentWorkflowAsync(rpc, options, diagnosticsWaiter, token);
+                var diagnosticsReceived = await RunDocumentWorkflowAsync(rpc, options, diagnosticsWaiter, timingLog, stopwatch, token);
                 if (options.ExpectDiagnostics && !diagnosticsReceived)
                 {
                     Console.Error.WriteLine("Expected diagnostics but none were received.");
@@ -294,6 +308,8 @@ internal static class Program
         JsonRpc rpc,
         Options options,
         DiagnosticsWaiter? diagnosticsWaiter,
+        TimingLog timingLog,
+        Stopwatch stopwatch,
         CancellationToken token)
     {
         var fullPath = Path.GetFullPath(options.TestFilePath);
@@ -322,6 +338,7 @@ internal static class Program
                 text
             }
         }).WaitAsync(token);
+        timingLog.Mark("didOpen_sent", stopwatch);
 
         var updatedText = text + Environment.NewLine;
         Console.WriteLine("Sending didChange...");
@@ -518,17 +535,25 @@ internal static class Program
             }
             else if (arg == "--expectDiagnosticCode" && i + 1 < args.Length)
             {
-                options.ExpectedDiagnosticCode = args[++i];
-            }
-            else if (arg == "--sendDidSave")
-            {
-                options.SendDidSave = true;
-            }
-            else if (arg == "--protocolLog" && i + 1 < args.Length)
-            {
-                options.ProtocolLogPath = args[++i];
-            }
+            options.ExpectedDiagnosticCode = args[++i];
         }
+        else if (arg == "--sendDidSave")
+        {
+            options.SendDidSave = true;
+        }
+        else if (arg == "--protocolLog" && i + 1 < args.Length)
+        {
+            options.ProtocolLogPath = args[++i];
+        }
+        else if (arg == "--timingLog" && i + 1 < args.Length)
+        {
+            options.TimingLogPath = args[++i];
+        }
+        else if (arg == "--timingLabel" && i + 1 < args.Length)
+        {
+            options.TimingLabel = args[++i];
+        }
+    }
 
         return options;
     }
@@ -669,6 +694,75 @@ internal static class Program
             };
 
             File.AppendAllText(_path, JsonSerializer.Serialize(payload) + Environment.NewLine);
+        }
+    }
+
+    private sealed class TimingLog
+    {
+        private readonly string _path;
+        private readonly string _label;
+        private readonly HashSet<string> _marks = new(StringComparer.OrdinalIgnoreCase);
+
+        private TimingLog(string path, string label)
+        {
+            _path = path;
+            _label = label;
+        }
+
+        public static TimingLog Create(string path, string label)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return new TimingLog(string.Empty, label);
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+            return new TimingLog(fullPath, label);
+        }
+
+        public void Mark(string name, Stopwatch stopwatch)
+        {
+            if (string.IsNullOrWhiteSpace(_path))
+            {
+                return;
+            }
+
+            if (!_marks.Add(name))
+            {
+                return;
+            }
+
+            var payload = new
+            {
+                timestamp = DateTimeOffset.Now.ToString("o"),
+                label = _label,
+                name,
+                elapsedMs = stopwatch.Elapsed.TotalMilliseconds
+            };
+
+            File.AppendAllText(_path, JsonSerializer.Serialize(payload) + Environment.NewLine);
+        }
+
+        public void TryMarkFromServerLine(string line, Stopwatch stopwatch)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return;
+            }
+
+            if (line.Contains("VB.NET Language Server starting", StringComparison.OrdinalIgnoreCase))
+            {
+                Mark("server_starting", stopwatch);
+            }
+            else if (line.Contains("Loading solution", StringComparison.OrdinalIgnoreCase))
+            {
+                Mark("solution_loading", stopwatch);
+            }
+            else if (line.Contains("Solution loaded", StringComparison.OrdinalIgnoreCase))
+            {
+                Mark("solution_loaded", stopwatch);
+            }
         }
     }
 }
