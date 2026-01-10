@@ -5,8 +5,8 @@ import * as path from "path";
 import { TextDecoder } from "util";
 import {
     createMessageConnection,
-    StreamMessageReader,
-    StreamMessageWriter,
+    SocketMessageReader,
+    SocketMessageWriter,
 } from "vscode-jsonrpc/node";
 import * as RoslynProtocol from "../../../_external/vscode-csharp/src/lsptoolshost/server/roslynProtocol";
 
@@ -87,6 +87,7 @@ async function main() {
     const pipeName = await readPipeName(server.stdout!);
     process.stdout.write(`pipeName: ${pipeName}\n`);
     const socket = net.createConnection(pipeName);
+    socket.setNoDelay(true);
 
     await new Promise<void>((resolve, reject) => {
         socket.once("connect", () => resolve());
@@ -110,9 +111,26 @@ async function main() {
     }
 
     const connection = createMessageConnection(
-        new StreamMessageReader(socket),
-        new StreamMessageWriter(socket)
+        new SocketMessageReader(socket, "utf-8"),
+        new SocketMessageWriter(socket, "utf-8")
     );
+    connection.onNotification("window/logMessage", (params) => {
+        if (params?.message) {
+            process.stderr.write(`[server log] ${params.message}\n`);
+        }
+    });
+    connection.onNotification("window/showMessage", (params) => {
+        if (params?.message) {
+            process.stderr.write(`[server message] ${params.message}\n`);
+        }
+    });
+    connection.onRequest("workspace/configuration", (params) => {
+        const items = Array.isArray(params?.items) ? params.items : [];
+        return items.map(() => ({}));
+    });
+    connection.onRequest("client/registerCapability", () => null);
+    connection.onRequest("client/unregisterCapability", () => null);
+    connection.onRequest("window/workDoneProgress/create", () => null);
     connection.onClose(() => {
         process.stderr.write("LSP connection closed.\n");
     });
@@ -134,27 +152,44 @@ async function main() {
             clientInfo: { name: "CodexCSharpLspNodeClient", version: "0.1" },
         };
 
+        process.stderr.write("Sending initialize...\n");
         await withTimeout(connection.sendRequest("initialize", initParams), options.timeoutSeconds);
-        connection.sendNotification("initialized", {});
+        process.stderr.write("Initialize completed.\n");
+
+        await Promise.resolve(connection.sendNotification("initialized", {}));
 
         if (options.solutionPath) {
             const solutionUri = toFileUri(options.solutionPath);
-            connection.sendNotification(RoslynProtocol.OpenSolutionNotification.type.method, {
-                solution: solutionUri,
-            });
+            await Promise.resolve(
+                connection.sendNotification(RoslynProtocol.OpenSolutionNotification.type.method, {
+                    solution: solutionUri,
+                })
+            );
         }
 
         try {
+            process.stderr.write("Sending shutdown...\n");
             await withTimeout(connection.sendRequest("shutdown", {}), options.timeoutSeconds);
-            if (!socketClosed) {
-                connection.sendNotification("exit", {});
+            process.stderr.write("Shutdown completed.\n");
+
+            if (!socketClosed && !socket.destroyed && !socket.writableEnded) {
+                try {
+                    await Promise.resolve(connection.sendNotification("exit", {}));
+                } catch (err) {
+                    process.stderr.write(`Exit notification failed: ${err instanceof Error ? err.message : String(err)}\n`);
+                }
             }
         } catch (err) {
             process.stderr.write(`Shutdown failed: ${err instanceof Error ? err.message : String(err)}\n`);
         }
     }
 
-    socket.end();
+    if (!socketClosed) {
+        await waitForSocketClose(socket, Math.min(options.timeoutSeconds, 5));
+    }
+    if (!socket.destroyed) {
+        socket.end();
+    }
     server.kill();
 }
 
@@ -185,10 +220,18 @@ function toFileUri(filePath: string): string {
 }
 
 async function withTimeout<T>(promise: Thenable<T>, seconds: number): Promise<T> {
-    const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Operation timed out.")), seconds * 1000)
-    );
-    return await Promise.race([promise, timeout]);
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error("Operation timed out.")), seconds * 1000);
+    });
+
+    try {
+        return await Promise.race([promise, timeout]);
+    } finally {
+        if (timeoutHandle) {
+            clearTimeout(timeoutHandle);
+        }
+    }
 }
 
 async function runRawHandshake(socket: net.Socket, options: Options): Promise<void> {
@@ -212,6 +255,21 @@ async function runRawHandshake(socket: net.Socket, options: Options): Promise<vo
 
     await sendRequestRaw(socket, 2, "shutdown", {}, options.timeoutSeconds);
     sendNotificationRaw(socket, "exit", {});
+}
+
+async function waitForSocketClose(socket: net.Socket, timeoutSeconds: number): Promise<void> {
+    if (socket.destroyed) {
+        return;
+    }
+
+    await new Promise<void>((resolve) => {
+        const timeout = setTimeout(resolve, timeoutSeconds * 1000);
+        const onClose = () => {
+            clearTimeout(timeout);
+            resolve();
+        };
+        socket.once("close", onClose);
+    });
 }
 
 function sendNotificationRaw(socket: net.Socket, method: string, params: unknown) {
@@ -247,28 +305,35 @@ async function waitForResponse(socket: net.Socket, id: number, timeoutSeconds: n
 
         const onData = (chunk: Buffer) => {
             buffer = Buffer.concat([buffer, chunk]);
-            const headerEnd = buffer.indexOf("\r\n\r\n");
-            if (headerEnd === -1) {
-                return;
-            }
 
-            const header = buffer.slice(0, headerEnd).toString("utf8");
-            const match = header.match(/Content-Length: (\d+)/i);
-            if (!match) {
-                return;
-            }
+            while (true) {
+                const headerEnd = buffer.indexOf("\r\n\r\n");
+                if (headerEnd === -1) {
+                    return;
+                }
 
-            const length = Number(match[1]);
-            const bodyStart = headerEnd + 4;
-            if (buffer.length < bodyStart + length) {
-                return;
-            }
+                const header = buffer.slice(0, headerEnd).toString("utf8");
+                const match = header.match(/Content-Length: (\d+)/i);
+                if (!match) {
+                    return;
+                }
 
-            const body = buffer.slice(bodyStart, bodyStart + length).toString("utf8");
-            const json = JSON.parse(body);
-            if (json.id === id) {
-                cleanup();
-                resolve();
+                const length = Number(match[1]);
+                const bodyStart = headerEnd + 4;
+                const bodyEnd = bodyStart + length;
+                if (buffer.length < bodyEnd) {
+                    return;
+                }
+
+                const body = buffer.slice(bodyStart, bodyEnd).toString("utf8");
+                buffer = buffer.slice(bodyEnd);
+
+                const json = JSON.parse(body);
+                if (json.id === id) {
+                    cleanup();
+                    resolve();
+                    return;
+                }
             }
         };
 

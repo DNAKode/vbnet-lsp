@@ -342,6 +342,59 @@ Each finding should be logged with:
 - **Impact**: Should support similar CLI arguments
 - **Action**: Implement CLI arg parsing in our language server
 
+### Finding: C# Extension Test Infrastructure Validated
+
+- **Date**: 2026-01-10
+- **Source**: `_external/vscode-csharp/test/`, `_external/vscode-csharp/jest.config.ts`
+- **Finding**:
+  C# extension has comprehensive test infrastructure that we validated can run locally:
+
+  **Test Framework Stack**:
+  - Jest as test runner
+  - TypeScript tests compiled via ts-jest
+  - Gulp for task orchestration
+  - Multiple jest projects for isolation
+
+  **Test Categories**:
+  - Unit tests (`test/lsptoolshost/unitTests/`) - 7 suites, 147 tests
+  - Integration tests (`test/lsptoolshost/integrationTests/`) - LSP feature tests
+  - Artifact tests (`test/lsptoolshost/artifactTests/`) - Build validation
+  - OmniSharp tests (`test/omnisharp/`) - Legacy server tests
+  - Razor tests (`test/razor/`) - Razor language support
+  - Untrusted workspace tests (`test/untrustedWorkspace/`)
+
+  **Key Helper Patterns** (from `integrationHelpers.ts`):
+  - `activateCSharpExtension()` - Extension activation with server ready wait
+  - `openFileInWorkspaceAsync()` - Open test files in workspace
+  - `getCompletionsAsync()` - Trigger completion and get results
+  - `getCodeLensesAsync()` - Get code lens items
+  - `waitForExpectedResult()` - Polling helper for async operations
+
+  **Test Asset Structure**:
+  - Test projects under `test/*/testAssets/`
+  - `.code-workspace` files for VS Code test runner
+  - Pre-created C# files with specific patterns for testing
+
+  **Node.js 25 Requirement**:
+  - Must use `--localstorage-file` flag: `node --localstorage-file=./storage.json`
+  - Without this flag, Jest tests fail with `SecurityError: Cannot initialize local storage`
+
+  **Validated Command**:
+  ```bash
+  cd _external/vscode-csharp
+  npm install
+  npm run compileDev
+  node --localstorage-file=./node-localstorage.json ./node_modules/jest/bin/jest.js --config jest.config.ts --selectProjects "Unit Tests"
+  # Result: 7 passed, 147 tests
+  ```
+
+- **Impact**: We have a working reference test infrastructure to pattern our VB.NET tests after
+- **Action**:
+  - Mirror test structure for VB.NET extension
+  - Use same Jest + ts-jest + gulp stack
+  - Create equivalent test helper functions
+  - Note Node.js 25 localstorage requirement in dev docs
+
 ### Finding: Cross-Platform Support Strategy
 - **Date**: 2026-01-09
 - **Source**:
@@ -385,6 +438,29 @@ Each finding should be logged with:
 - **Impact**: [How this affects our implementation]
 - **Action**: [What we need to do]
 ```
+
+---
+
+---
+
+## 5.1 Parallel Test Efforts
+
+### Codex Independent Test Suite
+
+A parallel test effort is underway in `_test/codex-tests/`. This is an independent validation effort that should not interfere with the main test pre-engineering work. Key components:
+
+- **Location**: `_test/codex-tests/`
+- **Documentation**: `_test/codex-tests/INDEPENDENT_TEST_SUITE.md`
+- **C# LSP Smoke Harness**: `_test/codex-tests/csharp-lsp/CSharpLspSmokeTest/`
+  - C# program that connects to Roslyn LSP via named pipes
+  - Performs initialize/shutdown handshake
+  - Tests solution/open notification
+- **Node Client (experimental)**: `_test/codex-tests/csharp-lsp/node-client.ts`
+  - Experimental, currently has issues with JSON-RPC framing
+
+**Status**: The C# harness validates named pipe connectivity to Roslyn LSP. This provides a reference implementation for our VB.NET language server's named pipe transport.
+
+**Coordination**: This effort validates testing approaches against the known-working C# extension. Findings should inform our VB.NET test infrastructure design but implementations remain separate.
 
 ---
 

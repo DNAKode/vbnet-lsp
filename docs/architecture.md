@@ -2,8 +2,8 @@
 
 **Single Source of Truth for Architectural Decisions**
 
-Version: 1.0
-Last Updated: 2026-01-09
+Version: 1.1
+Last Updated: 2026-01-10
 Status: Living Document
 
 ## Document Purpose
@@ -51,7 +51,7 @@ VB.NET Language Support consists of two primary components:
 │  │   - UI integration           │   │
 │  └────────────┬─────────────────┘   │
 └───────────────┼─────────────────────┘
-                │ stdio (JSON-RPC)
+                │ Named Pipes / stdio (JSON-RPC)
 ┌───────────────┼─────────────────────┐
 │               ▼                     │
 │   Language Server (C#/.NET)         │
@@ -91,7 +91,7 @@ VB.NET Language Support consists of two primary components:
 
 2. **Protocol Purity**
    - LSP-only communication (no custom extensions in MVP)
-   - stdio transport for maximum compatibility
+   - Named pipes (primary) and stdio (secondary) transport support
    - JSON-RPC 2.0 message framing
 
 3. **Performance First**
@@ -114,7 +114,7 @@ VB.NET Language Support consists of two primary components:
 
 - **No OmniSharp protocol extensions** (Phase 1)
 - **VB.NET only** (mixed-language deferred to Phase 4)
-- **stdio transport only** (no TCP, named pipes, or other transports)
+- **Named pipes primary, stdio secondary** (no TCP or other transports)
 - **.NET 10.0+ target framework** for language server
 - **UTF-16 position encoding** (Roslyn compatibility)
 
@@ -148,7 +148,9 @@ VB.NET Language Support consists of two primary components:
 
 ### 3.2 Language Server (C#/.NET)
 
-**Location**: `src/VbNet.DevKit.LanguageServer/`
+**Location**: `src/VbNet.LanguageServer/`
+
+**Canonical Name**: `VbNet.LanguageServer` (use consistently across all docs, build scripts, and code)
 
 **Target Framework**: .NET 10.0+
 
@@ -160,15 +162,28 @@ VB.NET Language Support consists of two primary components:
 
 ### 4.1 Transport Layer
 
-**Transport**: stdio (standard input/output)
+**Primary Transport**: Named Pipes (following C# extension pattern)
+- Server spawns and outputs pipe name as JSON to stdout: `{"pipeName":"..."}`
+- Client connects to named pipe using platform-appropriate API
+- Bidirectional communication over the pipe
+- Must work correctly on Windows, macOS, and Linux
+
+**Secondary Transport**: stdio (standard input/output)
 - **stdin**: JSON-RPC requests and notifications from client
 - **stdout**: JSON-RPC responses and notifications to client
 - **stderr**: Logging and diagnostic output only
 
+**Transport Abstraction**:
+- `ITransport` interface for transport-agnostic communication
+- `NamedPipeTransport` implementation (primary)
+- `StdioTransport` implementation (secondary)
+- Transport selection via CLI argument or configuration
+
 **Rationale**:
-- Maximum compatibility with LSP clients
-- Simple process lifecycle management
-- Verified against C# extension behavior
+- Named pipes match C# extension behavior for full parity
+- stdio provides maximum compatibility as fallback
+- Abstraction layer enables clean support for both
+- Named pipes historically problematic cross-platform - focused engineering required
 
 ### 4.2 Message Format
 
@@ -202,7 +217,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.1 Layer 1: Protocol Layer
 
-**Location**: `src/VbNet.DevKit.LanguageServer/Protocol/`
+**Location**: `src/VbNet.LanguageServer/Protocol/`
 
 **Responsibilities**:
 - JSON-RPC message framing and parsing
@@ -217,7 +232,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.2 Layer 2: Server Core
 
-**Location**: `src/VbNet.DevKit.LanguageServer/Core/`
+**Location**: `src/VbNet.LanguageServer/Core/`
 
 **Responsibilities**:
 - Lifecycle management (`initialize`, `initialized`, `shutdown`, `exit`)
@@ -233,7 +248,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.3 Layer 3: Workspace Layer
 
-**Location**: `src/VbNet.DevKit.LanguageServer/Workspace/`
+**Location**: `src/VbNet.LanguageServer/Workspace/`
 
 **Responsibilities**:
 - MSBuildWorkspace-based solution/project loading
@@ -253,7 +268,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.4 Layer 4: Language Services Layer
 
-**Location**: `src/VbNet.DevKit.LanguageServer/Services/`
+**Location**: `src/VbNet.LanguageServer/Services/`
 
 **Responsibilities**:
 - LSP feature implementations using Roslyn APIs
@@ -284,7 +299,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.5 Layer 5: Host / CLI
 
-**Location**: `src/VbNet.DevKit.LanguageServer/Program.cs`
+**Location**: `src/VbNet.LanguageServer/Program.cs`
 
 **Responsibilities**:
 - Process entry point
@@ -750,23 +765,33 @@ Use Roslyn's MSBuildWorkspace exclusively (no custom project loading).
 
 **Trade-off**: Requires .NET SDK installation (acceptable constraint).
 
-### 14.5 Decision: stdio Transport Only
+### 14.5 Decision: Named Pipes Primary, stdio Secondary
 
-**Date**: 2026-01-09
-**Status**: Accepted
+**Date**: 2026-01-10
+**Status**: Accepted (Updated)
 
 **Context**:
-LSP supports multiple transports (stdio, TCP, named pipes, etc.).
+LSP supports multiple transports (stdio, TCP, named pipes, etc.). The C# extension uses named pipes as its primary transport for performance reasons. Named pipe support has historically been a pain point across platforms.
 
 **Decision**:
-Support stdio only for MVP.
+Support both transports from Phase 1:
+- **Named pipes**: Primary transport, must work correctly on all platforms (Windows, macOS, Linux)
+- **stdio**: Secondary transport, simpler fallback option
 
 **Rationale**:
-- Maximum LSP client compatibility
-- Simplest process lifecycle
-- Matches C# extension default
-- No network security concerns
-- Can add other transports later if needed
+- **Parity with C# extension**: Named pipes are how the C# extension communicates
+- **Performance**: Named pipes offer better performance than stdio for large payloads
+- **Cross-platform correctness**: Engineering effort focused on getting named pipes right on all platforms from the start
+- **Fallback option**: stdio provides maximum compatibility when needed
+- **Abstraction layer**: Design transport abstraction to cleanly support both
+
+**Implementation**:
+- Transport abstraction interface in Protocol layer
+- Named pipe implementation following C# extension patterns (server outputs pipe name as JSON, client connects)
+- stdio implementation for compatibility
+- Smoke tests for both transports on all platforms
+
+**Verification**: Must match C# extension named pipe behavior exactly on Windows, macOS, and Linux
 
 ### 14.6 Decision: UTF-16 Position Encoding
 
@@ -950,11 +975,31 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 
 ---
 
-## Appendix B: Update History
+## Appendix B: Decision Log (Quick Reference)
+
+| ID | Date | Decision | Status |
+|----|------|----------|--------|
+| 14.1 | 2026-01-09 | Follow C# Extension Architecture | Accepted |
+| 14.2 | 2026-01-09 | Samsung netcoredbg for Debugging | Accepted |
+| 14.3 | 2026-01-09 | VB.NET Only (Phase 1-3) | Accepted |
+| 14.4 | 2026-01-09 | MSBuildWorkspace for Project Loading | Accepted |
+| 14.5 | 2026-01-10 | Named Pipes Primary, stdio Secondary | **Updated** |
+| 14.6 | 2026-01-09 | UTF-16 Position Encoding | Accepted |
+| 14.7 | 2026-01-09 | Incremental Text Sync | Accepted |
+| 14.8 | 2026-01-09 | Debounced Diagnostics | Accepted |
+| 14.9 | 2026-01-09 | No Telemetry in MVP | Accepted |
+| 14.10 | 2026-01-09 | Single Architecture Document | Accepted |
+| 14.11 | 2026-01-09 | Multi-Editor Testing (Emacs) | Accepted |
+| - | 2026-01-10 | Canonical naming: VbNet.LanguageServer | Accepted |
+
+---
+
+## Appendix C: Update History
 
 | Date | Version | Changes |
 |------|---------|---------|
 | 2026-01-09 | 1.0 | Initial architecture document created during Phase 0 bootstrap |
+| 2026-01-10 | 1.1 | Updated transport decision (named pipes primary, stdio secondary); Fixed naming consistency (VbNet.LanguageServer); Added Decision Log appendix |
 
 ---
 

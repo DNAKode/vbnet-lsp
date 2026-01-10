@@ -260,7 +260,8 @@ What is already implemented in `_test/codex-tests/csharp-lsp`:
   - `initialize`, `initialized`, `shutdown`, `exit` over stdio or named pipes.
   - Optional `solution/open` notification using the method name parsed from the C# extension’s `roslynProtocol.ts` (source of truth).
 - A README with exact command lines for building Roslyn LSP and running the harness.
-- An experimental Node client (`node-client.ts`) that connects to the named pipe and attempts to use C# extension protocol definitions, but currently fails to complete JSON-RPC requests (write-after-end / timeout). It is retained for future debugging, not required for the working path.
+- A Node client (`node-client.ts`) that connects to the named pipe and uses JSON-RPC over the extension’s transport. It completes the `initialize` + `shutdown` cycle and sends `solution/open` using the method name parsed from `roslynProtocol.ts`.
+- A top-level test runner script (`_test/codex-tests/run-tests.ps1`) to rerun the C# harnesses (node and dotnet) consistently.
 
 Key paths and artifacts:
 - Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
@@ -273,10 +274,6 @@ Validated behavior:
 - `solution/open` notification uses the method name resolved from `roslynProtocol.ts` and is sent after initialization.
 
 Known issues / TODO for future agents:
-- Node client raw JSON-RPC and vscode-jsonrpc attempts currently fail (server closes or write-after-end). If you want Node-based testing, investigate:
-  - Whether Roslyn LSP expects a specific initialization capabilities shape.
-  - Whether the server closes the pipe if the first message isn’t parsed (e.g., due to framing, encoding, or message order).
-  - Whether a small delay between pipe connection and first write is required.
 - The C# harness uses StreamJsonRpc and named pipes; no logs are produced under `_test/codex-tests/csharp-lsp/logs` yet (likely due to server logging behavior or paths). Consider passing a writable, absolute log directory and verifying server log output.
 
 How to continue quickly:

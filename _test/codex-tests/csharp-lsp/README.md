@@ -36,23 +36,22 @@ Expected result:
 - The process exits with code 0.
 - A log directory is created with server logs.
 
-## Run the Node named-pipe client (experimental)
+## Run the Node named-pipe client
 
 This uses the C# extension's `roslynProtocol.ts` definitions to send a `solution/open` notification.
-It currently runs in "raw" mode to avoid dependency on VS Code runtime.
+It uses JSON-RPC over the named pipe, matching the extension's transport.
 
 ```powershell
 $env:NODE_PATH = "C:\Work\vbnet-lsp\_external\vscode-csharp\node_modules"
 node -r "$env:NODE_PATH\ts-node\register" _test\codex-tests\csharp-lsp\node-client.ts `
   --serverPath _external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll `
   --logDirectory _test\codex-tests\csharp-lsp\logs `
-  --solutionPath _external\roslyn\Roslyn.sln `
-  --raw
+  --solutionPath _external\roslyn\Roslyn.sln
 ```
 
 ## Notes
 
 - The official C# extension uses named pipes; this smoke test uses `--stdio` for simplicity.
 - The C# smoke test reads `roslynProtocol.ts` to resolve the `solution/open` method name.
-- The Node client uses named pipes and the extension's protocol definitions for `solution/open`, but is still experimental.
+- The Node client uses named pipes and the extension's protocol definitions for `solution/open`.
 - You can expand this harness to open documents and request completion/hover for deeper coverage.
