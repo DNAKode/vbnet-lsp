@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.Logging;
 using VbNet.LanguageServer.Protocol;
+using VbNet.LanguageServer.Workspace;
 
 namespace VbNet.LanguageServer.Core;
 
@@ -15,7 +16,12 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly ITransport _transport;
     private readonly MessageDispatcher _dispatcher;
     private readonly ILogger<LanguageServer> _logger;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly CancellationTokenSource _shutdownCts = new();
+
+    // Workspace layer components
+    private readonly WorkspaceManager _workspaceManager;
+    private readonly DocumentManager _documentManager;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -34,11 +40,26 @@ public sealed class LanguageServer : IAsyncDisposable
     public LanguageServer(ITransport transport, ILoggerFactory loggerFactory)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = loggerFactory.CreateLogger<LanguageServer>();
         _dispatcher = new MessageDispatcher(transport, loggerFactory.CreateLogger<MessageDispatcher>());
 
+        // Initialize workspace layer
+        _workspaceManager = new WorkspaceManager(loggerFactory.CreateLogger<WorkspaceManager>());
+        _documentManager = new DocumentManager(_workspaceManager, loggerFactory.CreateLogger<DocumentManager>());
+
         RegisterHandlers();
     }
+
+    /// <summary>
+    /// Gets the workspace manager for project/solution operations.
+    /// </summary>
+    public WorkspaceManager WorkspaceManager => _workspaceManager;
+
+    /// <summary>
+    /// Gets the document manager for open document operations.
+    /// </summary>
+    public DocumentManager DocumentManager => _documentManager;
 
     /// <summary>
     /// Gets the current server state.
@@ -141,20 +162,86 @@ public sealed class LanguageServer : IAsyncDisposable
         return Task.FromResult(result);
     }
 
-    private Task HandleInitializedAsync(CancellationToken ct)
+    private async Task HandleInitializedAsync(CancellationToken ct)
     {
         if (_state != ServerState.Initializing)
         {
             _logger.LogWarning("Received initialized notification in unexpected state: {State}", _state);
-            return Task.CompletedTask;
+            return;
         }
 
         _state = ServerState.Running;
         _logger.LogInformation("Server initialized and running");
 
-        // TODO: Trigger workspace loading here (Phase 1)
+        // Initialize MSBuildWorkspace
+        _workspaceManager.Initialize();
 
-        return Task.CompletedTask;
+        // Try to load workspace from root URI
+        if (_initializeParams?.RootUri != null)
+        {
+            await LoadWorkspaceAsync(_initializeParams.RootUri, ct);
+        }
+        else if (_initializeParams?.WorkspaceFolders?.Length > 0)
+        {
+            await LoadWorkspaceAsync(_initializeParams.WorkspaceFolders[0].Uri, ct);
+        }
+        else
+        {
+            _logger.LogWarning("No workspace root provided, operating in single-file mode");
+        }
+    }
+
+    /// <summary>
+    /// Loads a workspace from the given root URI.
+    /// Searches for .sln files first, then .vbproj files.
+    /// </summary>
+    private async Task LoadWorkspaceAsync(string rootUri, CancellationToken ct)
+    {
+        try
+        {
+            var rootPath = new Uri(rootUri).LocalPath;
+
+            if (!Directory.Exists(rootPath))
+            {
+                _logger.LogWarning("Workspace root does not exist: {Path}", rootPath);
+                return;
+            }
+
+            // Search for solution files (per architecture: search for .sln, if multiple use nearest to root)
+            var slnFiles = Directory.GetFiles(rootPath, "*.sln", SearchOption.AllDirectories)
+                .OrderBy(f => f.Split(Path.DirectorySeparatorChar).Length)
+                .ToList();
+
+            if (slnFiles.Count > 0)
+            {
+                var solutionPath = slnFiles[0];
+                if (slnFiles.Count > 1)
+                {
+                    _logger.LogInformation("Multiple solutions found, using nearest to root: {Path}", solutionPath);
+                }
+                await _workspaceManager.LoadSolutionAsync(solutionPath, ct);
+                return;
+            }
+
+            // No solution, search for VB.NET projects
+            var vbprojFiles = Directory.GetFiles(rootPath, "*.vbproj", SearchOption.AllDirectories).ToList();
+
+            if (vbprojFiles.Count > 0)
+            {
+                _logger.LogInformation("No solution found, loading {Count} VB.NET project(s)", vbprojFiles.Count);
+                foreach (var projectPath in vbprojFiles)
+                {
+                    await _workspaceManager.LoadProjectAsync(projectPath, ct);
+                }
+                return;
+            }
+
+            _logger.LogInformation("No solution or VB.NET projects found in workspace");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load workspace from: {Uri}", rootUri);
+        }
     }
 
     private Task<object?> HandleShutdownAsync(object? @params, CancellationToken ct)
@@ -182,50 +269,37 @@ public sealed class LanguageServer : IAsyncDisposable
 
     #endregion
 
-    #region Text Document Handlers (Stubs for Phase 1)
+    #region Text Document Handlers
 
     private Task HandleDidOpenAsync(DidOpenTextDocumentParams? @params, CancellationToken ct)
     {
-        if (@params?.TextDocument == null) return Task.CompletedTask;
+        if (@params == null) return Task.CompletedTask;
 
-        _logger.LogDebug("Document opened: {Uri}", @params.TextDocument.Uri);
-
-        // TODO: Connect to DocumentManager (Phase 1)
-
+        _documentManager.HandleDidOpen(@params);
         return Task.CompletedTask;
     }
 
     private Task HandleDidCloseAsync(DidCloseTextDocumentParams? @params, CancellationToken ct)
     {
-        if (@params?.TextDocument == null) return Task.CompletedTask;
+        if (@params == null) return Task.CompletedTask;
 
-        _logger.LogDebug("Document closed: {Uri}", @params.TextDocument.Uri);
-
-        // TODO: Connect to DocumentManager (Phase 1)
-
+        _documentManager.HandleDidClose(@params);
         return Task.CompletedTask;
     }
 
     private Task HandleDidChangeAsync(DidChangeTextDocumentParams? @params, CancellationToken ct)
     {
-        if (@params?.TextDocument == null) return Task.CompletedTask;
+        if (@params == null) return Task.CompletedTask;
 
-        _logger.LogDebug("Document changed: {Uri} (version {Version})",
-            @params.TextDocument.Uri, @params.TextDocument.Version);
-
-        // TODO: Connect to DocumentManager (Phase 1)
-
+        _documentManager.HandleDidChange(@params);
         return Task.CompletedTask;
     }
 
     private Task HandleDidSaveAsync(DidSaveTextDocumentParams? @params, CancellationToken ct)
     {
-        if (@params?.TextDocument == null) return Task.CompletedTask;
+        if (@params == null) return Task.CompletedTask;
 
-        _logger.LogDebug("Document saved: {Uri}", @params.TextDocument.Uri);
-
-        // TODO: Trigger diagnostics update (Phase 1)
-
+        _documentManager.HandleDidSave(@params);
         return Task.CompletedTask;
     }
 
@@ -286,6 +360,7 @@ public sealed class LanguageServer : IAsyncDisposable
     {
         _shutdownCts.Cancel();
         _shutdownCts.Dispose();
+        await _workspaceManager.DisposeAsync();
         await _transport.DisposeAsync();
     }
 }
