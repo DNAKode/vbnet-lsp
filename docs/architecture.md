@@ -994,12 +994,46 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 
 ---
 
-## Appendix C: Update History
+## Appendix C: Implementation Status
+
+**Last Updated**: 2026-01-10
+
+### Layer Implementation Progress
+
+| Layer | Status | Components |
+|-------|--------|------------|
+| Protocol | ✅ Complete | ITransport, NamedPipeTransport, StdioTransport, JsonRpcTypes, LspTypes, MessageDispatcher |
+| Server Core | ✅ Complete | LanguageServer (lifecycle, routing, state management) |
+| Workspace | ✅ Complete | WorkspaceManager, DocumentManager |
+| Services | 🔄 In Progress | DiagnosticsService ✅ |
+| Host/CLI | ✅ Complete | Program.cs with argument parsing |
+
+### Test Coverage
+
+| Component | Tests |
+|-----------|-------|
+| JsonRpcTypes | 7 tests |
+| LspTypes | 8 tests |
+| DocumentManager | 6 tests |
+| **Total** | **21 tests passing** |
+
+### Key Commits
+
+| Commit | Description |
+|--------|-------------|
+| fa87716 | Phase 1 scaffold (Protocol, Core, Host layers) |
+| 24c54d3 | Workspace Layer (WorkspaceManager, DocumentManager) |
+| 859efca | DiagnosticsService with debouncing |
+
+---
+
+## Appendix D: Update History
 
 | Date | Version | Changes |
 |------|---------|---------|
 | 2026-01-09 | 1.0 | Initial architecture document created during Phase 0 bootstrap |
 | 2026-01-10 | 1.1 | Updated transport decision (named pipes primary, stdio secondary); Fixed naming consistency (VbNet.LanguageServer); Added Decision Log appendix |
+| 2026-01-10 | 1.2 | Added Implementation Status appendix; Protocol, Core, Workspace, Host layers complete; DiagnosticsService implemented |
 
 ---
 
