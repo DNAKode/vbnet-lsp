@@ -115,6 +115,24 @@ Harness:
 - Automated CLI to open solutions, trigger analysis, and collect metrics.
 - Repeatable performance runs for regression tracking.
 
+### DWSIM-specific plan (Phase 1-2)
+
+Objectives:
+- Validate VB.NET LSP workspace discovery on a large, multi-project solution.
+- Establish baseline timings (startup, solution load, first diagnostics).
+- Exercise text sync stability against real-world source files.
+
+Approach:
+- Use `_test/dwsim/DWSIM.sln` as primary workspace root.
+- Start with a single file open (e.g., `DWSIM/ApplicationEvents.vb`) and smoke LSP lifecycle.
+- Add timing capture in the DWSIM harness and record results in `INDEPENDENT_TEST_RESULTS.md`.
+- Extend to diagnostics once publishDiagnostics is working in smaller fixtures.
+- Track external restore requirements (NuGet packages) and record missing-package diagnostics as part of readiness gates.
+
+Scaffolding:
+- `_test/codex-tests/dwsim/run-tests.ps1` invokes the VB.NET LSP smoke harness with a DWSIM root.
+- Optional VS Code headless open check using the VS Code harness with `FIXTURE_WORKSPACE=_test/dwsim`.
+
 ## Feature coverage map
 
 Core LSP features (Phase 1):
@@ -312,6 +330,7 @@ Key paths and artifacts:
 - VB.NET fixtures: `_test/codex-tests/vbnet-lsp/fixtures/basic/`
 - VB.NET diagnostics fixture: `_test/codex-tests/vbnet-lsp/fixtures/diagnostics/`
 - VB.NET snapshots: `_test/codex-tests/vbnet-lsp/snapshots/`
+- DWSIM harness: `_test/codex-tests/dwsim/`
 
 Validated behavior:
 - Named pipe connection works from the C# harness and completes LSP handshake.

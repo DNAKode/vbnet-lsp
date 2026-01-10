@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('csharp-node','csharp-dotnet','vbnet-lsp','emacs','all')][string]$Suite = 'all',
+    [ValidateSet('csharp-node','csharp-dotnet','vbnet-lsp','emacs','dwsim','all')][string]$Suite = 'all',
     [ValidateSet('pipe','stdio')][string]$Transport = 'pipe',
     [string]$ServerPath = '_external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll',
     [string]$ProtocolPath = '_external\vscode-csharp\src\lsptoolshost\server\roslynProtocol.ts',
@@ -66,6 +66,7 @@ switch ($Suite) {
     'csharp-node' { Invoke-CSharpNode }
     'vbnet-lsp' { & _test\codex-tests\vbnet-lsp\run-tests.ps1 }
     'emacs' { & _test\codex-tests\clients\emacs\run-tests.ps1 }
+    'dwsim' { & _test\codex-tests\dwsim\run-tests.ps1 }
     'all' {
         Invoke-CSharpDotnet -Transport $Transport
         Invoke-CSharpNode

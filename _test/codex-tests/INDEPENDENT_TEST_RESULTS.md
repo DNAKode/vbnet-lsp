@@ -14,6 +14,7 @@ This document captures the current status of independent testing for the VB.NET 
 - VS Code client harness: installed and validated against the C# extension (baseline), ready to be pointed at the VB.NET extension once available.
 - Emacs client harness: connected to Roslyn LSP and VB.NET server over stdio; Roslyn shutdown timed out but the session connected successfully.
 - Protocol anomaly log: now emitted to `_test/codex-tests/logs/protocol-anomalies.jsonl` and auto-summarized after each run.
+- DWSIM harness: scaffolded under `_test/codex-tests/dwsim` for large-solution smoke and timing.
 
 ## Latest actions
 
@@ -33,6 +34,9 @@ This document captures the current status of independent testing for the VB.NET 
 - Added protocol anomaly logging in both C# harnesses and the VB.NET harness, with automatic summary insertion after test runs.
 - Ran C# dotnet harness after crash-proofing updates; completed without protocol anomalies.
 - Ran VB.NET diagnostics in `openSave` and `saveOnly` modes (with didSave); still no diagnostics were received.
+- Identified DWSIM solution entry points (`_test/dwsim/DWSIM.sln` plus plugin solutions) and added DWSIM smoke scaffolding.
+- Verified headless VS Code can open the DWSIM workspace via the VS Code harness (workspace open test passes).
+- Ran the DWSIM smoke harness against `_test/dwsim`; workspace load completed with missing NuGet package warnings and unsupported C# project diagnostics.
 
 ## Open items / next steps
 
@@ -78,8 +82,18 @@ This document captures the current status of independent testing for the VB.NET 
 - Command: `_test/codex-tests/run-tests.ps1 -Suite csharp-dotnet`
 - Result: initialize/initialized/solution open completed without protocol anomalies logged; shutdown output not shown in console but command returned successfully.
 
-## Protocol anomalies (latest run)
-Run: VB.NET diagnostics Transport=pipe
+### VS Code headless open (DWSIM)
 
-- [error] [vbnet-smoke] Expected diagnostics but none were received. (2026-01-10T15:54:50.4976042+02:00)
-- [error] [vbnet-smoke] Expected diagnostics but none were received. (2026-01-10T15:57:08.1049784+02:00)
+- Command: `npm test` (with `FIXTURE_WORKSPACE=_test/dwsim`, `EXTENSION_ID=ms-dotnettools.csharp`, `VSCODE_EXECUTABLE=C:\Programs\Microsoft VS Code\Code.exe`)
+- Result: workspace open test passed; C# extension hover/definition/completion/symbols tests passed on the fixture file.
+
+### DWSIM smoke harness run
+
+- Command: `_test/codex-tests/dwsim/run-tests.ps1`
+- Result: workspace root `_test/dwsim` loaded; server selected `DWSIM.sln`; 31 VB.NET projects loaded; many workspace diagnostics reported for missing NuGet packages and unsupported C# projects.
+- Notes: missing packages include `SkiaSharp.1.68.2.1`, `Eto.Forms.2.8.3`, and `MSBuild.ILMerge.Task.1.1.3`; C# projects are expected to be skipped in Phase 1.
+
+## Protocol anomalies (latest run)
+Run: DWSIM smoke Transport=pipe
+
+None detected.
