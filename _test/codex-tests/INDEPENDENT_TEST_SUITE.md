@@ -179,6 +179,7 @@ Alternate client strategy (Phase 1-2 planning):
 - Emacs batch tests with ERT + lsp-mode (headless) to validate basic LSP compliance and non-UI flows. Use a minimal Emacs config plus lsp-mode setup in CI, open a workspace, wait for diagnostics, then execute hover/definition/completion requests through `lsp-request`.
 - Keep the current LSP harness as the fast baseline (transport + protocol correctness) and treat VS Code/Emacs as integration tiers, not the primary gate.
 - A minimal VS Code harness scaffold now exists under `_test/codex-tests/clients/vscode` to run smoke tests inside VS Code using `@vscode/test-electron`.
+- A minimal Emacs harness now exists under `_test/codex-tests/clients/emacs` using built-in `eglot` for stdio-based tests.
 
 Data capture:
 - Standard test logs for LSP request/response.
@@ -230,6 +231,11 @@ Regression gates:
 - Solution selection must be deterministic (explicit solution path in tests).
 - Debugger tests must run with predefined launch configs.
 - All external repositories cloned via scripts in CI; no manual steps.
+
+## Test policy (independent reviewer)
+
+- Build test infrastructure and test plans without modifying implementation code.
+- If extension/server defects are found, record them in test results rather than patching product code.
 
 ## Risk areas and mitigations
 
@@ -301,6 +307,7 @@ Validated behavior:
 - Feature tests against the fixture solution succeed (completion/hover/definition/references/document symbols), though the project initialization notification timed out during the run.
 - VS Code client harness runs successfully against the C# extension (`ms-dotnettools.csharp`) using a local VS Code installation, with hover/definition/completion/document symbols passing on the basic fixture.
 - VB.NET smoke harness runs against the Phase 1 server scaffold, including text document lifecycle notifications; connection drop during shutdown is handled on the client side.
+- Emacs harness connects to Roslyn LSP over stdio and to the VB.NET server over stdio; Roslyn shutdown times out but is treated as non-fatal in the harness.
 
 Known issues / TODO for future agents:
 - The C# harness uses StreamJsonRpc and named pipes; no logs are produced under `_test/codex-tests/csharp-lsp/logs` yet (likely due to server logging behavior or paths). Consider passing a writable, absolute log directory and verifying server log output.
