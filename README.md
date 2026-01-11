@@ -20,14 +20,31 @@ VB.NET Language Support is a fully open-source extension providing first-class V
   - Symbol navigation and search
   - Code rename refactoring
   - Hover information
-- **Open-source debugging** with Samsung netcoredbg
+- **Open-source debugging** with Samsung netcoredbg (Phase 2)
 - **100% MIT licensed** - no proprietary components
 
 ## Status
 
-**Current Phase:** Phase 0 - Bootstrap
-**Version:** 0.0.1-alpha
+**Current Phase:** Phase 1 - MVP (Language Services Complete)
+**Version:** 0.1.0-alpha
 **Status:** In active development
+
+### Implemented Features (Phase 1 MVP)
+
+| Feature | Status |
+|---------|--------|
+| Text Synchronization | ✅ Implemented |
+| Diagnostics (real-time errors) | ✅ Implemented |
+| Completion (IntelliSense) | ✅ Implemented |
+| Hover (symbol info) | ✅ Implemented |
+| Go to Definition | ✅ Implemented |
+| Find All References | ✅ Implemented |
+| Rename Symbol | ✅ Implemented |
+| Document Symbols (outline) | ✅ Implemented |
+| Workspace Symbols (search) | ✅ Implemented |
+| Solution/Project Loading | ✅ Implemented |
+
+**Test Coverage:** 113 tests passing
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 
@@ -41,32 +58,30 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 
 ### From Source (Development)
 
-Currently, VB.NET Dev Kit is in early development. To build from source:
+Currently, VB.NET Language Support is in early development. To build from source:
 
-```bash
+\`\`\`bash
 # Clone the repository
 git clone https://github.com/DNAKode/vbnet-lsp.git
-cd vbnet-devkit
+cd vbnet-lsp
 
 # Build the language server
-dotnet build src/VbNet.DevKit.LanguageServer
+dotnet build src/VbNet.LanguageServer
 
-# Build the VS Code extension
-cd src/extension
-npm install
-npm run compile
-```
+# Run tests
+dotnet test
+\`\`\`
 
 See [docs/development.md](docs/development.md) for detailed setup instructions.
 
 ## Quick Start
 
-Once installed, the extension automatically activates when you open a `.vb` file or a folder containing VB.NET projects.
+Once installed, the extension automatically activates when you open a \`.vb\` file or a folder containing VB.NET projects.
 
 ### Opening a VB.NET Project
 
 1. Open VS Code
-2. Open a folder containing a `.sln` or `.vbproj` file
+2. Open a folder containing a \`.sln\` or \`.vbproj\` file
 3. The extension will automatically discover and load your VB.NET projects
 4. Start coding with full IntelliSense support
 
@@ -105,13 +120,13 @@ VB.NET Language Support aims to provide:
 
 ## Roadmap
 
-### Phase 1 (MVP)
+### Phase 1 (MVP) - ✅ Complete
 - Core language server with essential LSP features
 - Solution and project loading
 - Diagnostics, completion, navigation
 - Symbol search and rename
 
-### Phase 2
+### Phase 2 (Next)
 - Code formatting
 - Code actions and quick fixes
 - Semantic tokens (enhanced syntax highlighting)

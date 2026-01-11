@@ -2,8 +2,8 @@
 
 **Single Source of Truth for Architectural Decisions**
 
-Version: 1.1
-Last Updated: 2026-01-10
+Version: 2.0
+Last Updated: 2026-01-11
 Status: Living Document
 
 ## Document Purpose
@@ -996,7 +996,7 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 
 ## Appendix C: Implementation Status
 
-**Last Updated**: 2026-01-10
+**Last Updated**: 2026-01-11
 
 ### Layer Implementation Progress
 
@@ -1005,8 +1005,20 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 | Protocol | ✅ Complete | ITransport, NamedPipeTransport, StdioTransport, JsonRpcTypes, LspTypes, MessageDispatcher |
 | Server Core | ✅ Complete | LanguageServer (lifecycle, routing, state management) |
 | Workspace | ✅ Complete | WorkspaceManager, DocumentManager |
-| Services | 🔄 In Progress | DiagnosticsService ✅ |
+| Services | ✅ Complete (Phase 1) | All MVP services implemented |
 | Host/CLI | ✅ Complete | Program.cs with argument parsing |
+
+### Phase 1 Services (All Complete)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| DiagnosticsService | ✅ Complete | Real-time diagnostics with debouncing |
+| CompletionService | ✅ Complete | IntelliSense completion with resolve |
+| HoverService | ✅ Complete | Symbol info with XML documentation |
+| DefinitionService | ✅ Complete | Go to definition |
+| ReferencesService | ✅ Complete | Find all references |
+| RenameService | ✅ Complete | Symbol rename with prepare |
+| SymbolsService | ✅ Complete | Document and workspace symbols |
 
 ### Test Coverage
 
@@ -1014,9 +1026,9 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 |-----------|-------|
 | Protocol (JsonRpcTypes + LspTypes) | 15 tests |
 | Workspace (DocumentManager + WorkspaceManager) | 22 tests |
-| Services (DiagnosticsService) | 11 tests |
-| Integration (Diagnostics + Server) | 11 tests |
-| **Total** | **59 tests passing** |
+| Services (All Phase 1) | 54 tests |
+| Integration (Full stack) | 22 tests |
+| **Total** | **113 tests passing** |
 
 ### Test Fixtures
 
@@ -1031,7 +1043,12 @@ Located in `test/TestProjects/`:
 | fa87716 | Phase 1 scaffold (Protocol, Core, Host layers) |
 | 24c54d3 | Workspace Layer (WorkspaceManager, DocumentManager) |
 | 859efca | DiagnosticsService with debouncing |
-| 215b30f | Document reassociation fix, comprehensive test suite |
+| 1badd41 | CompletionService with Roslyn integration |
+| e84e585 | HoverService for symbol quick info |
+| b862b65 | DefinitionService for Go to Definition |
+| b336e76 | ReferencesService for Find All References |
+| c7a754f | RenameService for symbol renaming |
+| 76026a5 | SymbolsService for Document and Workspace symbols |
 
 ---
 
@@ -1043,6 +1060,7 @@ Located in `test/TestProjects/`:
 | 2026-01-10 | 1.1 | Updated transport decision (named pipes primary, stdio secondary); Fixed naming consistency (VbNet.LanguageServer); Added Decision Log appendix |
 | 2026-01-10 | 1.2 | Added Implementation Status appendix; Protocol, Core, Workspace, Host layers complete; DiagnosticsService implemented |
 | 2026-01-10 | 1.3 | Updated test coverage (59 tests); Added test fixtures documentation; Document reassociation fix |
+| 2026-01-11 | 2.0 | **Phase 1 MVP Complete**: All services implemented (Completion, Hover, Definition, References, Rename, Symbols); 113 tests passing |
 
 ---
 
