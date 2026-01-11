@@ -12,6 +12,8 @@ public class DiagnosticsServiceTests : IDisposable
     private readonly DocumentManager _documentManager;
     private readonly DiagnosticsService _diagnosticsService;
     private readonly List<PublishDiagnosticsParams> _publishedDiagnostics = new();
+    private readonly TaskCompletionSource<PublishDiagnosticsParams> _publishTcs =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public DiagnosticsServiceTests()
     {
@@ -27,6 +29,7 @@ public class DiagnosticsServiceTests : IDisposable
     private Task PublishDiagnosticsAsync(string method, PublishDiagnosticsParams @params, CancellationToken ct)
     {
         _publishedDiagnostics.Add(@params);
+        _publishTcs.TrySetResult(@params);
         return Task.CompletedTask;
     }
 
@@ -74,7 +77,7 @@ public class DiagnosticsServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ComputeAndPublishDiagnosticsAsync_ForStandaloneDocument_PublishesEmpty()
+    public async Task ComputeAndPublishDiagnosticsAsync_ForStandaloneDocument_PublishesDiagnostics()
     {
         var uri = "file:///c:/test/module1.vb";
 
@@ -91,10 +94,11 @@ public class DiagnosticsServiceTests : IDisposable
         });
 
         await _diagnosticsService.ComputeAndPublishDiagnosticsAsync(uri);
+        var published = await WaitForPublishAsync();
 
         // Should publish (possibly empty since no Roslyn document)
         Assert.Single(_publishedDiagnostics);
-        Assert.Equal(uri, _publishedDiagnostics[0].Uri);
+        Assert.Equal(uri, published.Uri);
     }
 
     [Fact]
@@ -129,5 +133,16 @@ public class DiagnosticsServiceTests : IDisposable
     public void Dispose()
     {
         _diagnosticsService.Dispose();
+    }
+
+    private async Task<PublishDiagnosticsParams> WaitForPublishAsync()
+    {
+        var completed = await Task.WhenAny(_publishTcs.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+        if (completed != _publishTcs.Task)
+        {
+            throw new TimeoutException("Timed out waiting for diagnostics to publish.");
+        }
+
+        return await _publishTcs.Task;
     }
 }

@@ -103,6 +103,7 @@ public sealed class MessageDispatcher
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Message dispatcher started");
+        var inFlightTasks = new ConcurrentBag<Task>();
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -115,7 +116,8 @@ public sealed class MessageDispatcher
                     break;
                 }
 
-                await ProcessMessageAsync(message, cancellationToken);
+                var task = ProcessMessageWithHandlingAsync(message, cancellationToken);
+                inFlightTasks.Add(task);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -129,7 +131,41 @@ public sealed class MessageDispatcher
             }
         }
 
+        await AwaitInFlightTasksAsync(inFlightTasks).ConfigureAwait(false);
         _logger.LogInformation("Message dispatcher stopped");
+    }
+
+    private async Task ProcessMessageWithHandlingAsync(string messageJson, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await ProcessMessageAsync(messageJson, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Ignore cancellations from shutdown.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing message");
+        }
+    }
+
+    private static async Task AwaitInFlightTasksAsync(ConcurrentBag<Task> tasks)
+    {
+        if (tasks.IsEmpty)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Individual tasks log their own errors.
+        }
     }
 
     private async Task ProcessMessageAsync(string messageJson, CancellationToken cancellationToken)
