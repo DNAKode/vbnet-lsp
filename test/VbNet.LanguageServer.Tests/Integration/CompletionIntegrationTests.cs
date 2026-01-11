@@ -1,4 +1,3 @@
-using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging.Abstractions;
 using VbNet.LanguageServer.Protocol;
 using VbNet.LanguageServer.Services;
@@ -10,27 +9,17 @@ namespace VbNet.LanguageServer.Tests.Integration;
 /// <summary>
 /// Integration tests for CompletionService with real VB.NET projects.
 /// </summary>
+[Collection("MSBuild")]
 public class CompletionIntegrationTests : IAsyncLifetime
 {
     private readonly WorkspaceManager _workspaceManager;
     private readonly DocumentManager _documentManager;
     private readonly CompletionService _completionService;
 
-    private static bool _msBuildRegistered = false;
-    private static readonly object _lockObject = new();
     private static readonly string TestProjectsRoot = GetTestProjectsRoot();
 
     public CompletionIntegrationTests()
     {
-        lock (_lockObject)
-        {
-            if (!_msBuildRegistered)
-            {
-                MSBuildLocator.RegisterDefaults();
-                _msBuildRegistered = true;
-            }
-        }
-
         _workspaceManager = new WorkspaceManager(NullLogger<WorkspaceManager>.Instance);
         _documentManager = new DocumentManager(_workspaceManager, NullLogger<DocumentManager>.Instance);
         _completionService = new CompletionService(

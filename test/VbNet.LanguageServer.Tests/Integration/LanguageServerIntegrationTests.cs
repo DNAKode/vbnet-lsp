@@ -1,4 +1,3 @@
-using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using VbNet.LanguageServer.Core;
@@ -14,26 +13,16 @@ namespace VbNet.LanguageServer.Tests.Integration;
 /// Integration tests for the full LanguageServer lifecycle.
 /// Tests server initialization, document handling, and diagnostics publishing.
 /// </summary>
+[Collection("MSBuild")]
 public class LanguageServerIntegrationTests : IAsyncDisposable
 {
     private readonly MockTransport _transport;
     private readonly LspServer _server;
 
-    private static bool _msBuildRegistered = false;
-    private static readonly object _lockObject = new();
     private static readonly string TestProjectsRoot = GetTestProjectsRoot();
 
     public LanguageServerIntegrationTests()
     {
-        lock (_lockObject)
-        {
-            if (!_msBuildRegistered)
-            {
-                MSBuildLocator.RegisterDefaults();
-                _msBuildRegistered = true;
-            }
-        }
-
         _transport = new MockTransport();
         var loggerFactory = NullLoggerFactory.Instance;
         _server = new LspServer(_transport, loggerFactory);

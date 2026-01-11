@@ -31,6 +31,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly DefinitionService _definitionService;
     private readonly ReferencesService _referencesService;
     private readonly RenameService _renameService;
+    private readonly SymbolsService _symbolsService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -89,6 +90,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<RenameService>());
 
+        _symbolsService = new SymbolsService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<SymbolsService>());
+
         RegisterHandlers();
     }
 
@@ -137,6 +143,8 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<ReferenceParams, Location[]>("textDocument/references", HandleReferencesAsync);
         _dispatcher.RegisterRequest<PrepareRenameParams, PrepareRenameResult?>("textDocument/prepareRename", HandlePrepareRenameAsync);
         _dispatcher.RegisterRequest<RenameParams, WorkspaceEdit?>("textDocument/rename", HandleRenameAsync);
+        _dispatcher.RegisterRequest<DocumentSymbolParams, DocumentSymbol[]>("textDocument/documentSymbol", HandleDocumentSymbolAsync);
+        _dispatcher.RegisterRequest<WorkspaceSymbolParams, SymbolInformation[]>("workspace/symbol", HandleWorkspaceSymbolAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -427,6 +435,26 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _renameService.RenameAsync(@params, ct);
     }
 
+    private async Task<DocumentSymbol[]> HandleDocumentSymbolAsync(DocumentSymbolParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<DocumentSymbol>();
+        }
+
+        return await _symbolsService.GetDocumentSymbolsAsync(@params, ct);
+    }
+
+    private async Task<SymbolInformation[]> HandleWorkspaceSymbolAsync(WorkspaceSymbolParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<SymbolInformation>();
+        }
+
+        return await _symbolsService.GetWorkspaceSymbolsAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -517,6 +545,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the rename service.
     /// </summary>
     public RenameService RenameService => _renameService;
+
+    /// <summary>
+    /// Gets the symbols service.
+    /// </summary>
+    public SymbolsService SymbolsService => _symbolsService;
 
     public async ValueTask DisposeAsync()
     {

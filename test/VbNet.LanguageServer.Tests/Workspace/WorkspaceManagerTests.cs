@@ -1,5 +1,5 @@
-using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging.Abstractions;
+using VbNet.LanguageServer.Tests.Integration;
 using VbNet.LanguageServer.Workspace;
 using Xunit;
 
@@ -8,27 +8,16 @@ namespace VbNet.LanguageServer.Tests.Workspace;
 /// <summary>
 /// Tests for WorkspaceManager with real VB.NET projects.
 /// </summary>
+[Collection("MSBuild")]
 public class WorkspaceManagerTests : IAsyncLifetime
 {
     private readonly WorkspaceManager _workspaceManager;
-    private static bool _msBuildRegistered = false;
-    private static readonly object _lockObject = new();
 
     // Path to test projects (relative to test output directory)
     private static readonly string TestProjectsRoot = GetTestProjectsRoot();
 
     public WorkspaceManagerTests()
     {
-        // Ensure MSBuild is registered only once
-        lock (_lockObject)
-        {
-            if (!_msBuildRegistered)
-            {
-                MSBuildLocator.RegisterDefaults();
-                _msBuildRegistered = true;
-            }
-        }
-
         _workspaceManager = new WorkspaceManager(NullLogger<WorkspaceManager>.Instance);
     }
 

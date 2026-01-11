@@ -1,4 +1,3 @@
-using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging.Abstractions;
 using VbNet.LanguageServer.Protocol;
 using VbNet.LanguageServer.Services;
@@ -11,6 +10,7 @@ namespace VbNet.LanguageServer.Tests.Integration;
 /// Integration tests for DiagnosticsService with real VB.NET projects.
 /// These tests verify that diagnostics are correctly computed from Roslyn.
 /// </summary>
+[Collection("MSBuild")]
 public class DiagnosticsIntegrationTests : IAsyncLifetime
 {
     private readonly WorkspaceManager _workspaceManager;
@@ -18,21 +18,10 @@ public class DiagnosticsIntegrationTests : IAsyncLifetime
     private readonly DiagnosticsService _diagnosticsService;
     private readonly List<PublishDiagnosticsParams> _publishedDiagnostics = new();
 
-    private static bool _msBuildRegistered = false;
-    private static readonly object _lockObject = new();
     private static readonly string TestProjectsRoot = GetTestProjectsRoot();
 
     public DiagnosticsIntegrationTests()
     {
-        lock (_lockObject)
-        {
-            if (!_msBuildRegistered)
-            {
-                MSBuildLocator.RegisterDefaults();
-                _msBuildRegistered = true;
-            }
-        }
-
         _workspaceManager = new WorkspaceManager(NullLogger<WorkspaceManager>.Instance);
         _documentManager = new DocumentManager(_workspaceManager, NullLogger<DocumentManager>.Instance);
         _diagnosticsService = new DiagnosticsService(
