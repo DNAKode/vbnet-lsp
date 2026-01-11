@@ -90,6 +90,16 @@ Harness:
 - VS Code extension test runner (`@vscode/test-electron`) with scripted test fixtures.
 - Use non-interactive command execution and synthetic workspaces.
 
+Additional validation matrix (production readiness focus):
+- Transport selection (`vbnet.server.transportType`): verify stdio/namedPipe/auto still serve core requests.
+- Server path override (`vbnet.server.path` + `VBNET_SERVER_PATH`): ensure override works and invalid path yields a clear failure.
+- Feature toggles: `vbnet.completion.enable` disables completion; `vbnet.diagnostics.enable` disables publishDiagnostics.
+- Trace level (`vbnet.trace.server`): ensure verbose logging is enabled and trace output is captured for post-run analysis.
+- Commands: `vbnet.restartServer` and `vbnet.showOutputChannel` are registered and functional.
+- Workspace trust: untrusted workspace activates in limited mode; trusted workspace runs full features.
+- Activation events: verify `onLanguage:vb` and `workspaceContains` (.vbproj/.sln) trigger activation.
+- Error handling: missing runtime / server crash yields actionable user-facing errors; restart recovers.
+
 ### 5) Multi-editor protocol tests (Emacs, others)
 
 Purpose: Validate LSP compliance beyond VS Code.

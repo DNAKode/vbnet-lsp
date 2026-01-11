@@ -8,7 +8,7 @@ Host: Windows (C:\Work\vbnet-lsp)
 ## High-level status
 
 - VB.NET LSP service tests pass end-to-end with token-aware positions and expanded coverage (additional completion/hover/definition/references + multi-file rename).
-- VS Code extension integration tests run headlessly and pass for activation and core service requests when configured to use the local server DLL and stdio transport.
+- VS Code extension integration tests now cover settings/commands, but two failures were observed: document symbols returned empty and the completion-disable setting was ignored.
 - Diagnostics automation still fails to receive publishDiagnostics for the diagnostics fixture.
 - VS Code automation requires elevated permissions in this environment to launch Code.exe.
 
@@ -64,14 +64,15 @@ Key configuration used:
 - C# harness tests skipped via `SKIP_CSHARP_TESTS=1`.
 - Log capture enabled via `CAPTURE_VSCODE_LOGS=1` and `CAPTURE_VBNET_TRACE=1`.
 
-Outcome (headless run): PASS
-- extension installed and activated
-- hover/definition/references/completion/symbols pass against ServiceSamples.vb
-- rename provider returns a non-empty WorkspaceEdit
+Outcome (headless run): FAIL
+- PASS: extension installed and activated
+- FAIL: document symbols returned empty in core services test
+- PASS: restart command applied settings and hover still works
+- FAIL: completion.disable setting ignored (completions still returned)
 
 Log paths:
-- Copied log bundle: `_test/codex-tests/clients/vscode/logs/20260111T195003`
-- Trace summary: `_test/codex-tests/clients/vscode/logs/20260111T195003/vbnet-output-summary.txt`
+- Copied log bundle: `_test/codex-tests/clients/vscode/logs/20260111T214206`
+- Trace summary: `_test/codex-tests/clients/vscode/logs/20260111T214206/vbnet-output-summary.txt`
 
 Notes:
 - Trace export did not find a `VB.NET` output log file; summary reports that no trace log was found in `output_logging` folders.
@@ -87,18 +88,22 @@ Outcome: FAIL
 
 ## Current issues / risks
 
-1) Diagnostics publish path is still failing for the diagnostics fixture (no `publishDiagnostics` after retry).
-2) VS Code automation requires elevated permissions to launch Code.exe in this environment.
-3) Trace export from VS Code does not currently capture the VB.NET LSP trace channel; only host logs are present.
-4) Build occasionally fails with `apphost.exe` access denied in `src/VbNet.LanguageServer\obj` (file lock or permission issue).
+1) VS Code document symbols returned empty in the headless extension run (integration gap or timing issue).
+2) `vbnet.completion.enable` does not disable completion results in VS Code.
+3) Diagnostics publish path is still failing for the diagnostics fixture (no `publishDiagnostics` after retry).
+4) VS Code automation requires elevated permissions to launch Code.exe in this environment.
+5) Trace export from VS Code does not currently capture the VB.NET LSP trace channel; only host logs are present.
+6) Build occasionally fails with `apphost.exe` access denied in `src/VbNet.LanguageServer\obj` (file lock or permission issue).
 
 ## Overall assessment
 
-- Core VB.NET services are working in both the standalone LSP harness and VS Code integration tests.
-- Coverage is broader (extra completion/hover/definition/references + multi-file rename), but diagnostics remain the main functional gap for independent verification.
+- Core VB.NET services are working in the standalone LSP harness and most VS Code interactions, but VS Code document symbols and configuration toggles show correctness gaps that need resolution before public readiness.
+- Diagnostics remain the main functional gap for independent verification.
 
 ## Suggested follow-ups
 
-1) Investigate why `publishDiagnostics` is not emitted for the diagnostics fixture; compare with successful service runs to check project load and diagnostics triggers.
-2) Add a small hook or logging mechanism to explicitly export the VB.NET trace channel (if the extension writes to a log file, confirm the filename and location).
-3) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
+1) Investigate why document symbols are empty in VS Code headless runs; compare with LSP harness behavior and verify server readiness timing.
+2) Implement config handling for `vbnet.completion.enable` (client-side gating or server initialization option) and re-test.
+3) Investigate why `publishDiagnostics` is not emitted for the diagnostics fixture; compare with successful service runs to check project load and diagnostics triggers.
+4) Add a small hook or logging mechanism to explicitly export the VB.NET trace channel (if the extension writes to a log file, confirm the filename and location).
+5) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
