@@ -2,7 +2,7 @@
 
 **Single Source of Truth for Architectural Decisions**
 
-Version: 2.0
+Version: 2.2
 Last Updated: 2026-01-11
 Status: Living Document
 
@@ -129,22 +129,42 @@ VB.NET Language Support consists of two primary components:
 **Responsibilities**:
 - Extension activation and lifecycle management
 - Launch and manage language server process
-- LSP client initialization and communication
+- LSP client initialization and communication (named pipes + stdio fallback)
 - VS Code command registration
 - Configuration management
-- Debug Adapter Protocol (DAP) integration with netcoredbg
+- .NET runtime resolution via `ms-dotnettools.vscode-dotnet-runtime`
 - Status bar and output channel management
+- Debug Adapter Protocol (DAP) integration with netcoredbg (Phase 2)
 
-**Key Files** (to be implemented):
-- `extension.ts` - Extension activation entry point
-- `languageClient.ts` - LSP client setup and lifecycle
-- `commands/` - VS Code command implementations
-- `features/` - VS Code UI integration features
+**Implemented Files**:
+- `src/extension.ts` - Extension activation entry point
+- `src/languageClient.ts` - LSP client setup and lifecycle
+- `src/serverLauncher.ts` - Server process spawning and transport setup
+- `src/dotnetRuntime.ts` - .NET runtime resolution via runtime extension
+- `src/platform.ts` - Platform detection utilities
+- `src/statusBar.ts` - Status bar integration
 
-**Dependencies**:
-- `vscode` - VS Code extension API
-- `vscode-languageclient` - LSP client library
-- `vscode-debugadapter` - DAP integration (Phase 2)
+**Configuration Files**:
+- `package.json` - Extension manifest with contributions
+- `language-configuration.json` - VB.NET language settings (brackets, comments)
+- `tsconfig.json` - TypeScript compiler options
+- `esbuild.js` - Production bundling script
+
+**Extension Dependencies**:
+- `ms-dotnettools.vscode-dotnet-runtime` - .NET runtime acquisition
+
+**NPM Dependencies**:
+- `vscode-languageclient` - LSP client library (v9.0.1+)
+
+**Activation Events**:
+- `onLanguage:vb` - When a VB.NET file is opened
+- `workspaceContains:**/*.vbproj` - When workspace contains VB.NET projects
+- `workspaceContains:**/*.sln` - When workspace contains solution files
+
+**Configuration Namespace**: `vbnet.*`
+- `vbnet.server.path` - Custom server path override
+- `vbnet.server.transportType` - Transport selection (auto/namedPipe/stdio)
+- `vbnet.trace.server` - LSP trace level
 
 ### 3.2 Language Server (C#/.NET)
 
@@ -185,7 +205,40 @@ VB.NET Language Support consists of two primary components:
 - Abstraction layer enables clean support for both
 - Named pipes historically problematic cross-platform - focused engineering required
 
-### 4.2 Message Format
+### 4.2 Named Pipe Protocol Synchronization (CRITICAL)
+
+**Problem**: Race conditions between pipe readiness and client connection.
+
+**Correct Sequence** (server-side):
+```
+1. Create NamedPipeServerStream
+2. Start WaitForConnectionAsync (begins listening)
+3. Brief delay for OS registration (50ms)
+4. Output pipe name to stdout (signals READINESS, not just existence)
+5. Client reads pipe name and connects
+6. WaitForConnectionAsync completes
+```
+
+**WRONG Sequence** (causes ENOENT errors):
+```
+1. Create NamedPipeServerStream
+2. Output pipe name to stdout    ← Client may connect here!
+3. Start WaitForConnectionAsync  ← Too late, client already failed
+```
+
+**Key Insight**: The pipe name output is a **readiness signal**, not just information. The server MUST be actively listening before outputting the pipe name.
+
+**Client-side Defense** (defense in depth):
+- Retry logic with exponential backoff (10 attempts, 100ms delay)
+- Graceful error messages if connection fails
+- Fallback to stdio transport if named pipes fail
+
+**Testing Requirements**:
+- E2E test that spawns server and connects via extension
+- Stress test with rapid connect/disconnect cycles
+- Cross-platform verification (Windows, macOS, Linux)
+
+### 4.3 Message Format
 
 **Protocol**: JSON-RPC 2.0
 
@@ -200,7 +253,7 @@ Content-Length: {byte count}\r\n
 
 **Rationale**: UTF-16 encoding ensures compatibility with Roslyn's internal position tracking and avoids conversion overhead.
 
-### 4.3 Capability Negotiation
+### 4.4 Capability Negotiation
 
 **Strategy**: Advertise only implemented and tested features
 
@@ -680,6 +733,52 @@ See [docs/configuration.md](configuration.md) for user-facing documentation.
 - **E2E tests**: DWSIM validation suite
 - **Performance tests**: Meet targets from PROJECT_PLAN.md Section 21.1
 
+### 13.4 Extension E2E Testing (CRITICAL)
+
+**Lesson Learned**: Protocol-level bugs (like named pipe race conditions) are not caught by unit tests or language server integration tests. They only manifest when the full extension connects to the server.
+
+**Required E2E Tests**:
+1. **Connection Test**: Extension spawns server and successfully connects
+2. **Named Pipe Test**: Verify pipe connection works on first attempt (no retries needed)
+3. **Stdio Fallback Test**: Extension falls back to stdio when named pipes fail
+4. **Reconnection Test**: Extension handles server restart gracefully
+5. **Timeout Test**: Extension handles unresponsive server with proper timeout
+
+**Test Execution**:
+- Run manually before every release
+- Automate via VS Code extension testing framework (`@vscode/test-electron`)
+- Test on all platforms (Windows, macOS, Linux)
+
+### 13.5 Protocol Implementation Checklist
+
+Before implementing or modifying any protocol-related code:
+
+**Pre-Implementation**:
+- [ ] Study the C# extension's equivalent code in detail
+- [ ] Document the exact message sequence with timing
+- [ ] Identify synchronization points and race conditions
+- [ ] Plan defense-in-depth (retry logic, fallbacks)
+
+**Implementation**:
+- [ ] Implement the "happy path" first
+- [ ] Add retry logic for network/IPC operations
+- [ ] Add timeout handling for all async operations
+- [ ] Add detailed logging at each step
+- [ ] Write defensive code (null checks, state validation)
+
+**Testing**:
+- [ ] Unit test each component in isolation
+- [ ] Integration test with mock client/server
+- [ ] E2E test with actual extension connection
+- [ ] Stress test with rapid operations
+- [ ] Test failure scenarios (timeouts, disconnections)
+
+**Review**:
+- [ ] Compare implementation with C# extension source
+- [ ] Verify all logging is present and useful
+- [ ] Check error messages are actionable
+- [ ] Ensure graceful degradation on failure
+
 ---
 
 ## 14. Architectural Decisions
@@ -991,6 +1090,11 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 | 14.10 | 2026-01-09 | Single Architecture Document | Accepted |
 | 14.11 | 2026-01-09 | Multi-Editor Testing (Emacs) | Accepted |
 | - | 2026-01-10 | Canonical naming: VbNet.LanguageServer | Accepted |
+| 14.12 | 2026-01-11 | Depend on ms-dotnettools.vscode-dotnet-runtime | Accepted |
+| 14.13 | 2026-01-11 | Configuration namespace: vbnet.* | Accepted |
+| 14.14 | 2026-01-11 | Named pipe readiness signaling: listen before output | Accepted |
+| 14.15 | 2026-01-11 | Client-side retry for IPC connections (defense in depth) | Accepted |
+| 14.16 | 2026-01-11 | Mandatory E2E extension testing before release | Accepted |
 
 ---
 
@@ -1002,11 +1106,24 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 
 | Layer | Status | Components |
 |-------|--------|------------|
+| **VS Code Extension** | ✅ Complete | extension.ts, languageClient.ts, serverLauncher.ts, dotnetRuntime.ts, platform.ts, statusBar.ts |
 | Protocol | ✅ Complete | ITransport, NamedPipeTransport, StdioTransport, JsonRpcTypes, LspTypes, MessageDispatcher |
 | Server Core | ✅ Complete | LanguageServer (lifecycle, routing, state management) |
 | Workspace | ✅ Complete | WorkspaceManager, DocumentManager |
 | Services | ✅ Complete (Phase 1) | All MVP services implemented |
 | Host/CLI | ✅ Complete | Program.cs with argument parsing |
+
+### VS Code Extension (Complete)
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| extension.ts | ✅ Complete | Activation, workspace trust, command registration |
+| languageClient.ts | ✅ Complete | LSP client with named pipe + stdio support |
+| serverLauncher.ts | ✅ Complete | Server spawning, transport negotiation |
+| dotnetRuntime.ts | ✅ Complete | .NET runtime resolution via runtime extension |
+| platform.ts | ✅ Complete | Platform detection (Windows/macOS/Linux) |
+| statusBar.ts | ✅ Complete | Server status display |
+| package.json | ✅ Complete | Extension manifest, contributions, dependencies |
 
 ### Phase 1 Services (All Complete)
 
@@ -1061,6 +1178,8 @@ Located in `test/TestProjects/`:
 | 2026-01-10 | 1.2 | Added Implementation Status appendix; Protocol, Core, Workspace, Host layers complete; DiagnosticsService implemented |
 | 2026-01-10 | 1.3 | Updated test coverage (59 tests); Added test fixtures documentation; Document reassociation fix |
 | 2026-01-11 | 2.0 | **Phase 1 MVP Complete**: All services implemented (Completion, Hover, Definition, References, Rename, Symbols); 113 tests passing |
+| 2026-01-11 | 2.1 | **VS Code Extension Complete**: Full TypeScript extension with LSP client, named pipe + stdio transport, .NET runtime resolution, status bar integration |
+| 2026-01-11 | 2.2 | **Protocol Synchronization Fix**: Fixed named pipe race condition; Added Section 4.2 protocol sync docs; Added Section 13.4-13.5 E2E testing and protocol checklist; Updated decisions 14.14-14.16 |
 
 ---
 

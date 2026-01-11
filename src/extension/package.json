@@ -1,0 +1,148 @@
+{
+  "name": "vbnet-language-support",
+  "publisher": "dnakode",
+  "version": "0.1.0",
+  "description": "First-class VB.NET language support for VS Code",
+  "displayName": "VB.NET Language Support",
+  "author": "DNA Kode",
+  "license": "MIT",
+  "preview": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DNAKode/vbnet-lsp"
+  },
+  "bugs": {
+    "url": "https://github.com/DNAKode/vbnet-lsp/issues"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Snippets"
+  ],
+  "keywords": [
+    "VB.NET",
+    "Visual Basic",
+    "vb",
+    ".NET",
+    "dotnet",
+    "language server"
+  ],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": "limited"
+    }
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:vb",
+    "workspaceContains:**/*.vbproj",
+    "workspaceContains:**/*.sln"
+  ],
+  "extensionDependencies": [
+    "ms-dotnettools.vscode-dotnet-runtime"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vb",
+        "aliases": [
+          "Visual Basic",
+          "VB.NET",
+          "vb"
+        ],
+        "extensions": [
+          ".vb"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": [
+      {
+        "title": "VB.NET Language Support",
+        "properties": {
+          "vbnet.server.path": {
+            "type": "string",
+            "default": "",
+            "description": "Path to the VB.NET language server executable. Leave empty to use the bundled server."
+          },
+          "vbnet.server.transportType": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "namedPipe",
+              "stdio"
+            ],
+            "default": "auto",
+            "enumDescriptions": [
+              "Automatically select the best transport (named pipes preferred, with stdio fallback)",
+              "Use named pipes for communication",
+              "Use standard input/output for communication"
+            ],
+            "description": "Transport type for language server communication."
+          },
+          "vbnet.trace.server": {
+            "type": "string",
+            "enum": [
+              "off",
+              "messages",
+              "verbose"
+            ],
+            "default": "off",
+            "description": "Traces the communication between VS Code and the VB.NET language server."
+          },
+          "vbnet.diagnostics.enable": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable real-time diagnostics (errors, warnings)."
+          },
+          "vbnet.completion.enable": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable IntelliSense code completion."
+          }
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "vbnet.restartServer",
+        "title": "Restart VB.NET Language Server",
+        "category": "VB.NET"
+      },
+      {
+        "command": "vbnet.showOutputChannel",
+        "title": "Show VB.NET Output",
+        "category": "VB.NET"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npm run compile && node esbuild.js --production",
+    "package:vsix": "npm run package && vsce package --out vbnet-language-support.vsix",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.21.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.0"
+  }
+}

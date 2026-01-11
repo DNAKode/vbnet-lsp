@@ -75,15 +75,32 @@ public sealed class NamedPipeTransport : ITransport
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
 
-        // Output the pipe name as JSON to stdout (C# extension protocol)
+        // IMPORTANT: Start the async wait for connection BEFORE outputting the pipe name.
+        // This ensures the pipe is fully ready to accept connections when the client
+        // reads the pipe name from stdout. The client will connect, which completes
+        // the WaitForConnectionAsync task.
+        //
+        // Protocol synchronization:
+        // 1. Server creates pipe and starts listening (WaitForConnectionAsync begins)
+        // 2. Server outputs pipe name to stdout (signals readiness)
+        // 3. Client reads pipe name and connects
+        // 4. WaitForConnectionAsync completes
+        _logger.LogDebug("Starting to listen on pipe: {PipeName}", _pipeName);
+        var connectionTask = _pipeServer.WaitForConnectionAsync(cancellationToken);
+
+        // Small delay to ensure the pipe is fully registered in the OS
+        // before we signal readiness to the client
+        await Task.Delay(50, cancellationToken);
+
+        // NOW output the pipe name - we're ready to accept connections
         var pipeInfo = JsonSerializer.Serialize(new { pipeName = GetFullPipePath() });
         await Console.Out.WriteLineAsync(pipeInfo);
         await Console.Out.FlushAsync();
-        _logger.LogInformation("Pipe name output to stdout: {PipeInfo}", pipeInfo);
+        _logger.LogInformation("Pipe ready, name output to stdout: {PipeInfo}", pipeInfo);
 
-        // Wait for client connection
+        // Wait for client to connect
         _logger.LogDebug("Waiting for client connection on pipe: {PipeName}", _pipeName);
-        await _pipeServer.WaitForConnectionAsync(cancellationToken);
+        await connectionTask;
 
         _readStream = _pipeServer;
         _writeStream = _pipeServer;
