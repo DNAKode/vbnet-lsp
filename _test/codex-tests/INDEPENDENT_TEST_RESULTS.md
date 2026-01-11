@@ -7,9 +7,10 @@ Host: Windows (C:\Work\vbnet-lsp)
 
 ## High-level status
 
-- VB.NET LSP service tests pass end-to-end with token-aware positions and now include a multi-file rename check.
+- VB.NET LSP service tests pass end-to-end with token-aware positions and include a multi-file rename check.
 - VS Code extension integration tests run headlessly and pass for activation and core service requests when configured to use the local server DLL and stdio transport.
-- VS Code automation still requires elevated permissions in this environment to launch Code.exe.
+- Diagnostics automation still fails to receive publishDiagnostics for the diagnostics fixture.
+- VS Code automation requires elevated permissions in this environment to launch Code.exe.
 
 ## Test runs and outcomes
 
@@ -49,7 +50,7 @@ Key configuration used:
 - Fixture file: `_test/codex-tests/vbnet-lsp/fixtures/services/ServiceSamples.vb`
 - Workspace settings: `_test/codex-tests/vbnet-lsp/fixtures/services/.vscode/settings.json` (stdio + verbose trace)
 - C# harness tests skipped via `SKIP_CSHARP_TESTS=1`.
-- Log capture enabled via `CAPTURE_VSCODE_LOGS=1`.
+- Log capture enabled via `CAPTURE_VSCODE_LOGS=1` and `CAPTURE_VBNET_TRACE=1`.
 
 Outcome (headless run): PASS
 - extension installed and activated
@@ -57,20 +58,35 @@ Outcome (headless run): PASS
 - rename provider returns a non-empty WorkspaceEdit
 
 Log paths:
-- Raw VS Code logs: `_test/codex-tests/clients/vscode/.vscode-test/user-data/logs/20260111T185202`
-- Copied log bundle: `_test/codex-tests/clients/vscode/logs/20260111T185202`
+- Copied log bundle: `_test/codex-tests/clients/vscode/logs/20260111T195003`
+- Trace summary: `_test/codex-tests/clients/vscode/logs/20260111T195003/vbnet-output-summary.txt`
+
+Notes:
+- Trace export did not find a `VB.NET` output log file; summary reports that no trace log was found in `output_logging` folders.
+
+### 3) Diagnostics automation (standalone harness)
+
+Command:
+- `_test\codex-tests\vbnet-lsp\run-tests.ps1 -Diagnostics -Transport stdio`
+
+Outcome: FAIL
+- Diagnostics not received after retries; `publishDiagnostics` never arrived.
+- Build step failed with `CreateAppHost` access denied on `apphost.exe` before the diagnostics run. The harness proceeded using existing outputs, but the diagnostics still did not publish.
 
 ## Current issues / risks
 
-1) VS Code automation requires elevated permissions to launch Code.exe in this environment.
-2) Output channels for the VB.NET extension (including the trace channel) are not yet visible in the captured logs; only host logs are present. If deeper protocol comparison is needed, we may need a dedicated trace export mechanism.
+1) Diagnostics publish path is still failing for the diagnostics fixture (no `publishDiagnostics` after retry).
+2) VS Code automation requires elevated permissions to launch Code.exe in this environment.
+3) Trace export from VS Code does not currently capture the VB.NET LSP trace channel; only host logs are present.
+4) Build occasionally fails with `apphost.exe` access denied in `src/VbNet.LanguageServer\obj` (file lock or permission issue).
 
 ## Overall assessment
 
 - Core VB.NET services are working in both the standalone LSP harness and VS Code integration tests.
-- Coverage now includes multi-file rename, but diagnostics coverage is still limited to the existing diagnostics fixture run (not included in this round).
+- Diagnostics are still not stable; this remains the main functional gap for independent verification.
 
 ## Suggested follow-ups
 
-1) Add explicit LSP trace export hooks for VS Code runs (e.g., extension test host command that writes trace output to a file).
-2) Add a diagnostics run into the automated suite once a stable publishDiagnostics signal is confirmed.
+1) Investigate why `publishDiagnostics` is not emitted for the diagnostics fixture; compare with successful service runs to check project load and diagnostics triggers.
+2) Add a small hook or logging mechanism to explicitly export the VB.NET trace channel (if the extension writes to a log file, confirm the filename and location).
+3) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
