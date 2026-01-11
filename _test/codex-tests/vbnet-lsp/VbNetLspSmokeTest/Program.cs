@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Linq;
 using StreamJsonRpc;
 using StreamJsonRpc.Protocol;
 
@@ -20,6 +21,10 @@ internal sealed class Options
     public int? DebounceMs { get; set; }
     public string ExpectedDiagnosticCode { get; set; } = string.Empty;
     public bool SendDidSave { get; set; }
+    public string ServiceTestsPath { get; set; } = string.Empty;
+    public int ServiceTimeoutSeconds { get; set; } = 60;
+    public string ServiceLogPath { get; set; } = string.Empty;
+    public string ServiceTestId { get; set; } = string.Empty;
     public string ProtocolLogPath { get; set; } = string.Empty;
     public string TimingLogPath { get; set; } = string.Empty;
     public string TimingLabel { get; set; } = string.Empty;
@@ -46,7 +51,13 @@ internal static class Program
             return 3;
         }
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(options.TimeoutSeconds));
+        var totalTimeoutSeconds = options.TimeoutSeconds;
+        if (!string.IsNullOrWhiteSpace(options.ServiceTestsPath))
+        {
+            totalTimeoutSeconds += options.ServiceTimeoutSeconds;
+        }
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(totalTimeoutSeconds));
         var exitCode = await RunLspHandshakeAsync(process, options, protocolLog, timingLog, stopwatch, cts.Token);
 
         try
@@ -266,6 +277,18 @@ internal static class Program
                 }
             }
 
+            if (!string.IsNullOrWhiteSpace(options.ServiceTestsPath))
+            {
+                Console.WriteLine("Running service tests...");
+                using var serviceCts = new CancellationTokenSource(TimeSpan.FromSeconds(options.ServiceTimeoutSeconds));
+                var servicesOk = await RunServiceTestsAsync(rpc, options, protocolLog, serviceCts.Token);
+                if (!servicesOk)
+                {
+                    protocolLog.Write("error", "One or more service tests failed.");
+                    return 7;
+                }
+            }
+
             try
             {
                 await rpc
@@ -423,6 +446,470 @@ internal static class Program
         return diagnosticsReceived;
     }
 
+    private static async Task<bool> RunServiceTestsAsync(
+        JsonRpc rpc,
+        Options options,
+        ProtocolLog protocolLog,
+        CancellationToken token)
+    {
+        var manifest = ServiceTestManifest.Load(options.ServiceTestsPath);
+        if (manifest.Tests.Count == 0)
+        {
+            Console.WriteLine("Service test manifest has no tests.");
+            return true;
+        }
+
+        var serviceLog = ServiceLog.Create(options.ServiceLogPath);
+        var testFilePath = Path.GetFullPath(manifest.File);
+        if (!File.Exists(testFilePath))
+        {
+            throw new FileNotFoundException("Service test file not found.", testFilePath);
+        }
+
+        var text = await File.ReadAllTextAsync(testFilePath, token);
+        var markerLocator = new MarkerLocator(text);
+        var uri = new Uri(testFilePath).AbsoluteUri;
+
+        await rpc.NotifyWithParameterObjectAsync("textDocument/didOpen", new
+        {
+            textDocument = new
+            {
+                uri,
+                languageId = "vb",
+                version = 1,
+                text
+            }
+        }).WaitAsync(token);
+
+        await Task.Delay(500, token);
+
+        var textDocument = new { uri };
+        var allOk = true;
+
+        var tests = manifest.Tests;
+        if (!string.IsNullOrWhiteSpace(options.ServiceTestId))
+        {
+            tests = tests
+                .Where(test => string.Equals(test.Id, options.ServiceTestId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        if (tests.Count == 0)
+        {
+            Console.WriteLine("No matching service tests to run.");
+            return true;
+        }
+
+        foreach (var test in tests)
+        {
+            if (!markerLocator.TryGetPosition(test, out var position, out var reason))
+            {
+                protocolLog.Write("error", $"Service test marker not found: {test.Marker} ({reason})");
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = test.Method,
+                    Expectation = test.Expectation,
+                    Outcome = "marker_not_found"
+                });
+                allOk = false;
+                continue;
+            }
+
+            var ok = await ExecuteServiceTestAsync(rpc, textDocument, position, test, protocolLog, serviceLog, token);
+            allOk &= ok;
+        }
+
+        await rpc.NotifyWithParameterObjectAsync("textDocument/didClose", new
+        {
+            textDocument = new { uri }
+        }).WaitAsync(token);
+
+        return allOk;
+    }
+
+    private static async Task<bool> ExecuteServiceTestAsync(
+        JsonRpc rpc,
+        object textDocument,
+        TextPosition position,
+        ServiceTestCase test,
+        ProtocolLog protocolLog,
+        ServiceLog serviceLog,
+        CancellationToken token)
+    {
+        var method = test.Method;
+        var expectation = test.Expectation ?? string.Empty;
+        Console.WriteLine($"service: {test.Id} -> {method} ({expectation})");
+
+        switch (method)
+        {
+            case "textDocument/completion":
+            {
+                var completion = await rpc
+                    .InvokeWithParameterObjectAsync<JsonElement>(method, new
+                    {
+                        textDocument,
+                        position = new { line = position.Line, character = position.Character }
+                    })
+                    .WaitAsync(token);
+                var ok = EvaluateCompletion(completion, test, protocolLog, out var itemCount, out var expectedFound);
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = ok ? "pass" : "fail",
+                    Count = itemCount,
+                    ExpectedFound = expectedFound
+                });
+                return ok;
+            }
+            case "textDocument/hover":
+            {
+                var hover = await rpc
+                    .InvokeWithParameterObjectAsync<JsonElement>(method, new
+                    {
+                        textDocument,
+                        position = new { line = position.Line, character = position.Character }
+                    })
+                    .WaitAsync(token);
+                var ok = hover.ValueKind != JsonValueKind.Null && hover.ValueKind != JsonValueKind.Undefined;
+                if (!ok)
+                {
+                    protocolLog.Write("error", $"Service test {test.Id} returned null hover.");
+                }
+
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = ok ? "pass" : "fail"
+                });
+                return ok;
+            }
+            case "textDocument/definition":
+            {
+                var definition = await rpc
+                    .InvokeWithParameterObjectAsync<JsonElement>(method, new
+                    {
+                        textDocument,
+                        position = new { line = position.Line, character = position.Character }
+                    })
+                    .WaitAsync(token);
+                var ok = HasAnyResult(definition);
+                if (!ok)
+                {
+                    protocolLog.Write("error", $"Service test {test.Id} returned empty definition.");
+                }
+
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = ok ? "pass" : "fail"
+                });
+                return ok;
+            }
+            case "textDocument/references":
+            {
+                var references = await rpc
+                    .InvokeWithParameterObjectAsync<JsonElement>(method, new
+                    {
+                        textDocument,
+                        position = new { line = position.Line, character = position.Character },
+                        context = new { includeDeclaration = true }
+                    })
+                    .WaitAsync(token);
+                var ok = references.ValueKind == JsonValueKind.Array && references.GetArrayLength() > 0;
+                if (!ok)
+                {
+                    protocolLog.Write("error", $"Service test {test.Id} returned empty references.");
+                }
+
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = ok ? "pass" : "fail",
+                    Count = references.ValueKind == JsonValueKind.Array ? references.GetArrayLength() : 0
+                });
+                return ok;
+            }
+            case "textDocument/rename":
+            {
+                var rename = await rpc
+                    .InvokeWithParameterObjectAsync<JsonElement>(method, new
+                    {
+                        textDocument,
+                        position = new { line = position.Line, character = position.Character },
+                        newName = "RenamedValue"
+                    })
+                    .WaitAsync(token);
+                var fileCount = CountWorkspaceEditFiles(rename);
+                var ok = IsWorkspaceEdit(rename);
+                var expectedFileCount = ParseWorkspaceEditFileCount(test.Expectation);
+                if (expectedFileCount.HasValue && fileCount < expectedFileCount.Value)
+                {
+                    ok = false;
+                    protocolLog.Write(
+                        "error",
+                        $"Service test {test.Id} returned workspace edit with {fileCount} file(s), expected at least {expectedFileCount.Value}.");
+                }
+                if (!ok)
+                {
+                    protocolLog.Write("error", $"Service test {test.Id} returned invalid workspace edit.");
+                }
+
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = ok ? "pass" : "fail",
+                    Count = fileCount
+                });
+                return ok;
+            }
+            case "textDocument/documentSymbol":
+            {
+                var symbols = await rpc
+                    .InvokeWithParameterObjectAsync<JsonElement>(method, new { textDocument })
+                    .WaitAsync(token);
+                var ok = HasSymbolResults(symbols);
+                if (!ok)
+                {
+                    protocolLog.Write("error", $"Service test {test.Id} returned empty document symbols.");
+                }
+
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = ok ? "pass" : "fail",
+                    Count = symbols.ValueKind == JsonValueKind.Array ? symbols.GetArrayLength() : 0
+                });
+                return ok;
+            }
+            case "workspace/symbol":
+            {
+                var symbols = await rpc
+                    .InvokeWithParameterObjectAsync<JsonElement>(method, new { query = "Greeter" })
+                    .WaitAsync(token);
+                var ok = HasSymbolResults(symbols);
+                if (!ok)
+                {
+                    protocolLog.Write("error", $"Service test {test.Id} returned empty workspace symbols.");
+                }
+
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = ok ? "pass" : "fail",
+                    Count = symbols.ValueKind == JsonValueKind.Array ? symbols.GetArrayLength() : 0
+                });
+                return ok;
+            }
+            default:
+                protocolLog.Write("error", $"Unsupported service method: {method}");
+                serviceLog.Write(new ServiceLogEntry
+                {
+                    Id = test.Id,
+                    Method = method,
+                    Expectation = test.Expectation,
+                    Outcome = "unsupported_method"
+                });
+                return false;
+        }
+    }
+
+    private static bool EvaluateCompletion(
+        JsonElement completion,
+        ServiceTestCase test,
+        ProtocolLog protocolLog,
+        out int itemCount,
+        out bool expectedFound)
+    {
+        expectedFound = true;
+        var labels = CollectCompletionLabels(completion);
+        itemCount = labels.Count;
+        if (itemCount == 0)
+        {
+            protocolLog.Write("error", $"Service test {test.Id} returned empty completion.");
+            return false;
+        }
+
+        if (test.Expectation != null && test.Expectation.StartsWith("contains:", StringComparison.OrdinalIgnoreCase))
+        {
+            var expected = test.Expectation.Substring("contains:".Length);
+            expectedFound = labels.Any(label => string.Equals(label, expected, StringComparison.Ordinal));
+            if (!expectedFound)
+            {
+                protocolLog.Write("error", $"Service test {test.Id} completion missing expected item: {expected}.");
+            }
+
+            return expectedFound;
+        }
+
+        return true;
+    }
+
+    private static HashSet<string> CollectCompletionLabels(JsonElement completion)
+    {
+        var labels = new HashSet<string>(StringComparer.Ordinal);
+
+        if (completion.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in completion.EnumerateArray())
+            {
+                if (item.TryGetProperty("label", out var labelElement) && labelElement.ValueKind == JsonValueKind.String)
+                {
+                    labels.Add(labelElement.GetString() ?? string.Empty);
+                }
+            }
+
+            return labels;
+        }
+
+        if (completion.ValueKind == JsonValueKind.Object &&
+            completion.TryGetProperty("items", out var itemsElement) &&
+            itemsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in itemsElement.EnumerateArray())
+            {
+                if (item.TryGetProperty("label", out var labelElement) && labelElement.ValueKind == JsonValueKind.String)
+                {
+                    labels.Add(labelElement.GetString() ?? string.Empty);
+                }
+            }
+        }
+
+        return labels;
+    }
+
+    private static bool HasAnyResult(JsonElement result)
+    {
+        if (result.ValueKind == JsonValueKind.Array)
+        {
+            return result.GetArrayLength() > 0;
+        }
+
+        return result.ValueKind == JsonValueKind.Object;
+    }
+
+    private static bool HasSymbolResults(JsonElement symbols)
+    {
+        if (symbols.ValueKind == JsonValueKind.Array)
+        {
+            return symbols.GetArrayLength() > 0;
+        }
+
+        if (symbols.ValueKind == JsonValueKind.Object &&
+            symbols.TryGetProperty("items", out var itemsElement) &&
+            itemsElement.ValueKind == JsonValueKind.Array)
+        {
+            return itemsElement.GetArrayLength() > 0;
+        }
+
+        return false;
+    }
+
+    private static bool IsWorkspaceEdit(JsonElement edit)
+    {
+        if (edit.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (edit.TryGetProperty("changes", out var changesElement) &&
+            changesElement.ValueKind == JsonValueKind.Object &&
+            changesElement.EnumerateObject().Any())
+        {
+            return true;
+        }
+
+        if (edit.TryGetProperty("documentChanges", out var docChangesElement) &&
+            docChangesElement.ValueKind == JsonValueKind.Array &&
+            docChangesElement.GetArrayLength() > 0)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static int CountWorkspaceEditFiles(JsonElement edit)
+    {
+        if (edit.ValueKind != JsonValueKind.Object)
+        {
+            return 0;
+        }
+
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (edit.TryGetProperty("changes", out var changesElement) &&
+            changesElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in changesElement.EnumerateObject())
+            {
+                files.Add(property.Name);
+            }
+        }
+
+        if (edit.TryGetProperty("documentChanges", out var docChangesElement) &&
+            docChangesElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var change in docChangesElement.EnumerateArray())
+            {
+                if (change.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                if (change.TryGetProperty("textDocument", out var docElement) &&
+                    docElement.ValueKind == JsonValueKind.Object &&
+                    docElement.TryGetProperty("uri", out var uriElement) &&
+                    uriElement.ValueKind == JsonValueKind.String)
+                {
+                    var uri = uriElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(uri))
+                    {
+                        files.Add(uri);
+                    }
+                }
+            }
+        }
+
+        return files.Count;
+    }
+
+    private static int? ParseWorkspaceEditFileCount(string? expectation)
+    {
+        if (string.IsNullOrWhiteSpace(expectation))
+        {
+            return null;
+        }
+
+        const string prefix = "workspace_edit_files:";
+        if (!expectation.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var value = expectation.Substring(prefix.Length);
+        if (int.TryParse(value, out var count))
+        {
+            return count;
+        }
+
+        return null;
+    }
+
     private static async Task<string> ReadPipeNameAsync(Process process, CancellationToken token)
     {
         var regex = new System.Text.RegularExpressions.Regex("\\{\"pipeName\":\"[^\"]+\"\\}");
@@ -540,6 +1027,26 @@ internal static class Program
         else if (arg == "--sendDidSave")
         {
             options.SendDidSave = true;
+        }
+        else if (arg == "--serviceTests")
+        {
+            options.ServiceTestsPath = "_test\\codex-tests\\vbnet-lsp\\fixtures\\services\\service-tests.json";
+        }
+        else if (arg == "--serviceManifest" && i + 1 < args.Length)
+        {
+            options.ServiceTestsPath = args[++i];
+        }
+        else if (arg == "--serviceTimeoutSeconds" && i + 1 < args.Length && int.TryParse(args[++i], out var serviceTimeout))
+        {
+            options.ServiceTimeoutSeconds = serviceTimeout;
+        }
+        else if (arg == "--serviceLog" && i + 1 < args.Length)
+        {
+            options.ServiceLogPath = args[++i];
+        }
+        else if (arg == "--serviceTestId" && i + 1 < args.Length)
+        {
+            options.ServiceTestId = args[++i];
         }
         else if (arg == "--protocolLog" && i + 1 < args.Length)
         {
@@ -764,5 +1271,187 @@ internal static class Program
                 Mark("solution_loaded", stopwatch);
             }
         }
+    }
+
+    private sealed class ServiceTestManifest
+    {
+        public string Workspace { get; set; } = string.Empty;
+        public string File { get; set; } = string.Empty;
+        public List<ServiceTestCase> Tests { get; set; } = new();
+
+        public static ServiceTestManifest Load(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new InvalidOperationException("Service test manifest path is required.");
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            if (!System.IO.File.Exists(fullPath))
+            {
+                throw new FileNotFoundException("Service test manifest not found.", fullPath);
+            }
+
+            var json = System.IO.File.ReadAllText(fullPath);
+            var manifest = JsonSerializer.Deserialize<ServiceTestManifest>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (manifest == null)
+            {
+                throw new InvalidOperationException("Failed to parse service test manifest.");
+            }
+
+            if (string.IsNullOrWhiteSpace(manifest.Workspace) || string.IsNullOrWhiteSpace(manifest.File))
+            {
+                throw new InvalidOperationException("Service test manifest missing workspace or file.");
+            }
+
+            return manifest;
+        }
+    }
+
+    private sealed class ServiceTestCase
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Method { get; set; } = string.Empty;
+        public string Marker { get; set; } = string.Empty;
+        public string Expectation { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
+        public int TokenOffset { get; set; }
+    }
+
+    private sealed class MarkerLocator
+    {
+        private readonly string _text;
+        private readonly Dictionary<string, TextPosition> _cache = new(StringComparer.OrdinalIgnoreCase);
+
+        public MarkerLocator(string text)
+        {
+            _text = text;
+        }
+
+        public bool TryGetPosition(ServiceTestCase test, out TextPosition position, out string reason)
+        {
+            position = default;
+            reason = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(test.Marker))
+            {
+                reason = "marker_missing";
+                return false;
+            }
+
+            var cacheKey = $"{test.Marker}|{test.Token}|{test.TokenOffset}";
+            if (_cache.TryGetValue(cacheKey, out position))
+            {
+                return true;
+            }
+
+            var markerToken = $"' MARKER: {test.Marker}";
+            var markerIndex = _text.IndexOf(markerToken, StringComparison.Ordinal);
+            if (markerIndex < 0)
+            {
+                reason = "marker_not_found";
+                return false;
+            }
+
+            var lineStart = _text.LastIndexOf('\n', markerIndex);
+            var lineEnd = _text.IndexOf('\n', markerIndex);
+            if (lineStart < 0)
+            {
+                lineStart = -1;
+            }
+
+            if (lineEnd < 0)
+            {
+                lineEnd = _text.Length;
+            }
+
+            if (!string.IsNullOrWhiteSpace(test.Token))
+            {
+                var lineText = _text.Substring(lineStart + 1, markerIndex - (lineStart + 1));
+                var tokenIndex = lineText.IndexOf(test.Token, StringComparison.Ordinal);
+                if (tokenIndex < 0)
+                {
+                    reason = "token_not_found";
+                    return false;
+                }
+
+                var absoluteIndex = lineStart + 1 + tokenIndex + test.TokenOffset;
+                position = GetPosition(_text, absoluteIndex);
+                _cache[cacheKey] = position;
+                return true;
+            }
+
+            position = GetPosition(_text, markerIndex);
+            _cache[cacheKey] = position;
+            return true;
+        }
+    }
+
+    private readonly record struct TextPosition(int Line, int Character);
+
+    private static TextPosition GetPosition(string text, int index)
+    {
+        var line = 0;
+        var lastNewline = -1;
+        for (var i = 0; i < index; i++)
+        {
+            if (text[i] == '\n')
+            {
+                line++;
+                lastNewline = i;
+            }
+        }
+
+        var character = index - lastNewline - 1;
+        return new TextPosition(line, character);
+    }
+
+    private sealed class ServiceLog
+    {
+        private readonly string _path;
+
+        private ServiceLog(string path)
+        {
+            _path = path;
+        }
+
+        public static ServiceLog Create(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return new ServiceLog(string.Empty);
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+            return new ServiceLog(fullPath);
+        }
+
+        public void Write(ServiceLogEntry entry)
+        {
+            if (string.IsNullOrWhiteSpace(_path))
+            {
+                return;
+            }
+
+            entry.Timestamp = DateTimeOffset.Now.ToString("o");
+            var payload = JsonSerializer.Serialize(entry);
+            File.AppendAllText(_path, payload + Environment.NewLine);
+        }
+    }
+
+    private sealed class ServiceLogEntry
+    {
+        public string Timestamp { get; set; } = string.Empty;
+        public string Id { get; set; } = string.Empty;
+        public string Method { get; set; } = string.Empty;
+        public string Expectation { get; set; } = string.Empty;
+        public string Outcome { get; set; } = string.Empty;
+        public int? Count { get; set; }
+        public bool? ExpectedFound { get; set; }
     }
 }

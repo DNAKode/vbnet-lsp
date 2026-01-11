@@ -6,37 +6,57 @@
       "id": "completion_text",
       "method": "textDocument/completion",
       "marker": "completion_text",
-      "expectation": "non_empty"
+      "expectation": "non_empty",
+      "token": "text.",
+      "tokenOffset": 5
     },
     {
       "id": "completion_extension",
       "method": "textDocument/completion",
       "marker": "completion_extension",
-      "expectation": "contains:DoubleIt"
+      "expectation": "contains:DoubleIt",
+      "token": "sum.",
+      "tokenOffset": 4
     },
     {
       "id": "hover_text",
       "method": "textDocument/hover",
       "marker": "hover_text",
-      "expectation": "non_null"
+      "expectation": "non_null",
+      "token": "sum",
+      "tokenOffset": 0
     },
     {
       "id": "definition_add",
       "method": "textDocument/definition",
       "marker": "definition_add",
-      "expectation": "non_empty"
+      "expectation": "non_empty",
+      "token": "Add",
+      "tokenOffset": 0
     },
     {
       "id": "references_greet",
       "method": "textDocument/references",
       "marker": "references_greet",
-      "expectation": "non_empty"
+      "expectation": "non_empty",
+      "token": "Greet",
+      "tokenOffset": 0
     },
     {
       "id": "rename_sum",
       "method": "textDocument/rename",
-      "marker": "definition_add",
-      "expectation": "workspace_edit"
+      "marker": "hover_text",
+      "expectation": "workspace_edit",
+      "token": "sum",
+      "tokenOffset": 0
+    },
+    {
+      "id": "rename_greeter",
+      "method": "textDocument/rename",
+      "marker": "rename_greeter",
+      "expectation": "workspace_edit_files:2",
+      "token": "New Greeter",
+      "tokenOffset": 4
     },
     {
       "id": "symbols_document",

@@ -24,6 +24,27 @@ async function main() {
     fs.mkdirSync(userDataDir, { recursive: true });
     fs.mkdirSync(extensionsDir, { recursive: true });
 
+    const userProfile = process.env.USERPROFILE ?? process.env.HOME;
+    if (userProfile) {
+        const userExtensionsRoot = path.join(userProfile, ".vscode", "extensions");
+        if (fs.existsSync(userExtensionsRoot)) {
+            const dotnetRuntimeExtensions = fs
+                .readdirSync(userExtensionsRoot, { withFileTypes: true })
+                .filter((entry) => entry.isDirectory() && entry.name.startsWith("ms-dotnettools.vscode-dotnet-runtime-"))
+                .map((entry) => entry.name)
+                .sort();
+            const latestRuntimeExtension = dotnetRuntimeExtensions[dotnetRuntimeExtensions.length - 1];
+            if (latestRuntimeExtension) {
+                const sourcePath = path.join(userExtensionsRoot, latestRuntimeExtension);
+                const destPath = path.join(extensionsDir, latestRuntimeExtension);
+                if (!fs.existsSync(destPath)) {
+                    console.log(`Copying .NET runtime extension to isolated dir: ${latestRuntimeExtension}`);
+                    fs.cpSync(sourcePath, destPath, { recursive: true });
+                }
+            }
+        }
+    }
+
     const fixtureWorkspace = process.env.FIXTURE_WORKSPACE
         ? path.resolve(process.env.FIXTURE_WORKSPACE)
         : path.resolve(repoRoot, "_test", "codex-tests", "csharp-lsp", "fixtures", "basic");
@@ -70,12 +91,58 @@ async function main() {
         cp.spawnSync(cliPath, listArgs, { stdio: "inherit" });
     }
 
-    await runTests({
-        vscodeExecutablePath,
-        extensionDevelopmentPath,
-        extensionTestsPath,
-        launchArgs,
-    });
+    const defaultServerPath = path.resolve(
+        repoRoot,
+        "src",
+        "VbNet.LanguageServer",
+        "bin",
+        "Debug",
+        "net10.0",
+        "VbNet.LanguageServer.dll"
+    );
+    const extensionTestsEnv = { ...process.env };
+    if (!extensionTestsEnv.VBNET_SERVER_PATH && fs.existsSync(defaultServerPath)) {
+        extensionTestsEnv.VBNET_SERVER_PATH = defaultServerPath;
+    }
+
+    const captureLogs = process.env.CAPTURE_VSCODE_LOGS === "1";
+    let runError: unknown;
+    try {
+        await runTests({
+            vscodeExecutablePath,
+            extensionDevelopmentPath,
+            extensionTestsPath,
+            launchArgs,
+            extensionTestsEnv,
+        });
+    } catch (error) {
+        runError = error;
+    } finally {
+        if (captureLogs) {
+            const logsDir = path.join(userDataDir, "logs");
+            if (fs.existsSync(logsDir)) {
+                const runs = fs
+                    .readdirSync(logsDir, { withFileTypes: true })
+                    .filter((entry) => entry.isDirectory())
+                    .map((entry) => entry.name)
+                    .sort();
+                const latest = runs[runs.length - 1];
+                if (latest) {
+                    const destRoot = path.resolve(__dirname, "..", "logs");
+                    const destPath = path.join(destRoot, latest);
+                    fs.mkdirSync(destRoot, { recursive: true });
+                    if (!fs.existsSync(destPath)) {
+                        fs.cpSync(path.join(logsDir, latest), destPath, { recursive: true });
+                        console.log(`Copied VS Code logs to ${destPath}`);
+                    }
+                }
+            }
+        }
+    }
+
+    if (runError) {
+        throw runError;
+    }
 }
 
 main().catch((err) => {

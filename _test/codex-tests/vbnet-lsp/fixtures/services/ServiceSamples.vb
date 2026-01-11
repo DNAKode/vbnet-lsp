@@ -34,7 +34,7 @@ Namespace ServicesSample
             Dim text As String = sum.ToString() ' MARKER: hover_text
             Dim length = text.Length ' MARKER: completion_text
 
-            Dim greeter As IGreeter = New Greeter()
+            Dim greeter As IGreeter = New Greeter() ' MARKER: rename_greeter
             Dim message = greeter.Greet("VB") ' MARKER: references_greet
 
             Dim doubled = sum.DoubleIt() ' MARKER: completion_extension

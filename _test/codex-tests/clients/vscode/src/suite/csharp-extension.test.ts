@@ -3,8 +3,9 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 
 const extensionId = process.env.EXTENSION_ID ?? "ms-dotnettools.csharp";
+const skipCsharp = process.env.SKIP_CSHARP_TESTS === "1" || extensionId === "dnakode.vbnet-language-support";
 
-suite("C# extension LSP smoke (VS Code harness)", () => {
+(skipCsharp ? suite.skip : suite)("C# extension LSP smoke (VS Code harness)", () => {
     async function retryUntil<T>(
         action: () => Thenable<T>,
         isReady: (value: T) => boolean,
