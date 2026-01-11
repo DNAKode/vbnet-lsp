@@ -2,6 +2,7 @@
 // Workspace Layer as defined in docs/architecture.md Section 5.3
 
 using System.Collections.Concurrent;
+using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
@@ -98,7 +99,7 @@ public sealed class DocumentManager
             _logger.LogDebug("Document not in workspace (standalone file): {Uri}", uri);
         }
 
-        DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, sourceText, version));
+        DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, sourceText, version, DocumentChangeKind.Opened));
     }
 
     /// <summary>
@@ -132,7 +133,7 @@ public sealed class DocumentManager
             _workspaceManager.ApplyTextChange(openDoc.DocumentId, newText);
         }
 
-        DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, newText, version));
+        DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, newText, version, DocumentChangeKind.Changed));
     }
 
     /// <summary>
@@ -184,7 +185,7 @@ public sealed class DocumentManager
         }
 
         // Trigger diagnostics refresh on save
-        DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version));
+        DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version, DocumentChangeKind.Saved));
     }
 
     /// <summary>
@@ -244,6 +245,35 @@ public sealed class DocumentManager
     }
 
     /// <summary>
+    /// Updates a closed document from the file system, if it exists in the workspace.
+    /// </summary>
+    public async Task<bool> TryUpdateClosedDocumentFromDiskAsync(string uri, CancellationToken ct = default)
+    {
+        if (IsDocumentOpen(uri))
+        {
+            return false;
+        }
+
+        var document = _workspaceManager.GetDocumentByUri(uri);
+        if (document == null || document.Id == null)
+        {
+            return false;
+        }
+
+        var filePath = UriToFilePath(uri);
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+        {
+            return false;
+        }
+
+        var content = await File.ReadAllTextAsync(filePath, ct);
+        var sourceText = SourceText.From(content);
+        _workspaceManager.ApplyTextChange(document.Id, sourceText);
+
+        return true;
+    }
+
+    /// <summary>
     /// Applies a list of content changes to source text.
     /// Supports both incremental and full document changes.
     /// </summary>
@@ -297,6 +327,36 @@ public sealed class DocumentManager
         return textLine.Start + character;
     }
 
+    private static string? UriToFilePath(string uri)
+    {
+        if (string.IsNullOrEmpty(uri)) return null;
+
+        try
+        {
+            var parsedUri = new Uri(uri);
+            if (parsedUri.IsFile)
+            {
+                var localPath = parsedUri.LocalPath;
+
+                if (localPath.Length >= 3 &&
+                    localPath[0] == '/' &&
+                    char.IsLetter(localPath[1]) &&
+                    localPath[2] == ':')
+                {
+                    localPath = localPath.Substring(1);
+                }
+
+                return localPath;
+            }
+        }
+        catch (UriFormatException)
+        {
+            return uri;
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Handles solution change events from the workspace.
     /// Reassociates open documents with workspace documents after workspace loads.
@@ -343,7 +403,7 @@ public sealed class DocumentManager
                 reassociatedCount++;
 
                 // Trigger diagnostics for this document
-                DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version));
+                DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version, DocumentChangeKind.Changed));
             }
         }
 
@@ -394,11 +454,20 @@ public class DocumentChangedEventArgs : EventArgs
     public string Uri { get; }
     public SourceText Text { get; }
     public int Version { get; }
+    public DocumentChangeKind Kind { get; }
 
-    public DocumentChangedEventArgs(string uri, SourceText text, int version)
+    public DocumentChangedEventArgs(string uri, SourceText text, int version, DocumentChangeKind kind)
     {
         Uri = uri;
         Text = text;
         Version = version;
+        Kind = kind;
     }
+}
+
+public enum DocumentChangeKind
+{
+    Opened,
+    Changed,
+    Saved
 }

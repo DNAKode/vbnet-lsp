@@ -288,6 +288,34 @@ public class WorkspaceFolder
     public string Name { get; set; } = string.Empty;
 }
 
+public class DidChangeConfigurationParams
+{
+    [JsonPropertyName("settings")]
+    public object? Settings { get; set; }
+}
+
+public class DidChangeWatchedFilesParams
+{
+    [JsonPropertyName("changes")]
+    public FileEvent[] Changes { get; set; } = [];
+}
+
+public class FileEvent
+{
+    [JsonPropertyName("uri")]
+    public string Uri { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public FileChangeType Type { get; set; }
+}
+
+public enum FileChangeType
+{
+    Created = 1,
+    Changed = 2,
+    Deleted = 3
+}
+
 #endregion
 
 #region Text Document
@@ -531,6 +559,12 @@ public class CompletionItem
 
     [JsonPropertyName("insertText")]
     public string? InsertText { get; set; }
+
+    [JsonPropertyName("textEdit")]
+    public TextEdit? TextEdit { get; set; }
+
+    [JsonPropertyName("additionalTextEdits")]
+    public TextEdit[]? AdditionalTextEdits { get; set; }
 
     [JsonPropertyName("insertTextFormat")]
     public InsertTextFormat? InsertTextFormat { get; set; }

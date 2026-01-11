@@ -4,6 +4,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using Microsoft.Extensions.Logging;
 using VbNet.LanguageServer.Protocol;
@@ -52,7 +53,7 @@ public sealed class SymbolsService
         if (document == null)
         {
             _logger.LogTrace("No Roslyn document found for: {Uri}", uri);
-            return Array.Empty<DocumentSymbol>();
+            return await GetDocumentSymbolsFromOpenDocumentAsync(uri, cancellationToken);
         }
 
         try
@@ -114,6 +115,116 @@ public sealed class SymbolsService
             _logger.LogError(ex, "Error getting document symbols for: {Uri}", uri);
             return Array.Empty<DocumentSymbol>();
         }
+    }
+
+    private async Task<DocumentSymbol[]> GetDocumentSymbolsFromOpenDocumentAsync(
+        string uri,
+        CancellationToken cancellationToken)
+    {
+        var openDoc = _documentManager.GetOpenDocument(uri);
+        if (openDoc == null)
+        {
+            return Array.Empty<DocumentSymbol>();
+        }
+
+        var syntaxTree = VisualBasicSyntaxTree.ParseText(openDoc.Text);
+        var syntaxRoot = await syntaxTree.GetRootAsync(cancellationToken);
+        var sourceText = await syntaxTree.GetTextAsync(cancellationToken);
+
+        var symbols = new List<DocumentSymbol>();
+        foreach (var node in GetTopLevelTypeBlocks(syntaxRoot))
+        {
+            var name = GetTypeName(node);
+            if (string.IsNullOrEmpty(name))
+            {
+                continue;
+            }
+
+            var kind = GetTypeSymbolKind(node);
+            if (kind == null)
+            {
+                continue;
+            }
+
+            symbols.Add(new DocumentSymbol
+            {
+                Name = name,
+                Kind = kind.Value,
+                Range = GetRange(node.Span, sourceText),
+                SelectionRange = GetSelectionRangeFromSyntax(node, sourceText)
+            });
+        }
+
+        return symbols.ToArray();
+    }
+
+    private static IEnumerable<SyntaxNode> GetTopLevelTypeBlocks(SyntaxNode root)
+    {
+        var typeBlocks = root.DescendantNodes().Where(node =>
+            node is ClassBlockSyntax ||
+            node is StructureBlockSyntax ||
+            node is InterfaceBlockSyntax ||
+            node is ModuleBlockSyntax ||
+            node is EnumBlockSyntax);
+
+        foreach (var node in typeBlocks)
+        {
+            if (node.Ancestors().Any(ancestor =>
+                ancestor is TypeBlockSyntax ||
+                ancestor is ModuleBlockSyntax ||
+                ancestor is EnumBlockSyntax))
+            {
+                continue;
+            }
+
+            yield return node;
+        }
+    }
+
+    private static string? GetTypeName(SyntaxNode node)
+    {
+        return node switch
+        {
+            ClassBlockSyntax cls => cls.ClassStatement.Identifier.Text,
+            StructureBlockSyntax structure => structure.StructureStatement.Identifier.Text,
+            InterfaceBlockSyntax iface => iface.InterfaceStatement.Identifier.Text,
+            ModuleBlockSyntax module => module.ModuleStatement.Identifier.Text,
+            EnumBlockSyntax enumBlock => enumBlock.EnumStatement.Identifier.Text,
+            _ => null
+        };
+    }
+
+    private static Protocol.SymbolKind? GetTypeSymbolKind(SyntaxNode node)
+    {
+        return node switch
+        {
+            ClassBlockSyntax => Protocol.SymbolKind.Class,
+            StructureBlockSyntax => Protocol.SymbolKind.Struct,
+            InterfaceBlockSyntax => Protocol.SymbolKind.Interface,
+            ModuleBlockSyntax => Protocol.SymbolKind.Module,
+            EnumBlockSyntax => Protocol.SymbolKind.Enum,
+            _ => null
+        };
+    }
+
+    private static Protocol.Range GetSelectionRangeFromSyntax(SyntaxNode node, SourceText sourceText)
+    {
+        var token = node switch
+        {
+            ClassBlockSyntax cls => cls.ClassStatement.Identifier,
+            StructureBlockSyntax structure => structure.StructureStatement.Identifier,
+            InterfaceBlockSyntax iface => iface.InterfaceStatement.Identifier,
+            ModuleBlockSyntax module => module.ModuleStatement.Identifier,
+            EnumBlockSyntax enumBlock => enumBlock.EnumStatement.Identifier,
+            _ => default
+        };
+
+        if (token == default)
+        {
+            return GetRange(node.Span, sourceText);
+        }
+
+        return GetRange(token.Span, sourceText);
     }
 
     /// <summary>

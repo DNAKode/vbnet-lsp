@@ -139,6 +139,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
                 { scheme: 'untitled', language: 'vb' }
             ],
             synchronize: {
+                configurationSection: 'vbnet',
                 // Notify the server about file changes to VB.NET project files
                 fileEvents: [
                     vscode.workspace.createFileSystemWatcher('**/*.vb'),
@@ -153,7 +154,23 @@ export class VbNetLanguageClient implements vscode.Disposable {
                 protocol2Code: UriConverter.deserialize
             },
             middleware: {
-                // Add any middleware here for request/response interception
+                handleDiagnostics: (uri, diagnostics, next) => {
+                    const config = vscode.workspace.getConfiguration('vbnet');
+                    if (!config.get<boolean>('diagnostics.enable', true)) {
+                        next(uri, []);
+                        return;
+                    }
+
+                    next(uri, diagnostics);
+                },
+                provideCompletionItem: async (document, position, context, token, next) => {
+                    const config = vscode.workspace.getConfiguration('vbnet');
+                    if (!config.get<boolean>('completion.enable', true)) {
+                        return null;
+                    }
+
+                    return next(document, position, context, token);
+                }
             },
             initializationOptions: {
                 // Options to pass to the server during initialization

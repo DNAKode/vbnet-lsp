@@ -506,6 +506,7 @@ var newDocument = document.WithText(newText);
 **Implementation**:
 - Debounce timer: 300ms default (configurable)
 - Trigger on `didOpen`, `didChange`, `didSave`
+- `didOpen` publishes diagnostics immediately (no debounce) to avoid missing initial results
 - Query Roslyn for all diagnostics
 - Filter by severity and suppression rules
 - Publish via `textDocument/publishDiagnostics`
@@ -1031,6 +1032,44 @@ Track in-flight requests by JSON-RPC id in the protocol layer and cancel linked 
 
 ---
 
+### 14.18 Decision: Resolve completion items using original request position and Roslyn text changes
+
+**Date**: 2026-01-11
+**Status**: Accepted
+
+**Context**:
+Completion resolve previously used an approximate end-of-document position and returned plain insert text, which can diverge from Roslyn's intended edits (including additional edits for imports).
+
+**Decision**:
+Store the original completion request position in each completion item and use it during resolve to locate the matching Roslyn completion item. Apply Roslyn's `CompletionChange` text edits (`TextEdit`/`AdditionalTextEdits`) instead of plain insert text.
+
+**Rationale**:
+- Aligns completion resolve with Roslyn behavior and avoids position drift
+- Ensures complex edits (including additional edits) are applied correctly
+- Matches C# extension expectations for completion resolution
+
+---
+
+### 14.19 Decision: Use workspace configuration + watched file notifications for production toggles and reloads
+
+**Date**: 2026-01-11
+**Status**: Accepted
+
+**Context**:
+Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`, `vbnet.completion.enable`) and reacting to external file changes (`workspace/didChangeWatchedFiles`).
+
+**Decision**:
+- Use `workspace/didChangeConfiguration` to drive server-side enable/disable behavior for diagnostics and completion.
+- Use `workspace/didChangeWatchedFiles` to reload solutions/projects for `.sln`, `.vbproj`, and `Directory.Build.*` changes, and to refresh closed `.vb` documents from disk.
+- Mirror the C# extension pattern by wiring `synchronize.configurationSection` and file watchers in the client.
+
+**Rationale**:
+- Keeps server and client behavior aligned with user settings
+- Ensures workspace state stays accurate when files change outside of the editor
+- Leverages established LSP patterns used by the C# extension
+
+---
+
 ## 15. Reference Implementations
 
 ### 15.1 Primary Reference: C# Extension
@@ -1120,6 +1159,8 @@ Track in-flight requests by JSON-RPC id in the protocol layer and cancel linked 
 | 14.15 | 2026-01-11 | Client-side retry for IPC connections (defense in depth) | Accepted |
 | 14.16 | 2026-01-11 | Mandatory E2E extension testing before release | Accepted |
 | 14.17 | 2026-01-11 | Honor `$/cancelRequest` via protocol-level request tracking | Accepted |
+| 14.18 | 2026-01-11 | Resolve completion items using original request position and Roslyn text changes | Accepted |
+| 14.19 | 2026-01-11 | Use workspace configuration + watched file notifications for production toggles and reloads | Accepted |
 
 ---
 
@@ -1206,6 +1247,8 @@ Located in `test/TestProjects/`:
 | 2026-01-11 | 2.1 | **VS Code Extension Complete**: Full TypeScript extension with LSP client, named pipe + stdio transport, .NET runtime resolution, status bar integration |
 | 2026-01-11 | 2.2 | **Protocol Synchronization Fix**: Fixed named pipe race condition; Added Section 4.2 protocol sync docs; Added Section 13.4-13.5 E2E testing and protocol checklist; Updated decisions 14.14-14.16 |
 | 2026-01-11 | 2.3 | **Request Cancellation**: Documented `$/cancelRequest` handling and protocol-level request tracking |
+| 2026-01-11 | 2.4 | **Completion Resolve Alignment**: Resolve uses original request position and Roslyn text edits |
+| 2026-01-11 | 2.5 | **Configuration + File Watch Handling**: Settings toggles and watched file reload behavior |
 
 ---
 

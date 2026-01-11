@@ -1,7 +1,9 @@
 // CompletionService - Provides IntelliSense completion via LSP
 // Services Layer as defined in docs/architecture.md Section 5.4
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
@@ -102,7 +104,7 @@ public sealed class CompletionService
 
             // Translate to LSP CompletionItems
             var items = completions.ItemsList
-                .Select((item, index) => TranslateCompletionItem(item, index, uri))
+                .Select((item, index) => TranslateCompletionItem(item, index, uri, position))
                 .ToArray();
 
             _logger.LogDebug("Returning {Count} completion items for: {Uri}", items.Length, uri);
@@ -149,8 +151,26 @@ public sealed class CompletionService
         try
         {
             // Parse the stored data
-            var uri = jsonData.GetProperty("uri").GetString();
-            var displayText = jsonData.GetProperty("displayText").GetString();
+            if (!jsonData.TryGetProperty("uri", out var uriElement) ||
+                !jsonData.TryGetProperty("displayText", out var displayTextElement) ||
+                !jsonData.TryGetProperty("position", out var positionElement))
+            {
+                return item;
+            }
+
+            var uri = uriElement.GetString();
+            var displayText = displayTextElement.GetString();
+            var line = positionElement.GetProperty("line").GetInt32();
+            var character = positionElement.GetProperty("character").GetInt32();
+            var filterText = jsonData.TryGetProperty("filterText", out var filterTextElement)
+                ? filterTextElement.GetString()
+                : null;
+            var sortText = jsonData.TryGetProperty("sortText", out var sortTextElement)
+                ? sortTextElement.GetString()
+                : null;
+            var index = jsonData.TryGetProperty("index", out var indexElement)
+                ? indexElement.GetInt32()
+                : -1;
 
             if (string.IsNullOrEmpty(uri) || string.IsNullOrEmpty(displayText))
             {
@@ -174,9 +194,10 @@ public sealed class CompletionService
 
             // Try to get description for the item
             // Note: This requires finding the original completion item, which we approximate
+            var offset = GetOffset(new Position(line, character), sourceText);
             var completions = await completionService.GetCompletionsAsync(
                 document,
-                sourceText.Length > 0 ? sourceText.Length - 1 : 0, // Use end of document as approximation
+                offset,
                 cancellationToken: cancellationToken);
 
             if (completions == null)
@@ -184,8 +205,12 @@ public sealed class CompletionService
                 return item;
             }
 
-            var matchingItem = completions.ItemsList
-                .FirstOrDefault(c => c.DisplayText == displayText);
+            var matchingItem = FindMatchingCompletionItem(
+                completions.ItemsList,
+                displayText,
+                filterText,
+                sortText,
+                index);
 
             if (matchingItem == null)
             {
@@ -213,6 +238,23 @@ public sealed class CompletionService
                 }
             }
 
+            // Apply Roslyn text changes to the completion item
+            var change = await completionService.GetChangeAsync(
+                document,
+                matchingItem,
+                cancellationToken: cancellationToken);
+            item.TextEdit = CreateTextEdit(change.TextChange, sourceText);
+
+            var additionalChanges = GetAdditionalTextChanges(change);
+            if (additionalChanges is { Count: > 0 })
+            {
+                item.AdditionalTextEdits = additionalChanges
+                    .Select(textChange => CreateTextEdit(textChange, sourceText))
+                    .ToArray();
+            }
+
+            item.InsertText = null;
+
             return item;
         }
         catch (OperationCanceledException)
@@ -233,7 +275,8 @@ public sealed class CompletionService
     private Protocol.CompletionItem TranslateCompletionItem(
         RoslynCompletion.CompletionItem roslynItem,
         int index,
-        string uri)
+        string uri,
+        Position position)
     {
         var kind = TranslateCompletionKind(roslynItem.Tags);
 
@@ -252,7 +295,14 @@ public sealed class CompletionService
             {
                 uri,
                 displayText = roslynItem.DisplayText,
-                index
+                filterText = roslynItem.FilterText,
+                sortText = roslynItem.SortText,
+                index,
+                position = new
+                {
+                    line = position.Line,
+                    character = position.Character
+                }
             }
         };
 
@@ -416,5 +466,114 @@ public sealed class CompletionService
         character = Math.Max(0, character);
 
         return textLine.Start + character;
+    }
+
+    private static Protocol.Range GetRange(TextSpan span, SourceText sourceText)
+    {
+        var startLine = sourceText.Lines.GetLineFromPosition(span.Start);
+        var endLine = sourceText.Lines.GetLineFromPosition(span.End);
+
+        return new Protocol.Range
+        {
+            Start = new Position
+            {
+                Line = startLine.LineNumber,
+                Character = span.Start - startLine.Start
+            },
+            End = new Position
+            {
+                Line = endLine.LineNumber,
+                Character = span.End - endLine.Start
+            }
+        };
+    }
+
+    private static TextEdit CreateTextEdit(TextChange change, SourceText sourceText)
+    {
+        return new TextEdit
+        {
+            Range = GetRange(change.Span, sourceText),
+            NewText = change.NewText ?? string.Empty
+        };
+    }
+
+    private static RoslynCompletion.CompletionItem? FindMatchingCompletionItem(
+        IReadOnlyList<RoslynCompletion.CompletionItem> items,
+        string? displayText,
+        string? filterText,
+        string? sortText,
+        int index)
+    {
+        if (string.IsNullOrEmpty(displayText))
+        {
+            return null;
+        }
+
+        if (index >= 0 && index < items.Count)
+        {
+            var indexedItem = items[index];
+            if (IsMatch(indexedItem, displayText, filterText, sortText))
+            {
+                return indexedItem;
+            }
+        }
+
+        var match = items.FirstOrDefault(item => IsMatch(item, displayText, filterText, sortText));
+        if (match != null)
+        {
+            return match;
+        }
+
+        return items.FirstOrDefault(item => item.DisplayText == displayText);
+    }
+
+    private static bool IsMatch(
+        RoslynCompletion.CompletionItem item,
+        string displayText,
+        string? filterText,
+        string? sortText)
+    {
+        if (!string.Equals(item.DisplayText, displayText, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(filterText) &&
+            !string.Equals(item.FilterText, filterText, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(sortText) &&
+            !string.Equals(item.SortText, sortText, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static IReadOnlyList<TextChange>? GetAdditionalTextChanges(object change)
+    {
+        var changeType = change.GetType();
+        var property = changeType.GetProperty("AdditionalTextChanges") ??
+            changeType.GetProperty("TextChanges");
+        if (property == null)
+        {
+            return null;
+        }
+
+        var value = property.GetValue(change);
+        if (value is IReadOnlyList<TextChange> readOnlyList)
+        {
+            return readOnlyList;
+        }
+
+        if (value is IEnumerable<TextChange> enumerable)
+        {
+            return enumerable.ToList();
+        }
+
+        return null;
     }
 }

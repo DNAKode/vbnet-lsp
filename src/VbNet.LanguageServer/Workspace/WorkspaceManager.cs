@@ -52,6 +52,15 @@ public sealed class WorkspaceManager : IAsyncDisposable
     public string? LoadedSolutionPath => _loadedSolutionPath;
 
     /// <summary>
+    /// Checks whether a project path is currently loaded.
+    /// </summary>
+    public bool IsProjectLoaded(string projectPath)
+    {
+        var normalizedPath = NormalizePath(projectPath);
+        return _loadedProjectPaths.Any(p => string.Equals(NormalizePath(p), normalizedPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Initializes the MSBuildWorkspace. Must be called before loading solutions/projects.
     /// </summary>
     public void Initialize()
@@ -85,7 +94,10 @@ public sealed class WorkspaceManager : IAsyncDisposable
     /// <summary>
     /// Loads a solution file.
     /// </summary>
-    public async Task<bool> LoadSolutionAsync(string solutionPath, CancellationToken cancellationToken = default)
+    public async Task<bool> LoadSolutionAsync(
+        string solutionPath,
+        CancellationToken cancellationToken = default,
+        SolutionChangeKind changeKind = SolutionChangeKind.Loaded)
     {
         if (_workspace == null)
         {
@@ -135,7 +147,7 @@ public sealed class WorkspaceManager : IAsyncDisposable
                 _logger.LogInformation("Note: C# projects loaded but not served (VB.NET only in current phase)");
             }
 
-            SolutionChanged?.Invoke(this, new SolutionChangedEventArgs(solution, SolutionChangeKind.Loaded));
+            SolutionChanged?.Invoke(this, new SolutionChangedEventArgs(solution, changeKind));
 
             return vbProjects.Count > 0;
         }
@@ -153,7 +165,10 @@ public sealed class WorkspaceManager : IAsyncDisposable
     /// <summary>
     /// Loads a single project file.
     /// </summary>
-    public async Task<bool> LoadProjectAsync(string projectPath, CancellationToken cancellationToken = default)
+    public async Task<bool> LoadProjectAsync(
+        string projectPath,
+        CancellationToken cancellationToken = default,
+        SolutionChangeKind changeKind = SolutionChangeKind.ProjectAdded)
     {
         if (_workspace == null)
         {
@@ -179,12 +194,15 @@ public sealed class WorkspaceManager : IAsyncDisposable
                 return false;
             }
 
-            _loadedProjectPaths.Add(projectPath);
+            if (!IsProjectLoaded(projectPath))
+            {
+                _loadedProjectPaths.Add(projectPath);
+            }
             _logger.LogInformation("Project loaded: {Name} ({DocumentCount} documents)",
                 project.Name, project.DocumentIds.Count);
 
             SolutionChanged?.Invoke(this, new SolutionChangedEventArgs(
-                _workspace.CurrentSolution, SolutionChangeKind.ProjectAdded));
+                _workspace.CurrentSolution, changeKind));
 
             return true;
         }
@@ -331,6 +349,42 @@ public sealed class WorkspaceManager : IAsyncDisposable
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Reloads the currently loaded solution or projects.
+    /// </summary>
+    public async Task<bool> ReloadWorkspaceAsync(CancellationToken cancellationToken = default)
+    {
+        if (!string.IsNullOrEmpty(_loadedSolutionPath))
+        {
+            return await LoadSolutionAsync(_loadedSolutionPath, cancellationToken, SolutionChangeKind.Reloaded);
+        }
+
+        if (_loadedProjectPaths.Count == 0)
+        {
+            return false;
+        }
+
+        var reloadedAny = false;
+        foreach (var projectPath in _loadedProjectPaths.ToList())
+        {
+            var reloaded = await LoadProjectAsync(projectPath, cancellationToken, SolutionChangeKind.Reloaded);
+            reloadedAny |= reloaded;
+        }
+
+        if (!reloadedAny && _workspace?.CurrentSolution.ProjectIds.Count > 0)
+        {
+            SolutionChanged?.Invoke(this, new SolutionChangedEventArgs(
+                _workspace.CurrentSolution, SolutionChangeKind.Reloaded));
+        }
+
+        return reloadedAny;
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return Path.GetFullPath(path);
     }
 
     private void OnWorkspaceFailed(object? sender, WorkspaceDiagnosticEventArgs e)

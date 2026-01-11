@@ -77,6 +77,18 @@ public class DiagnosticsServiceTests : IDisposable
     }
 
     [Fact]
+    public void TriggerDiagnostics_DoesNothingWhenDisabled()
+    {
+        var uri = "file:///c:/test/module1.vb";
+
+        _diagnosticsService.Enabled = false;
+
+        _diagnosticsService.TriggerDiagnostics(uri);
+
+        Assert.Empty(_publishedDiagnostics);
+    }
+
+    [Fact]
     public async Task ComputeAndPublishDiagnosticsAsync_ForStandaloneDocument_PublishesDiagnostics()
     {
         var uri = "file:///c:/test/module1.vb";
@@ -97,8 +109,31 @@ public class DiagnosticsServiceTests : IDisposable
         var published = await WaitForPublishAsync();
 
         // Should publish (possibly empty since no Roslyn document)
-        Assert.Single(_publishedDiagnostics);
+        Assert.NotEmpty(_publishedDiagnostics);
         Assert.Equal(uri, published.Uri);
+    }
+
+    [Fact]
+    public async Task ComputeAndPublishDiagnosticsAsync_DoesNothingWhenDisabled()
+    {
+        var uri = "file:///c:/test/module1.vb";
+
+        _diagnosticsService.Enabled = false;
+
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = uri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = "Module Module1\nEnd Module"
+            }
+        });
+
+        await _diagnosticsService.ComputeAndPublishDiagnosticsAsync(uri);
+
+        Assert.Empty(_publishedDiagnostics);
     }
 
     [Fact]

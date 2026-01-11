@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using VbNet.LanguageServer.Protocol;
 using VbNet.LanguageServer.Services;
@@ -231,5 +232,61 @@ public class CompletionIntegrationTests : IAsyncLifetime
             // All items should have sort text for proper ordering
             Assert.All(result.Items, item => Assert.NotNull(item.SortText));
         }
+    }
+
+    [Fact]
+    public async Task ResolveCompletionItemAsync_UsesTextEdit()
+    {
+        var projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj");
+        var helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb");
+
+        if (!File.Exists(projectPath))
+        {
+            return;
+        }
+
+        await _workspaceManager.LoadProjectAsync(projectPath);
+
+        var helperUri = new Uri(helperPath).ToString();
+        var text = await File.ReadAllTextAsync(helperPath);
+
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = helperUri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = text
+            }
+        });
+
+        var lines = text.Split('\n');
+        var lineIndex = Array.FindIndex(lines, l => l.Contains("_counter += 1"));
+
+        if (lineIndex < 0)
+        {
+            return;
+        }
+
+        var @params = new CompletionParams
+        {
+            TextDocument = new TextDocumentIdentifier { Uri = helperUri },
+            Position = new Position { Line = lineIndex, Character = 8 }
+        };
+
+        var result = await _completionService.GetCompletionAsync(@params, CancellationToken.None);
+
+        if (result.Items.Length == 0)
+        {
+            return;
+        }
+
+        var serializedItem = JsonSerializer.Serialize(result.Items[0], JsonSerializerOptionsProvider.Options);
+        var lspItem = JsonSerializer.Deserialize<CompletionItem>(serializedItem, JsonSerializerOptionsProvider.Options);
+        var resolved = await _completionService.ResolveCompletionItemAsync(lspItem!, CancellationToken.None);
+
+        Assert.NotNull(resolved);
+        Assert.NotNull(resolved.TextEdit);
     }
 }

@@ -1,6 +1,7 @@
 // Main Language Server class - orchestrates all server components
 // Follows the architecture defined in docs/architecture.md
 
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using VbNet.LanguageServer.Protocol;
 using VbNet.LanguageServer.Services;
@@ -36,6 +37,8 @@ public sealed class LanguageServer : IAsyncDisposable
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
     private TaskCompletionSource? _shutdownRequested;
+    private bool _diagnosticsEnabled = true;
+    private bool _completionEnabled = true;
 
     /// <summary>
     /// Server name reported in initialize response.
@@ -134,6 +137,14 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterNotification<DidCloseTextDocumentParams>("textDocument/didClose", HandleDidCloseAsync);
         _dispatcher.RegisterNotification<DidChangeTextDocumentParams>("textDocument/didChange", HandleDidChangeAsync);
         _dispatcher.RegisterNotification<DidSaveTextDocumentParams>("textDocument/didSave", HandleDidSaveAsync);
+
+        // Workspace notifications
+        _dispatcher.RegisterNotification<DidChangeConfigurationParams>(
+            "workspace/didChangeConfiguration",
+            HandleDidChangeConfigurationAsync);
+        _dispatcher.RegisterNotification<DidChangeWatchedFilesParams>(
+            "workspace/didChangeWatchedFiles",
+            HandleDidChangeWatchedFilesAsync);
 
         // Language features
         _dispatcher.RegisterRequest<CompletionParams, CompletionList>("textDocument/completion", HandleCompletionAsync);
@@ -364,6 +375,103 @@ public sealed class LanguageServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    private async Task HandleDidChangeConfigurationAsync(DidChangeConfigurationParams? @params, CancellationToken ct)
+    {
+        if (@params?.Settings == null)
+        {
+            return;
+        }
+
+        var settingsElement = ExtractSettingsElement(@params.Settings);
+        var diagnosticsEnabled = GetBooleanSetting(settingsElement, "diagnostics", "enable");
+        var completionEnabled = GetBooleanSetting(settingsElement, "completion", "enable");
+
+        if (diagnosticsEnabled.HasValue && diagnosticsEnabled.Value != _diagnosticsEnabled)
+        {
+            _diagnosticsEnabled = diagnosticsEnabled.Value;
+            _diagnosticsService.Enabled = diagnosticsEnabled.Value;
+
+            if (!_diagnosticsEnabled)
+            {
+                await ClearDiagnosticsForOpenDocumentsAsync(ct);
+            }
+            else
+            {
+                TriggerDiagnosticsForOpenDocuments();
+            }
+
+            _logger.LogInformation("Diagnostics enabled: {Enabled}", _diagnosticsEnabled);
+        }
+
+        if (completionEnabled.HasValue && completionEnabled.Value != _completionEnabled)
+        {
+            _completionEnabled = completionEnabled.Value;
+            _logger.LogInformation("Completion enabled: {Enabled}", _completionEnabled);
+        }
+    }
+
+    private async Task HandleDidChangeWatchedFilesAsync(DidChangeWatchedFilesParams? @params, CancellationToken ct)
+    {
+        if (@params?.Changes == null || @params.Changes.Length == 0)
+        {
+            return;
+        }
+
+        var reloadWorkspace = false;
+
+        foreach (var change in @params.Changes)
+        {
+            if (string.IsNullOrWhiteSpace(change.Uri))
+            {
+                continue;
+            }
+
+            var filePath = TryGetFilePath(change.Uri);
+            if (string.IsNullOrEmpty(filePath))
+            {
+                continue;
+            }
+
+            if (IsWorkspaceDefinitionFile(filePath))
+            {
+                if (ShouldReloadForWorkspaceFile(filePath))
+                {
+                    reloadWorkspace = true;
+                    break;
+                }
+
+                continue;
+            }
+
+            if (IsVbFile(filePath))
+            {
+                if (change.Type == FileChangeType.Deleted)
+                {
+                    if (_workspaceManager.GetDocumentByUri(change.Uri) != null)
+                    {
+                        reloadWorkspace = true;
+                        break;
+                    }
+                }
+                else
+                {
+                    var updated = await _documentManager.TryUpdateClosedDocumentFromDiskAsync(change.Uri, ct);
+                    if (!updated && change.Type == FileChangeType.Created)
+                    {
+                        reloadWorkspace = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (reloadWorkspace)
+        {
+            await _workspaceManager.ReloadWorkspaceAsync(ct);
+            _documentManager.ReassociateDocumentsWithWorkspace();
+        }
+    }
+
     #endregion
 
     #region Language Features
@@ -371,6 +479,11 @@ public sealed class LanguageServer : IAsyncDisposable
     private async Task<CompletionList> HandleCompletionAsync(CompletionParams? @params, CancellationToken ct)
     {
         if (@params == null)
+        {
+            return new CompletionList { IsIncomplete = false, Items = Array.Empty<CompletionItem>() };
+        }
+
+        if (!_completionEnabled)
         {
             return new CompletionList { IsIncomplete = false, Items = Array.Empty<CompletionItem>() };
         }
@@ -383,6 +496,11 @@ public sealed class LanguageServer : IAsyncDisposable
         if (item == null)
         {
             return new CompletionItem { Label = "" };
+        }
+
+        if (!_completionEnabled)
+        {
+            return item;
         }
 
         return await _completionService.ResolveCompletionItemAsync(item, ct);
@@ -575,6 +693,158 @@ public sealed class LanguageServer : IAsyncDisposable
         }
 
         return localPath;
+    }
+
+    private static string? TryGetFilePath(string uri)
+    {
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            return null;
+        }
+
+        try
+        {
+            return UriToLocalPath(uri);
+        }
+        catch (UriFormatException)
+        {
+            return null;
+        }
+    }
+
+    private static bool IsWorkspaceDefinitionFile(string filePath)
+    {
+        var fileName = Path.GetFileName(filePath);
+        return filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
+               filePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "Directory.Build.props", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "Directory.Build.targets", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool ShouldReloadForWorkspaceFile(string filePath)
+    {
+        if (filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.IsNullOrEmpty(_workspaceManager.LoadedSolutionPath) &&
+                string.Equals(Path.GetFullPath(_workspaceManager.LoadedSolutionPath), Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (filePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(_workspaceManager.LoadedSolutionPath))
+            {
+                return true;
+            }
+
+            return _workspaceManager.IsProjectLoaded(filePath);
+        }
+
+        return _workspaceManager.IsLoaded;
+    }
+
+    private static bool IsVbFile(string filePath)
+    {
+        return filePath.EndsWith(".vb", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static JsonElement ExtractSettingsElement(object settings)
+    {
+        if (settings is JsonElement element)
+        {
+            return element;
+        }
+
+        var json = JsonSerializer.Serialize(settings, JsonSerializerOptionsProvider.Options);
+        return JsonSerializer.Deserialize<JsonElement>(json, JsonSerializerOptionsProvider.Options);
+    }
+
+    private static bool? GetBooleanSetting(JsonElement settings, string section, string name)
+    {
+        var root = settings;
+        if (settings.ValueKind == JsonValueKind.Object &&
+            settings.TryGetProperty("vbnet", out var vbnetSettings) &&
+            vbnetSettings.ValueKind == JsonValueKind.Object)
+        {
+            root = vbnetSettings;
+        }
+
+        if (TryGetBooleanSetting(root, section, name, out var value))
+        {
+            return value;
+        }
+
+        if (TryGetBooleanSetting(root, $"{section}.{name}", null, out value))
+        {
+            return value;
+        }
+
+        return null;
+    }
+
+    private static bool TryGetBooleanSetting(
+        JsonElement root,
+        string section,
+        string? name,
+        out bool value)
+    {
+        value = false;
+
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!root.TryGetProperty(section, out var sectionElement))
+        {
+            return false;
+        }
+
+        if (name == null)
+        {
+            return TryGetBooleanValue(sectionElement, out value);
+        }
+
+        if (sectionElement.ValueKind != JsonValueKind.Object ||
+            !sectionElement.TryGetProperty(name, out var valueElement))
+        {
+            return false;
+        }
+
+        return TryGetBooleanValue(valueElement, out value);
+    }
+
+    private static bool TryGetBooleanValue(JsonElement element, out bool value)
+    {
+        value = false;
+        if (element.ValueKind == JsonValueKind.True)
+        {
+            value = true;
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.False)
+        {
+            value = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void TriggerDiagnosticsForOpenDocuments()
+    {
+        foreach (var uri in _documentManager.OpenDocumentUris)
+        {
+            _diagnosticsService.TriggerDiagnostics(uri);
+        }
+    }
+
+    private async Task ClearDiagnosticsForOpenDocumentsAsync(CancellationToken ct)
+    {
+        foreach (var uri in _documentManager.OpenDocumentUris)
+        {
+            await _diagnosticsService.ClearDiagnosticsAsync(uri, ct);
+        }
     }
 
     public async ValueTask DisposeAsync()

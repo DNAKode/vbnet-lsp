@@ -187,4 +187,27 @@ public class LspTypesTests
         Assert.Equal(7, doc.RootElement.GetProperty("kind").GetInt32()); // Class = 7
         Assert.Equal("System.Console", doc.RootElement.GetProperty("detail").GetString());
     }
+
+    [Fact]
+    public void DidChangeWatchedFilesParams_DeserializesCorrectly()
+    {
+        var json = """
+        {
+            "changes": [
+                {
+                    "uri": "file:///c:/test/Module1.vb",
+                    "type": 2
+                }
+            ]
+        }
+        """;
+
+        var options = JsonSerializerOptionsProvider.Options;
+        var @params = JsonSerializer.Deserialize<DidChangeWatchedFilesParams>(json, options);
+
+        Assert.NotNull(@params);
+        Assert.Single(@params.Changes);
+        Assert.Equal("file:///c:/test/Module1.vb", @params.Changes[0].Uri);
+        Assert.Equal(FileChangeType.Changed, @params.Changes[0].Type);
+    }
 }

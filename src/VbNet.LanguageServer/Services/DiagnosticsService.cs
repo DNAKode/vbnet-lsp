@@ -44,6 +44,11 @@ public sealed class DiagnosticsService : IDisposable
     /// </summary>
     public Protocol.DiagnosticSeverity MinimumSeverity { get; set; } = Protocol.DiagnosticSeverity.Warning;
 
+    /// <summary>
+    /// Enables or disables diagnostics publishing.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
     public DiagnosticsService(
         WorkspaceManager workspaceManager,
         DocumentManager documentManager,
@@ -64,6 +69,11 @@ public sealed class DiagnosticsService : IDisposable
     /// </summary>
     public void TriggerDiagnostics(string uri)
     {
+        if (!Enabled)
+        {
+            return;
+        }
+
         _logger.LogTrace("Diagnostics triggered for: {Uri}", uri);
 
         // Cancel any existing timer for this document
@@ -87,6 +97,11 @@ public sealed class DiagnosticsService : IDisposable
     /// </summary>
     public async Task ComputeAndPublishDiagnosticsAsync(string uri, CancellationToken cancellationToken = default)
     {
+        if (!Enabled)
+        {
+            return;
+        }
+
         // Cancel any previous computation for this document
         if (_pendingComputations.TryRemove(uri, out var existingCts))
         {
@@ -468,6 +483,17 @@ public sealed class DiagnosticsService : IDisposable
 
     private void OnDocumentChanged(object? sender, DocumentChangedEventArgs e)
     {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        if (e.Kind == DocumentChangeKind.Opened)
+        {
+            _ = ComputeAndPublishDiagnosticsAsync(e.Uri);
+            return;
+        }
+
         TriggerDiagnostics(e.Uri);
     }
 

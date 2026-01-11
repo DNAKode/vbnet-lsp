@@ -62,6 +62,33 @@ public class SymbolsServiceTests
     }
 
     [Fact]
+    public async Task GetDocumentSymbolsAsync_OpenDocumentWithoutWorkspace_ReturnsSymbols()
+    {
+        var uri = "file:///c:/test/Sample.vb";
+        var text = "Namespace Test\n    Public Class Sample\n    End Class\nEnd Namespace";
+
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = uri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = text
+            }
+        });
+
+        var @params = new DocumentSymbolParams
+        {
+            TextDocument = new TextDocumentIdentifier { Uri = uri }
+        };
+
+        var result = await _symbolsService.GetDocumentSymbolsAsync(@params, CancellationToken.None);
+
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
     public async Task GetWorkspaceSymbolsAsync_NoSolution_ReturnsEmpty()
     {
         var @params = new WorkspaceSymbolParams

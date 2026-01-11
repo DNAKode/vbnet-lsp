@@ -228,6 +228,27 @@ public class WorkspaceManagerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ReloadWorkspaceAsync_FiresReloadedChangeKind()
+    {
+        var projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj");
+
+        if (!File.Exists(projectPath))
+        {
+            return;
+        }
+
+        await _workspaceManager.LoadProjectAsync(projectPath);
+
+        SolutionChangedEventArgs? receivedArgs = null;
+        _workspaceManager.SolutionChanged += (sender, args) => receivedArgs = args;
+
+        await _workspaceManager.ReloadWorkspaceAsync();
+
+        Assert.NotNull(receivedArgs);
+        Assert.Equal(SolutionChangeKind.Reloaded, receivedArgs.Kind);
+    }
+
+    [Fact]
     public async Task WorkspaceDiagnostic_EventFired_OnLoadFailure()
     {
         // This test verifies that workspace diagnostics are reported
