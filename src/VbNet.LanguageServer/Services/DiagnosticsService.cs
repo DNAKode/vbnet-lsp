@@ -2,8 +2,10 @@
 // Services Layer as defined in docs/architecture.md Section 5.4
 
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.Extensions.Logging;
 using VbNet.LanguageServer.Protocol;
 using VbNet.LanguageServer.Workspace;
@@ -16,6 +18,7 @@ namespace VbNet.LanguageServer.Services;
 /// </summary>
 public sealed class DiagnosticsService : IDisposable
 {
+    private static readonly Lazy<ImmutableArray<MetadataReference>> DefaultReferences = new(BuildDefaultReferences);
     private readonly WorkspaceManager _workspaceManager;
     private readonly DocumentManager _documentManager;
     private readonly ILogger<DiagnosticsService> _logger;
@@ -154,16 +157,16 @@ public sealed class DiagnosticsService : IDisposable
         var document = _documentManager.GetRoslynDocument(uri);
         if (document == null)
         {
-            _logger.LogTrace("No Roslyn document found for: {Uri}", uri);
-            return Array.Empty<Protocol.Diagnostic>();
+            _logger.LogTrace("No Roslyn document found for: {Uri}. Falling back to standalone diagnostics.", uri);
+            return await GetStandaloneDiagnosticsAsync(uri, cancellationToken);
         }
 
         // Get semantic model which includes all diagnostics
         var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
         if (semanticModel == null)
         {
-            _logger.LogWarning("Failed to get semantic model for: {Uri}", uri);
-            return Array.Empty<Protocol.Diagnostic>();
+            _logger.LogWarning("Failed to get semantic model for: {Uri}. Falling back to project diagnostics.", uri);
+            return await GetProjectDiagnosticsAsync(document, cancellationToken);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -192,6 +195,103 @@ public sealed class DiagnosticsService : IDisposable
             .ToArray();
 
         return lspDiagnostics;
+    }
+
+    private async Task<Protocol.Diagnostic[]> GetProjectDiagnosticsAsync(Document document, CancellationToken cancellationToken)
+    {
+        var syntaxTree = await document.GetSyntaxTreeAsync(cancellationToken);
+        if (syntaxTree == null)
+        {
+            return Array.Empty<Protocol.Diagnostic>();
+        }
+
+        var compilation = await document.Project.GetCompilationAsync(cancellationToken);
+        if (compilation == null)
+        {
+            return Array.Empty<Protocol.Diagnostic>();
+        }
+
+        var sourceText = await syntaxTree.GetTextAsync(cancellationToken);
+        var diagnostics = compilation.GetDiagnostics(cancellationToken)
+            .Where(d => d.Location.Kind == LocationKind.SourceFile && d.Location.SourceTree == syntaxTree);
+
+        return diagnostics
+            .Where(d => !d.IsSuppressed)
+            .Where(d => ShouldIncludeDiagnostic(d))
+            .Select(d => TranslateDiagnostic(d, sourceText))
+            .Where(d => d != null)
+            .Cast<Protocol.Diagnostic>()
+            .ToArray();
+    }
+
+    private async Task<Protocol.Diagnostic[]> GetStandaloneDiagnosticsAsync(string uri, CancellationToken cancellationToken)
+    {
+        var sourceText = await _documentManager.GetSourceTextAsync(uri, cancellationToken);
+        if (sourceText == null)
+        {
+            return Array.Empty<Protocol.Diagnostic>();
+        }
+
+        var filePath = TryGetFilePath(uri);
+        var syntaxTree = VisualBasicSyntaxTree.ParseText(sourceText, path: filePath);
+        var compilation = VisualBasicCompilation.Create(
+            "VbNetStandaloneDiagnostics",
+            new[] { syntaxTree },
+            DefaultReferences.Value,
+            new VisualBasicCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var diagnostics = compilation.GetDiagnostics(cancellationToken)
+            .Where(d => d.Location.Kind == LocationKind.SourceFile && d.Location.SourceTree == syntaxTree);
+
+        return diagnostics
+            .Where(d => !d.IsSuppressed)
+            .Where(d => ShouldIncludeDiagnostic(d))
+            .Select(d => TranslateDiagnostic(d, sourceText))
+            .Where(d => d != null)
+            .Cast<Protocol.Diagnostic>()
+            .ToArray();
+    }
+
+    private static ImmutableArray<MetadataReference> BuildDefaultReferences()
+    {
+        var builder = ImmutableArray.CreateBuilder<MetadataReference>();
+        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
+        if (string.IsNullOrWhiteSpace(trustedAssemblies))
+        {
+            return builder.ToImmutable();
+        }
+
+        foreach (var path in trustedAssemblies.Split(Path.PathSeparator))
+        {
+            try
+            {
+                builder.Add(MetadataReference.CreateFromFile(path));
+            }
+            catch
+            {
+                // Ignore invalid reference paths.
+            }
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static string? TryGetFilePath(string uri)
+    {
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            return null;
+        }
+
+        try
+        {
+            var parsedUri = new Uri(uri);
+            return parsedUri.IsFile ? parsedUri.LocalPath : uri;
+        }
+        catch (UriFormatException)
+        {
+            return uri;
+        }
     }
 
     /// <summary>
