@@ -201,7 +201,22 @@ public sealed class DocumentManager
 
         if (openDoc.DocumentId == null)
         {
-            // Standalone document not in workspace
+            // DocumentId is null - try to find it in workspace now
+            // (workspace may have loaded after the document was opened)
+            var document = _workspaceManager.GetDocumentByUri(uri);
+            if (document != null)
+            {
+                // Found it! Update the DocumentId for future calls
+                openDoc.DocumentId = document.Id;
+
+                // Sync the current text to the workspace
+                _workspaceManager.ApplyTextChange(document.Id, openDoc.Text);
+
+                _logger.LogDebug("Late-associated document: {Uri} -> {DocumentId}", uri, document.Id);
+                return _workspaceManager.CurrentSolution?.GetDocument(document.Id);
+            }
+
+            // Truly a standalone document not in workspace
             return null;
         }
 

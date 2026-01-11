@@ -83,22 +83,29 @@ public sealed class HoverService
                 return null;
             }
 
+            // Ensure we have a parent node to analyze
+            var parentNode = token.Parent;
+            if (parentNode == null)
+            {
+                return null;
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
 
             // Try to get symbol info
-            var symbolInfo = semanticModel.GetSymbolInfo(token.Parent!, cancellationToken);
+            var symbolInfo = semanticModel.GetSymbolInfo(parentNode, cancellationToken);
             var symbol = symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstOrDefault();
 
             // If no symbol, try getting declared symbol
             if (symbol == null)
             {
-                symbol = semanticModel.GetDeclaredSymbol(token.Parent!, cancellationToken);
+                symbol = semanticModel.GetDeclaredSymbol(parentNode, cancellationToken);
             }
 
             // If still no symbol, try type info
             if (symbol == null)
             {
-                var typeInfo = semanticModel.GetTypeInfo(token.Parent!, cancellationToken);
+                var typeInfo = semanticModel.GetTypeInfo(parentNode, cancellationToken);
                 symbol = typeInfo.Type;
             }
 
