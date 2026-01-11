@@ -554,6 +554,8 @@ public sealed class LanguageServer : IAsyncDisposable
     /// </summary>
     public SymbolsService SymbolsService => _symbolsService;
 
+    internal MessageDispatcher Dispatcher => _dispatcher;
+
     /// <summary>
     /// Converts a file URI to a local file path, handling Windows path quirks.
     /// </summary>
