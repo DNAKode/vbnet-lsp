@@ -19,6 +19,8 @@ namespace VbNet.LanguageServer.Services;
 /// </summary>
 public sealed class CompletionService
 {
+    internal static Func<CancellationToken, Task>? TestDelayAsync;
+
     private readonly WorkspaceManager _workspaceManager;
     private readonly DocumentManager _documentManager;
     private readonly ILogger<CompletionService> _logger;
@@ -45,6 +47,11 @@ public sealed class CompletionService
         CompletionParams @params,
         CancellationToken cancellationToken)
     {
+        if (TestDelayAsync != null)
+        {
+            await TestDelayAsync(cancellationToken);
+        }
+
         if (@params?.TextDocument == null)
         {
             return new CompletionList { IsIncomplete = false, Items = Array.Empty<Protocol.CompletionItem>() };
