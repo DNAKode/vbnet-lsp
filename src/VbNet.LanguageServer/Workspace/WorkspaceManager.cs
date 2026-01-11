@@ -309,7 +309,19 @@ public sealed class WorkspaceManager : IAsyncDisposable
             var parsedUri = new Uri(uri);
             if (parsedUri.IsFile)
             {
-                return parsedUri.LocalPath;
+                var localPath = parsedUri.LocalPath;
+
+                // On Windows, Uri.LocalPath returns paths like "/c:/foo" for file:///c:/foo
+                // We need to remove the leading slash
+                if (localPath.Length >= 3 &&
+                    localPath[0] == '/' &&
+                    char.IsLetter(localPath[1]) &&
+                    localPath[2] == ':')
+                {
+                    localPath = localPath.Substring(1);
+                }
+
+                return localPath;
             }
         }
         catch (UriFormatException)

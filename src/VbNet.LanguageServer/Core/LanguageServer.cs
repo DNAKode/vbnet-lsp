@@ -257,7 +257,7 @@ public sealed class LanguageServer : IAsyncDisposable
     {
         try
         {
-            var rootPath = new Uri(rootUri).LocalPath;
+            var rootPath = UriToLocalPath(rootUri);
 
             if (!Directory.Exists(rootPath))
             {
@@ -550,6 +550,27 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the symbols service.
     /// </summary>
     public SymbolsService SymbolsService => _symbolsService;
+
+    /// <summary>
+    /// Converts a file URI to a local file path, handling Windows path quirks.
+    /// </summary>
+    private static string UriToLocalPath(string uri)
+    {
+        var parsedUri = new Uri(uri);
+        var localPath = parsedUri.LocalPath;
+
+        // On Windows, Uri.LocalPath returns paths like "/c:/foo" for file:///c:/foo
+        // We need to remove the leading slash
+        if (localPath.Length >= 3 &&
+            localPath[0] == '/' &&
+            char.IsLetter(localPath[1]) &&
+            localPath[2] == ':')
+        {
+            localPath = localPath.Substring(1);
+        }
+
+        return localPath;
+    }
 
     public async ValueTask DisposeAsync()
     {

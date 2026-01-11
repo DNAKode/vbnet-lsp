@@ -224,7 +224,7 @@ export class ServerLauncher {
             }, 30000);
 
             // Pattern to match the pipe name JSON: {"pipeName":"..."}
-            const pipeNameRegex = /\{"pipeName":"([^"]+)"\}/;
+            const pipeNameRegex = /(\{"pipeName":"[^"]+"\})/;
 
             let buffer = '';
 
@@ -234,7 +234,13 @@ export class ServerLauncher {
                 if (match) {
                     clearTimeout(timeout);
                     childProcess.stdout?.off('data', onData);
-                    resolve(match[1]);
+                    try {
+                        // Parse the JSON to properly unescape the pipe name
+                        const pipeInfo = JSON.parse(match[1]) as NamedPipeInfo;
+                        resolve(pipeInfo.pipeName);
+                    } catch (e) {
+                        reject(new Error(`Failed to parse pipe name JSON: ${match[1]}`));
+                    }
                 }
             };
 

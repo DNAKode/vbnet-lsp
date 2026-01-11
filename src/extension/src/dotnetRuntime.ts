@@ -41,10 +41,17 @@ interface DotnetAcquireContext {
 }
 
 /**
+ * Context for acquiring the .NET runtime (extended with architecture).
+ */
+interface DotnetAcquireContextWithArch extends DotnetAcquireContext {
+    architecture?: string;
+}
+
+/**
  * Context for finding an existing .NET installation.
  */
 interface DotnetFindPathContext {
-    acquireContext: DotnetAcquireContext;
+    acquireContext: DotnetAcquireContextWithArch;
     versionSpecRequirement: 'greater_than_or_equal' | 'equal';
     rejectPreviews?: boolean;
 }
@@ -113,11 +120,14 @@ export class DotnetRuntimeResolver {
      */
     private async findExistingDotnet(): Promise<string | undefined> {
         try {
+            // Use process.arch directly - the dotnet runtime extension expects 'x64', 'arm64', etc.
+            const architecture = process.arch;
             const findPathRequest: DotnetFindPathContext = {
                 acquireContext: {
                     version: DotNetRuntimeVersion,
                     requestingExtensionId: VbNetExtensionId,
-                    mode: 'runtime'
+                    mode: 'runtime',
+                    architecture: architecture
                 },
                 versionSpecRequirement: 'greater_than_or_equal',
                 rejectPreviews: true
@@ -140,10 +150,13 @@ export class DotnetRuntimeResolver {
      */
     private async acquireDotnetRuntime(): Promise<string | undefined> {
         try {
-            const acquireContext: DotnetAcquireContext = {
+            // Use process.arch directly - the dotnet runtime extension expects 'x64', 'arm64', etc.
+            const architecture = process.arch;
+            const acquireContext: DotnetAcquireContextWithArch = {
                 version: DotNetRuntimeVersion,
                 requestingExtensionId: VbNetExtensionId,
-                mode: 'runtime'
+                mode: 'runtime',
+                architecture: architecture
             };
 
             // Check if already acquired

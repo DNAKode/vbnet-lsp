@@ -65,9 +65,8 @@ public class JsonRpcResponse : JsonRpcMessage
         return new JsonRpcResponse
         {
             Id = id,
-            Result = result != null
-                ? JsonSerializer.SerializeToElement(result, JsonSerializerOptionsProvider.Options)
-                : null
+            // Always serialize result, even if null - JSON-RPC requires "result" property for success
+            Result = JsonSerializer.SerializeToElement(result, JsonSerializerOptionsProvider.Options)
         };
     }
 
