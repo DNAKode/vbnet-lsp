@@ -337,12 +337,15 @@ public sealed class LanguageServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    private Task HandleDidCloseAsync(DidCloseTextDocumentParams? @params, CancellationToken ct)
+    private async Task HandleDidCloseAsync(DidCloseTextDocumentParams? @params, CancellationToken ct)
     {
-        if (@params == null) return Task.CompletedTask;
+        if (@params == null)
+        {
+            return;
+        }
 
         _documentManager.HandleDidClose(@params);
-        return Task.CompletedTask;
+        await _diagnosticsService.ClearDiagnosticsAsync(@params.TextDocument.Uri, ct);
     }
 
     private Task HandleDidChangeAsync(DidChangeTextDocumentParams? @params, CancellationToken ct)

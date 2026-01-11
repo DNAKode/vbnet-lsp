@@ -10,10 +10,12 @@ import {
     LanguageClientOptions,
     ServerOptions,
     StreamInfo,
-    State
+    State,
+    Trace
 } from 'vscode-languageclient/node';
 import { PlatformInformation } from './platform';
 import { ServerLauncher, TransportType, ServerStartResult } from './serverLauncher';
+import { UriConverter } from './uriConverter';
 
 /**
  * Language client state change event.
@@ -30,6 +32,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
     private client: LanguageClient | undefined;
     private serverLauncher: ServerLauncher;
     private readonly onStateChangeEmitter = new vscode.EventEmitter<LanguageClientStateChangeEvent>();
+    private traceConfigDisposable: vscode.Disposable | undefined;
 
     public readonly onStateChange = this.onStateChangeEmitter.event;
 
@@ -70,6 +73,16 @@ export class VbNetLanguageClient implements vscode.Disposable {
 
             // Start the client
             await this.client.start();
+            await this.client.onReady();
+            await this.updateTraceLevel();
+
+            this.traceConfigDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+                if (event.affectsConfiguration('vbnet.trace.server')) {
+                    this.updateTraceLevel().catch((error) => {
+                        this.channel.appendLine(`Failed to update trace level: ${error}`);
+                    });
+                }
+            });
             this.channel.appendLine('VB.NET Language Client started successfully');
 
         } catch (error) {
@@ -135,6 +148,10 @@ export class VbNetLanguageClient implements vscode.Disposable {
             },
             outputChannel: this.channel,
             traceOutputChannel: this.traceChannel,
+            uriConverters: {
+                code2Protocol: UriConverter.serialize,
+                protocol2Code: UriConverter.deserialize
+            },
             middleware: {
                 // Add any middleware here for request/response interception
             },
@@ -157,6 +174,9 @@ export class VbNetLanguageClient implements vscode.Disposable {
             }
             this.client = undefined;
         }
+
+        this.traceConfigDisposable?.dispose();
+        this.traceConfigDisposable = undefined;
 
         this.serverLauncher.stopServer();
     }
@@ -192,5 +212,23 @@ export class VbNetLanguageClient implements vscode.Disposable {
         this.stop().catch((error) => {
             this.channel.appendLine(`Error during disposal: ${error}`);
         });
+    }
+
+    private async updateTraceLevel(): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const traceLevel = config.get<string>('trace.server', 'off');
+
+        const trace = traceLevel === 'verbose'
+            ? Trace.Verbose
+            : traceLevel === 'messages'
+                ? Trace.Messages
+                : Trace.Off;
+
+        await this.client.setTrace(trace);
+        this.channel.appendLine(`Language client trace level set to ${traceLevel}`);
     }
 }

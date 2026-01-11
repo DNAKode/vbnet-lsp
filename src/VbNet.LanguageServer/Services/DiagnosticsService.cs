@@ -354,7 +354,7 @@ public sealed class DiagnosticsService : IDisposable
             Source = "vbnet",
             Message = diagnostic.GetMessage(),
             CodeDescription = GetCodeDescription(diagnostic),
-            RelatedInformation = GetRelatedInformation(diagnostic, sourceText)
+            RelatedInformation = GetRelatedInformation(diagnostic)
         };
     }
 
@@ -400,8 +400,7 @@ public sealed class DiagnosticsService : IDisposable
     /// Gets related information for a diagnostic (additional locations).
     /// </summary>
     private DiagnosticRelatedInformation[]? GetRelatedInformation(
-        Microsoft.CodeAnalysis.Diagnostic diagnostic,
-        SourceText sourceText)
+        Microsoft.CodeAnalysis.Diagnostic diagnostic)
     {
         var additionalLocations = diagnostic.AdditionalLocations;
         if (additionalLocations.Count == 0)
@@ -419,7 +418,8 @@ public sealed class DiagnosticsService : IDisposable
 
             var filePath = location.SourceTree.FilePath;
             var uri = PathToUri(filePath);
-            var range = GetRange(location.SourceSpan, sourceText);
+            var relatedText = location.SourceTree.GetText();
+            var range = GetRange(location.SourceSpan, relatedText);
 
             related.Add(new DiagnosticRelatedInformation
             {
