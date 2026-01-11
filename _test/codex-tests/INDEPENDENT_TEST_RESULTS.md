@@ -7,7 +7,7 @@ Host: Windows (C:\Work\vbnet-lsp)
 
 ## High-level status
 
-- VB.NET LSP service tests pass end-to-end with token-aware positions and include a multi-file rename check.
+- VB.NET LSP service tests pass end-to-end with token-aware positions and expanded coverage (additional completion/hover/definition/references + multi-file rename).
 - VS Code extension integration tests run headlessly and pass for activation and core service requests when configured to use the local server DLL and stdio transport.
 - Diagnostics automation still fails to receive publishDiagnostics for the diagnostics fixture.
 - VS Code automation requires elevated permissions in this environment to launch Code.exe.
@@ -19,7 +19,17 @@ Host: Windows (C:\Work\vbnet-lsp)
 Command pattern:
 - `dotnet _test\codex-tests\vbnet-lsp\VbNetLspSmokeTest\bin\Debug\net10.0\VbNetLspSmokeTest.dll --serverPath src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll --dotnetPath dotnet --logLevel Trace --transport stdio --rootPath _test\codex-tests\vbnet-lsp\fixtures\services --timeoutSeconds 60 --serviceManifest _test\codex-tests\vbnet-lsp\fixtures\services\service-tests.json --serviceTestId <id> --serviceTimeoutSeconds 45 --serviceLog _test\codex-tests\logs\service-tests-20260111-182639.jsonl --protocolLog _test\codex-tests\logs\protocol-anomalies-20260111-182639.jsonl --timingLog _test\codex-tests\logs\timing-20260111-182639.jsonl`
 
-Results (per test id):
+Expanded coverage (additional tests added):
+- completion_calc (calc.Add)
+- hover_extratype (ExtraType)
+- definition_greeter
+- references_greeter_class
+- references_title
+
+Expanded test validation:
+- completion_calc: PASS (`_test/codex-tests/logs/service-tests-20260111-202008.jsonl`)
+
+Baseline results (from full run before expansion):
 - completion_text: PASS (117 items returned)
 - completion_extension: PASS (DoubleIt present)
 - hover_text: PASS
@@ -30,13 +40,15 @@ Results (per test id):
 - symbols_document: PASS (6 symbols)
 - symbols_workspace: PASS (4 symbols)
 
-Logs:
-- `_test/codex-tests/logs/service-tests-20260111-182639.jsonl`
-- `_test/codex-tests/logs/protocol-anomalies-20260111-182639.jsonl`
-- `_test/codex-tests/logs/timing-20260111-182639.jsonl`
-
 Notes:
 - Multi-file rename coverage added via `GreeterConsumer.vb` and `rename_greeter`.
+- Additional references coverage added via `ExtraConsumer.vb` and `references_title`.
+
+Logs:
+- `_test/codex-tests/logs/service-tests-20260111-182639.jsonl`
+- `_test/codex-tests/logs/service-tests-20260111-202008.jsonl`
+- `_test/codex-tests/logs/protocol-anomalies-20260111-182639.jsonl`
+- `_test/codex-tests/logs/timing-20260111-182639.jsonl`
 
 ### 2) VS Code extension integration tests (headless)
 
@@ -83,7 +95,7 @@ Outcome: FAIL
 ## Overall assessment
 
 - Core VB.NET services are working in both the standalone LSP harness and VS Code integration tests.
-- Diagnostics are still not stable; this remains the main functional gap for independent verification.
+- Coverage is broader (extra completion/hover/definition/references + multi-file rename), but diagnostics remain the main functional gap for independent verification.
 
 ## Suggested follow-ups
 

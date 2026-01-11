@@ -31,11 +31,17 @@ Namespace ServicesSample
         Public Shared Sub Main()
             Dim calc As New Calculator()
             Dim sum = calc.Add(1, 2) ' MARKER: definition_add
+            Dim sum2 = calc.Add(3, 4) ' MARKER: completion_calc
             Dim text As String = sum.ToString() ' MARKER: hover_text
             Dim length = text.Length ' MARKER: completion_text
 
             Dim greeter As IGreeter = New Greeter() ' MARKER: rename_greeter
             Dim message = greeter.Greet("VB") ' MARKER: references_greet
+            Dim greeterType = New Greeter() ' MARKER: definition_greeter
+            Dim greeterAgain = New Greeter() ' MARKER: references_greeter_class
+
+            Dim extra = New ExtraType("Sample") ' MARKER: hover_extratype
+            Dim title = extra.Title ' MARKER: references_title
 
             Dim doubled = sum.DoubleIt() ' MARKER: completion_extension
         End Sub

@@ -11,6 +11,14 @@
       "tokenOffset": 5
     },
     {
+      "id": "completion_calc",
+      "method": "textDocument/completion",
+      "marker": "completion_calc",
+      "expectation": "contains:Add",
+      "token": "calc.",
+      "tokenOffset": 5
+    },
+    {
       "id": "completion_extension",
       "method": "textDocument/completion",
       "marker": "completion_extension",
@@ -27,6 +35,14 @@
       "tokenOffset": 0
     },
     {
+      "id": "hover_extratype",
+      "method": "textDocument/hover",
+      "marker": "hover_extratype",
+      "expectation": "non_null",
+      "token": "ExtraType",
+      "tokenOffset": 0
+    },
+    {
       "id": "definition_add",
       "method": "textDocument/definition",
       "marker": "definition_add",
@@ -35,11 +51,35 @@
       "tokenOffset": 0
     },
     {
+      "id": "definition_greeter",
+      "method": "textDocument/definition",
+      "marker": "definition_greeter",
+      "expectation": "non_empty",
+      "token": "Greeter",
+      "tokenOffset": 0
+    },
+    {
       "id": "references_greet",
       "method": "textDocument/references",
       "marker": "references_greet",
       "expectation": "non_empty",
       "token": "Greet",
+      "tokenOffset": 0
+    },
+    {
+      "id": "references_greeter_class",
+      "method": "textDocument/references",
+      "marker": "references_greeter_class",
+      "expectation": "non_empty",
+      "token": "Greeter",
+      "tokenOffset": 0
+    },
+    {
+      "id": "references_title",
+      "method": "textDocument/references",
+      "marker": "references_title",
+      "expectation": "non_empty",
+      "token": "Title",
       "tokenOffset": 0
     },
     {
