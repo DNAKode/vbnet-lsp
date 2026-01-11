@@ -1,5 +1,6 @@
 // JSON-RPC message dispatcher for routing LSP requests and notifications
 
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,9 @@ public sealed class MessageDispatcher
 
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object?>>> _requestHandlers = new();
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task>> _notificationHandlers = new();
+    private readonly ConcurrentDictionary<JsonRpcId, CancellationTokenSource> _requestCancellation = new();
+
+    private const string CancelRequestMethod = "$/cancelRequest";
 
     public MessageDispatcher(ITransport transport, ILogger<MessageDispatcher> logger)
     {
@@ -158,6 +162,12 @@ public sealed class MessageDispatcher
             var method = methodElement.GetString()!;
             var paramsElement = root.TryGetProperty("params", out var p) ? p : (JsonElement?)null;
 
+            if (string.Equals(method, CancelRequestMethod, StringComparison.Ordinal))
+            {
+                await HandleCancelRequestAsync(paramsElement).ConfigureAwait(false);
+                return;
+            }
+
             if (hasId)
             {
                 // This is a request
@@ -177,12 +187,31 @@ public sealed class MessageDispatcher
         _logger.LogDebug("Handling request: {Method} (id: {Id})", method, id);
 
         JsonRpcResponse response;
+        CancellationTokenSource? requestCts = null;
+        CancellationTokenSource? linkedCts = null;
+        var requestCancellationToken = cancellationToken;
+
+        if (!id.IsNull)
+        {
+            requestCts = new CancellationTokenSource();
+            if (!_requestCancellation.TryAdd(id, requestCts))
+            {
+                requestCts.Dispose();
+                requestCts = null;
+            }
+        }
+
+        if (requestCts != null)
+        {
+            linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, requestCts.Token);
+            requestCancellationToken = linkedCts.Token;
+        }
 
         if (_requestHandlers.TryGetValue(method, out var handler))
         {
             try
             {
-                var result = await handler(paramsElement, cancellationToken);
+                var result = await handler(paramsElement, requestCancellationToken);
                 response = JsonRpcResponse.Success(id, result);
             }
             catch (OperationCanceledException)
@@ -201,8 +230,20 @@ public sealed class MessageDispatcher
             response = JsonRpcResponse.CreateError(id, JsonRpcErrorCodes.MethodNotFound, $"Method not found: {method}");
         }
 
-        var json = JsonSerializer.Serialize(response, JsonSerializerOptionsProvider.Options);
-        await _transport.WriteMessageAsync(json, cancellationToken);
+        try
+        {
+            var json = JsonSerializer.Serialize(response, JsonSerializerOptionsProvider.Options);
+            await _transport.WriteMessageAsync(json, cancellationToken);
+        }
+        finally
+        {
+            if (!id.IsNull && _requestCancellation.TryRemove(id, out var cts))
+            {
+                cts.Dispose();
+            }
+
+            linkedCts?.Dispose();
+        }
     }
 
     private async Task HandleNotificationAsync(string method, JsonElement? paramsElement, CancellationToken cancellationToken)
@@ -224,6 +265,38 @@ public sealed class MessageDispatcher
         {
             _logger.LogTrace("No handler registered for notification: {Method}", method);
         }
+    }
+
+    private Task HandleCancelRequestAsync(JsonElement? paramsElement)
+    {
+        if (!paramsElement.HasValue)
+        {
+            return Task.CompletedTask;
+        }
+
+        try
+        {
+            var cancelParams = JsonSerializer.Deserialize<CancelParams>(
+                paramsElement.Value.GetRawText(),
+                JsonSerializerOptionsProvider.Options);
+            if (cancelParams == null || cancelParams.Id.IsNull)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (_requestCancellation.TryRemove(cancelParams.Id, out var cts))
+            {
+                cts.Cancel();
+                cts.Dispose();
+                _logger.LogDebug("Cancelled request: {Id}", cancelParams.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to process $/cancelRequest");
+        }
+
+        return Task.CompletedTask;
     }
 
     private static JsonRpcId ParseId(JsonElement element)

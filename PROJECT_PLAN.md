@@ -503,6 +503,15 @@ See `docs/development.md` Section 2.1 for setup instructions.
    - ✅ RenameService (with prepare)
    - ✅ SymbolsService (Document + Workspace symbols)
 
+### Phase 1 Follow-ups (Production Quality)
+
+**Tracked issues to align with C# extension/Roslyn behavior**:
+- LSP request cancellation (`$/cancelRequest`) should cancel in-flight handlers consistently (verify end-to-end).
+- Completion resolve uses an approximate position; align with Roslyn completion item resolution.
+- Completion items should apply Roslyn text changes (`TextEdit`/`AdditionalTextEdits`) instead of plain insert text.
+- Handle `workspace/didChangeWatchedFiles` to keep the workspace in sync with external edits.
+- Honor `vbnet.diagnostics.enable` and `vbnet.completion.enable` settings in client/server behavior.
+
 ### Phase 2: Enhanced Editing - Next
 
 **Planned features**:

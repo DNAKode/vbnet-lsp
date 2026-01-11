@@ -770,3 +770,171 @@ public class WorkspaceSymbolParams
 // Exit notification has no parameters
 
 #endregion
+
+#region Cancel Request
+
+public class CancelParams
+{
+    [JsonPropertyName("id")]
+    public JsonRpcId Id { get; set; }
+}
+
+#endregion
+
+#region Folding Ranges
+
+public class FoldingRangeParams
+{
+    [JsonPropertyName("textDocument")]
+    public TextDocumentIdentifier TextDocument { get; set; } = new();
+}
+
+public class FoldingRange
+{
+    [JsonPropertyName("startLine")]
+    public int StartLine { get; set; }
+
+    [JsonPropertyName("startCharacter")]
+    public int? StartCharacter { get; set; }
+
+    [JsonPropertyName("endLine")]
+    public int EndLine { get; set; }
+
+    [JsonPropertyName("endCharacter")]
+    public int? EndCharacter { get; set; }
+
+    [JsonPropertyName("kind")]
+    public string? Kind { get; set; }
+
+    [JsonPropertyName("collapsedText")]
+    public string? CollapsedText { get; set; }
+}
+
+public static class FoldingRangeKind
+{
+    public const string Comment = "comment";
+    public const string Imports = "imports";
+    public const string Region = "region";
+}
+
+#endregion
+
+#region Formatting
+
+public class DocumentFormattingParams
+{
+    [JsonPropertyName("textDocument")]
+    public TextDocumentIdentifier TextDocument { get; set; } = new();
+
+    [JsonPropertyName("options")]
+    public FormattingOptions Options { get; set; } = new();
+}
+
+public class DocumentRangeFormattingParams
+{
+    [JsonPropertyName("textDocument")]
+    public TextDocumentIdentifier TextDocument { get; set; } = new();
+
+    [JsonPropertyName("range")]
+    public Range Range { get; set; } = new();
+
+    [JsonPropertyName("options")]
+    public FormattingOptions Options { get; set; } = new();
+}
+
+public class FormattingOptions
+{
+    [JsonPropertyName("tabSize")]
+    public int TabSize { get; set; } = 4;
+
+    [JsonPropertyName("insertSpaces")]
+    public bool InsertSpaces { get; set; } = true;
+
+    [JsonPropertyName("trimTrailingWhitespace")]
+    public bool? TrimTrailingWhitespace { get; set; }
+
+    [JsonPropertyName("insertFinalNewline")]
+    public bool? InsertFinalNewline { get; set; }
+
+    [JsonPropertyName("trimFinalNewlines")]
+    public bool? TrimFinalNewlines { get; set; }
+}
+
+#endregion
+
+#region Signature Help
+
+public class SignatureHelpParams : TextDocumentPositionParams
+{
+    [JsonPropertyName("context")]
+    public SignatureHelpContext? Context { get; set; }
+}
+
+public class SignatureHelpContext
+{
+    [JsonPropertyName("triggerKind")]
+    public SignatureHelpTriggerKind TriggerKind { get; set; }
+
+    [JsonPropertyName("triggerCharacter")]
+    public string? TriggerCharacter { get; set; }
+
+    [JsonPropertyName("isRetrigger")]
+    public bool IsRetrigger { get; set; }
+
+    [JsonPropertyName("activeSignatureHelp")]
+    public SignatureHelp? ActiveSignatureHelp { get; set; }
+}
+
+public enum SignatureHelpTriggerKind
+{
+    Invoked = 1,
+    TriggerCharacter = 2,
+    ContentChange = 3
+}
+
+public class SignatureHelp
+{
+    [JsonPropertyName("signatures")]
+    public SignatureInformation[] Signatures { get; set; } = [];
+
+    [JsonPropertyName("activeSignature")]
+    public int? ActiveSignature { get; set; }
+
+    [JsonPropertyName("activeParameter")]
+    public int? ActiveParameter { get; set; }
+}
+
+public class SignatureInformation
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("documentation")]
+    public MarkupContent? Documentation { get; set; }
+
+    [JsonPropertyName("parameters")]
+    public ParameterInformation[]? Parameters { get; set; }
+
+    [JsonPropertyName("activeParameter")]
+    public int? ActiveParameter { get; set; }
+}
+
+public class ParameterInformation
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("documentation")]
+    public MarkupContent? Documentation { get; set; }
+}
+
+public class SignatureHelpOptions
+{
+    [JsonPropertyName("triggerCharacters")]
+    public string[]? TriggerCharacters { get; set; }
+
+    [JsonPropertyName("retriggerCharacters")]
+    public string[]? RetriggerCharacters { get; set; }
+}
+
+#endregion

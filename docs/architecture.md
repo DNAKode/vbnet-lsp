@@ -2,7 +2,7 @@
 
 **Single Source of Truth for Architectural Decisions**
 
-Version: 2.2
+Version: 2.3
 Last Updated: 2026-01-11
 Status: Living Document
 
@@ -413,6 +413,12 @@ public async Task<CompletionList> GetCompletionAsync(
     return TranslateToLspCompletionList(items);
 }
 ```
+
+**LSP Request Cancellation**:
+- The protocol layer tracks in-flight requests by JSON-RPC id.
+- Incoming `$/cancelRequest` notifications cancel the linked `CancellationToken`.
+- Handlers receive that token and are expected to exit early when cancelled.
+- This mirrors the Roslyn LSP server pattern (cancellation is propagated through the request pipeline, not via custom handlers).
 
 ---
 
@@ -1007,6 +1013,24 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 
 ---
 
+### 14.17 Decision: Honor `$/cancelRequest` via protocol-level request tracking
+
+**Date**: 2026-01-11
+**Status**: Accepted
+
+**Context**:
+The C# extension uses `vscode-languageclient` cancellation tokens, and the Roslyn LSP server propagates cancellation through its JSON-RPC request pipeline. We need equivalent behavior to stay aligned.
+
+**Decision**:
+Track in-flight requests by JSON-RPC id in the protocol layer and cancel linked `CancellationToken`s when a `$/cancelRequest` notification is received.
+
+**Rationale**:
+- Mirrors Roslyn LSP cancellation propagation
+- Keeps cancellation handling centralized in the protocol layer
+- Avoids per-handler cancellation plumbing beyond `CancellationToken`
+
+---
+
 ## 15. Reference Implementations
 
 ### 15.1 Primary Reference: C# Extension
@@ -1095,6 +1119,7 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 | 14.14 | 2026-01-11 | Named pipe readiness signaling: listen before output | Accepted |
 | 14.15 | 2026-01-11 | Client-side retry for IPC connections (defense in depth) | Accepted |
 | 14.16 | 2026-01-11 | Mandatory E2E extension testing before release | Accepted |
+| 14.17 | 2026-01-11 | Honor `$/cancelRequest` via protocol-level request tracking | Accepted |
 
 ---
 
@@ -1180,6 +1205,7 @@ Located in `test/TestProjects/`:
 | 2026-01-11 | 2.0 | **Phase 1 MVP Complete**: All services implemented (Completion, Hover, Definition, References, Rename, Symbols); 113 tests passing |
 | 2026-01-11 | 2.1 | **VS Code Extension Complete**: Full TypeScript extension with LSP client, named pipe + stdio transport, .NET runtime resolution, status bar integration |
 | 2026-01-11 | 2.2 | **Protocol Synchronization Fix**: Fixed named pipe race condition; Added Section 4.2 protocol sync docs; Added Section 13.4-13.5 E2E testing and protocol checklist; Updated decisions 14.14-14.16 |
+| 2026-01-11 | 2.3 | **Request Cancellation**: Documented `$/cancelRequest` handling and protocol-level request tracking |
 
 ---
 
