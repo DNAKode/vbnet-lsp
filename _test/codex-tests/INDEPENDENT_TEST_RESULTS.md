@@ -252,3 +252,11 @@ Server updates:
 
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).
+
+### Update 2026-01-13 (member enumeration tightened)
+
+Server updates:
+- Syntax fallback now enumerates immediate type members instead of all descendants to avoid nested duplication.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).

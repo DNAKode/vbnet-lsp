@@ -451,7 +451,22 @@ public sealed class SymbolsService
 
     private static IEnumerable<(string Name, Protocol.SymbolKind Kind, TextSpan Span)> GetTypeMembers(SyntaxNode typeNode)
     {
-        foreach (var member in typeNode.DescendantNodes())
+        var members = typeNode switch
+        {
+            ClassBlockSyntax cls => cls.Members,
+            StructureBlockSyntax structure => structure.Members,
+            InterfaceBlockSyntax iface => iface.Members,
+            ModuleBlockSyntax module => module.Members,
+            EnumBlockSyntax enumBlock => enumBlock.Members,
+            _ => default
+        };
+
+        if (members == default)
+        {
+            yield break;
+        }
+
+        foreach (var member in members)
         {
             switch (member)
             {
@@ -478,6 +493,14 @@ public sealed class SymbolsService
                     break;
                 case EnumMemberDeclarationSyntax enumMember:
                     yield return (enumMember.Identifier.Text, Protocol.SymbolKind.EnumMember, enumMember.Span);
+                    break;
+                case TypeBlockSyntax typeBlock:
+                    var typeName = GetTypeName(typeBlock);
+                    var typeKind = GetTypeSymbolKind(typeBlock);
+                    if (!string.IsNullOrEmpty(typeName) && typeKind != null)
+                    {
+                        yield return (typeName, typeKind.Value, typeBlock.Span);
+                    }
                     break;
             }
         }
