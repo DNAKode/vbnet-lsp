@@ -261,6 +261,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
 
+### Update 2026-01-13 (project search cap setting)
+
+Server updates:
+- `vbnet.workspace.maxProjectResults` now limits server-side project discovery.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:

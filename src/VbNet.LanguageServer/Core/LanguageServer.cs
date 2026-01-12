@@ -45,6 +45,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private bool _ignoreSolutionFiles;
     private string[]? _workspaceProjectSearchPaths;
     private string[]? _workspaceExcludePaths;
+    private int _workspaceMaxProjectResults = 250;
     private const int MaxAncestorSearchDepth = 4;
 
     /// <summary>
@@ -354,7 +355,13 @@ public sealed class LanguageServer : IAsyncDisposable
             var vbprojFiles = CollectVbProjFiles(
                 GetProjectSearchRoots(rootPath),
                 _workspaceExcludePaths,
+                _workspaceMaxProjectResults,
                 ct);
+
+            if (_workspaceMaxProjectResults > 0 && vbprojFiles.Count >= _workspaceMaxProjectResults)
+            {
+                _logger.LogInformation("Project search capped at {Max} results", _workspaceMaxProjectResults);
+            }
 
             if (vbprojFiles.Count > 0)
             {
@@ -455,6 +462,7 @@ public sealed class LanguageServer : IAsyncDisposable
         var ignoreSolutionFiles = GetBooleanSetting(settingsElement, "workspace", "ignoreSolutionFiles");
         var projectSearchPaths = GetStringArraySetting(settingsElement, "workspace", "projectSearchPaths");
         var excludePaths = GetStringArraySetting(settingsElement, "workspace", "excludePaths");
+        var maxProjectResults = GetIntSetting(settingsElement, "workspace", "maxProjectResults");
 
         var reloadWorkspace = false;
 
@@ -509,6 +517,12 @@ public sealed class LanguageServer : IAsyncDisposable
         if (excludePaths != null && !AreEquivalent(excludePaths, _workspaceExcludePaths))
         {
             _workspaceExcludePaths = excludePaths;
+            reloadWorkspace = true;
+        }
+
+        if (maxProjectResults.HasValue && maxProjectResults.Value != _workspaceMaxProjectResults)
+        {
+            _workspaceMaxProjectResults = maxProjectResults.Value;
             reloadWorkspace = true;
         }
 
@@ -922,6 +936,12 @@ public sealed class LanguageServer : IAsyncDisposable
                 _workspaceExcludePaths = excludePaths;
             }
 
+            if (workspaceOptions.TryGetProperty("maxProjectResults", out var maxProjectResults) &&
+                TryGetIntValue(maxProjectResults, out var maxResults))
+            {
+                _workspaceMaxProjectResults = maxResults;
+            }
+
             if (workspaceOptions.TryGetProperty("ignoreSolutionFiles", out var ignoreSolutionElement) &&
                 TryGetBooleanValue(ignoreSolutionElement, out var ignoreSolution))
             {
@@ -1171,6 +1191,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private static List<string> CollectVbProjFiles(
         IEnumerable<string> roots,
         string[]? excludePaths,
+        int maxResults,
         CancellationToken cancellationToken)
     {
         var results = new List<string>();
@@ -1183,6 +1204,11 @@ public sealed class LanguageServer : IAsyncDisposable
                 if (seen.Add(file))
                 {
                     results.Add(file);
+                }
+
+                if (maxResults > 0 && results.Count >= maxResults)
+                {
+                    return results;
                 }
             }
         }
@@ -1268,6 +1294,29 @@ public sealed class LanguageServer : IAsyncDisposable
         return null;
     }
 
+    private static int? GetIntSetting(JsonElement settings, string section, string name)
+    {
+        var root = settings;
+        if (settings.ValueKind == JsonValueKind.Object &&
+            settings.TryGetProperty("vbnet", out var vbnetSettings) &&
+            vbnetSettings.ValueKind == JsonValueKind.Object)
+        {
+            root = vbnetSettings;
+        }
+
+        if (TryGetIntSetting(root, section, name, out var value))
+        {
+            return value;
+        }
+
+        if (TryGetIntSetting(root, $"{section}.{name}", null, out value))
+        {
+            return value;
+        }
+
+        return null;
+    }
+
     private static bool TryGetStringArraySetting(
         JsonElement root,
         string section,
@@ -1300,6 +1349,38 @@ public sealed class LanguageServer : IAsyncDisposable
         return TryGetStringArrayValue(valueElement, out value);
     }
 
+    private static bool TryGetIntSetting(
+        JsonElement root,
+        string section,
+        string? name,
+        out int value)
+    {
+        value = 0;
+
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!root.TryGetProperty(section, out var sectionElement))
+        {
+            return false;
+        }
+
+        if (name == null)
+        {
+            return TryGetIntValue(sectionElement, out value);
+        }
+
+        if (sectionElement.ValueKind != JsonValueKind.Object ||
+            !sectionElement.TryGetProperty(name, out var valueElement))
+        {
+            return false;
+        }
+
+        return TryGetIntValue(valueElement, out value);
+    }
+
     private static bool TryGetStringArrayValue(JsonElement element, out string[]? value)
     {
         value = null;
@@ -1320,6 +1401,18 @@ public sealed class LanguageServer : IAsyncDisposable
             }
 
             value = list.ToArray();
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetIntValue(JsonElement element, out int value)
+    {
+        value = 0;
+
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out value))
+        {
             return true;
         }
 
