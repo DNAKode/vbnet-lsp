@@ -285,6 +285,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DiagnosticsServiceTests` (PASS, 11 tests).
 
+### Update 2026-01-13 (late association on change)
+
+Server updates:
+- Document changes now attempt late workspace association to keep buffers in sync sooner.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DocumentManagerTests` (PASS, 9 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:

@@ -132,6 +132,16 @@ public sealed class DocumentManager
         {
             _workspaceManager.ApplyTextChange(openDoc.DocumentId, newText);
         }
+        else
+        {
+            var document = _workspaceManager.GetDocumentByUri(uri);
+            if (document != null)
+            {
+                openDoc.DocumentId = document.Id;
+                _workspaceManager.ApplyTextChange(document.Id, newText);
+                _logger.LogDebug("Late-associated document on change: {Uri} -> {DocumentId}", uri, document.Id);
+            }
+        }
 
         DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(uri, newText, version, DocumentChangeKind.Changed));
     }
