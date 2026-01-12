@@ -244,3 +244,11 @@ Server updates:
 
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
+
+### Update 2026-01-13 (solution candidate selection)
+
+Server updates:
+- Workspace discovery now checks all nearby solutions for VB projects instead of only the first match.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).

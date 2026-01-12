@@ -328,21 +328,24 @@ public sealed class LanguageServer : IAsyncDisposable
 
             if (!_ignoreSolutionFiles)
             {
-                var solutionPath = FindSolutionPath(rootPath);
-                if (!string.IsNullOrEmpty(solutionPath))
+                var solutionCandidates = FindSolutionCandidates(rootPath);
+                if (solutionCandidates.Count > 0)
                 {
-                    if (SolutionContainsVbProject(solutionPath))
+                    foreach (var candidate in solutionCandidates)
                     {
-                        var loadedVb = await _workspaceManager.LoadSolutionAsync(solutionPath, ct);
-                        loadSucceeded = loadedVb;
-                        if (loadedVb)
+                        if (SolutionContainsVbProject(candidate))
                         {
-                            return;
+                            var loadedVb = await _workspaceManager.LoadSolutionAsync(candidate, ct);
+                            loadSucceeded = loadedVb;
+                            if (loadedVb)
+                            {
+                                return;
+                            }
                         }
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Skipping solution without VB.NET projects: {Path}", solutionPath);
+                        else
+                        {
+                            _logger.LogInformation("Skipping solution without VB.NET projects: {Path}", candidate);
+                        }
                     }
                 }
             }
@@ -1099,8 +1102,10 @@ public sealed class LanguageServer : IAsyncDisposable
         }
     }
 
-    private string? FindSolutionPath(string rootPath)
+    private List<string> FindSolutionCandidates(string rootPath)
     {
+        var candidates = new List<string>();
+
         foreach (var searchRoot in GetAncestorRoots(rootPath))
         {
             if (!Directory.Exists(searchRoot))
@@ -1118,21 +1123,20 @@ public sealed class LanguageServer : IAsyncDisposable
                 continue;
             }
 
-            var solutionPath = solutionCandidates[0];
             if (!string.Equals(searchRoot, rootPath, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("Workspace root is subfolder; using ancestor solution: {Path}", solutionPath);
+                _logger.LogInformation("Workspace root is subfolder; scanning ancestor solutions in: {Path}", searchRoot);
             }
 
             if (solutionCandidates.Count > 1)
             {
-                _logger.LogInformation("Multiple solutions found in {Root}, using: {Path}", searchRoot, solutionPath);
+                _logger.LogInformation("Multiple solutions found in {Root}", searchRoot);
             }
 
-            return solutionPath;
+            candidates.AddRange(solutionCandidates);
         }
 
-        return null;
+        return candidates;
     }
 
     private static bool ShouldExcludePath(string path, string[]? excludePaths)
