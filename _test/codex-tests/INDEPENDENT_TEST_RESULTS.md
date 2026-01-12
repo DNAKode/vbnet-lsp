@@ -133,21 +133,36 @@ None detected.
 ## Timing summary (latest run)
 Run: VB.NET services Transport=pipe
 
-- [n/a] server_starting (190.38 ms)
-- [n/a] initialize_response (411.16 ms)
+- [n/a] server_starting (484.9 ms)
+- [n/a] initialize_response (725.66 ms)
 
-### Update 2026-01-12 (current run)
+### Update 2026-01-12 (trace capture + fuzz runs)
 
-VB.NET LSP harness:
-- Diagnostics automation now receives publishDiagnostics with expected code (BC30512) after handler fix and fixture update.
-- Service tests now pass after adding a workspace readiness wait before service requests.
+Diagnostics + services:
+- Diagnostics harness now receives publishDiagnostics with expected code after handler + fixture updates.
+- Service tests pass with readiness wait and per-test retry.
 
-VS Code harness:
-- Headless run against a local VSIX (dnakode.vbnet-language-support) passes core services, rename, restart, and completion toggle.
+VS Code trace capture:
+- Extension log files now copied from `window1/exthost/<extensionId>` when `CAPTURE_VBNET_TRACE=1`.
+- Example summary: `_test/codex-tests/clients/vscode/logs/20260112T234828/vbnet-output-summary.txt` (includes `VB.NET LSP Trace.log`).
 
-Emacs harness:
-- Basic eglot smoke run against stdio completes.
+Fuzz runs (10 rounds, SKIP_VBNET_SMOKE=1):
+- Workspaces: MediumProject, DebugConsole, DWSIM root, DWSIM, DWSIM.ExtensionMethods, DWSIM.Apps.TCPServer, DWSIM.Drawing, DWSIM\Utilities\PressureSafetyValveSizing, DWSIM\Utilities\TrueCriticalPoint, DWSIM\Utilities\LLEEnvelope.
+- Document symbols returned empty in some deep subfolder workspaces (PressureSafetyValveSizing, TrueCriticalPoint, LLEEnvelope).
+- Workspace symbol queries returned empty across all fuzz runs (queries: Program/ApplicationEvents/TwoDimChartControl/OxyPlot/TCPServer/Point/FrmPsvSize/FrmCritpt/FormLLEDiagram).
 
-Revised risks (current):
-1) VS Code trace export still does not capture the VB.NET output channel by default.
-2) Occasional pipe-break errors can appear if the client closes before server notifications flush.
+Fuzz log bundles:
+- `_test/codex-tests/clients/vscode/logs/20260112T235307`
+- `_test/codex-tests/clients/vscode/logs/20260112T235325`
+- `_test/codex-tests/clients/vscode/logs/20260112T235342`
+- `_test/codex-tests/clients/vscode/logs/20260112T235400`
+- `_test/codex-tests/clients/vscode/logs/20260112T235418`
+- `_test/codex-tests/clients/vscode/logs/20260112T235435`
+- `_test/codex-tests/clients/vscode/logs/20260112T235453`
+- `_test/codex-tests/clients/vscode/logs/20260112T235512`
+- `_test/codex-tests/clients/vscode/logs/20260112T235527`
+- `_test/codex-tests/clients/vscode/logs/20260112T235542`
+
+Revised risks:
+1) Workspace/document symbols appear empty in deep subfolder workspaces without a nearby solution/project; investigate fallback behavior.
+2) VS Code fuzz runs show empty workspace symbol results even for small projects; add readiness/diagnostics checks or ensure project load under non-root workspaces.

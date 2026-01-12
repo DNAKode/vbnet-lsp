@@ -3,6 +3,7 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 
 const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
+const skipVbnetSmoke = process.env.SKIP_VBNET_SMOKE === "1";
 
 async function retryUntil<T>(
     action: () => Thenable<T>,
@@ -43,8 +44,13 @@ function getMarkerPosition(
     return doc.positionAt(tokenIndex);
 }
 
-suite("VB.NET extension LSP smoke (VS Code harness)", () => {
-    let doc: vscode.TextDocument;
+if (skipVbnetSmoke) {
+    suite.skip("VB.NET extension LSP smoke (skipped)", () => {
+        // Skipped via SKIP_VBNET_SMOKE.
+    });
+} else {
+    suite("VB.NET extension LSP smoke (VS Code harness)", () => {
+        let doc: vscode.TextDocument;
 
     test("extension installed and activated", async () => {
         const extension = vscode.extensions.getExtension(extensionId);
@@ -243,4 +249,5 @@ suite("VB.NET extension LSP smoke (VS Code harness)", () => {
             await vscode.commands.executeCommand("vbnet.restartServer");
         }
     });
-});
+    });
+}

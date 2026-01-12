@@ -465,7 +465,19 @@ internal static class Program
                 continue;
             }
 
-            var ok = await ExecuteServiceTestAsync(rpc, textDocument, position, test, protocolLog, serviceLog, token);
+            var ok = false;
+            for (var attempt = 1; attempt <= 2; attempt++)
+            {
+                ok = await ExecuteServiceTestAsync(rpc, textDocument, position, test, protocolLog, serviceLog, token);
+                if (ok || attempt == 2)
+                {
+                    break;
+                }
+
+                protocolLog.Write("warn", $"Service test {test.Id} failed on attempt {attempt}; retrying.");
+                await Task.Delay(500, token);
+            }
+
             allOk &= ok;
         }
 

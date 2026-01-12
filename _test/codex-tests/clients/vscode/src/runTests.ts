@@ -117,6 +117,7 @@ async function main() {
 
     const captureLogs = process.env.CAPTURE_VSCODE_LOGS === "1";
     const captureTrace = process.env.CAPTURE_VBNET_TRACE === "1";
+    const extensionLogId = extensionIdEnv;
     let runError: unknown;
     try {
         await runTests({
@@ -147,42 +148,61 @@ async function main() {
                         console.log(`Copied VS Code logs to ${destPath}`);
                     }
 
-                    if (captureTrace) {
-                        const summaryLines: string[] = [];
-                        const outputRoot = path.join(destPath, "window1", "exthost");
-                        let traceFound = false;
+                        if (captureTrace) {
+                            const summaryLines: string[] = [];
+                            const exthostRoot = path.join(destPath, "window1", "exthost");
+                            let traceFound = false;
 
-                        if (fs.existsSync(outputRoot)) {
-                            const outputFolders = fs
-                                .readdirSync(outputRoot, { withFileTypes: true })
-                                .filter((entry) => entry.isDirectory() && entry.name.startsWith("output_logging_"))
-                                .map((entry) => entry.name);
-                            for (const folder of outputFolders) {
-                                const folderPath = path.join(outputRoot, folder);
-                                const files = fs.readdirSync(folderPath);
-                                for (const file of files) {
-                                    if (!file.toLowerCase().endsWith(".log")) {
-                                        continue;
+                            if (fs.existsSync(exthostRoot)) {
+                                const extensionLogRoot = path.join(exthostRoot, extensionLogId);
+                                if (fs.existsSync(extensionLogRoot)) {
+                                    const logFiles = fs.readdirSync(extensionLogRoot);
+                                    for (const file of logFiles) {
+                                        if (!file.toLowerCase().endsWith(".log")) {
+                                            continue;
+                                        }
+
+                                        const source = path.join(extensionLogRoot, file);
+                                        const destFile = path.join(destPath, file.replace(/\s+/g, "_"));
+                                        fs.copyFileSync(source, destFile);
+                                        summaryLines.push(`Extension log: ${source}`);
+
+                                        if (file.toLowerCase().includes("trace")) {
+                                            traceFound = true;
+                                        }
                                     }
+                                }
 
-                                    if (file.toLowerCase().includes("vb.net") || file.toLowerCase().includes("vbnet")) {
-                                        const source = path.join(folderPath, file);
-                                        const dest = path.join(destPath, "vbnet-lsp-trace.log");
-                                        fs.copyFileSync(source, dest);
-                                        summaryLines.push(`Trace log: ${source}`);
-                                        traceFound = true;
+                                const outputFolders = fs
+                                    .readdirSync(exthostRoot, { withFileTypes: true })
+                                    .filter((entry) => entry.isDirectory() && entry.name.startsWith("output_logging_"))
+                                    .map((entry) => entry.name);
+                                for (const folder of outputFolders) {
+                                    const folderPath = path.join(exthostRoot, folder);
+                                    const files = fs.readdirSync(folderPath);
+                                    for (const file of files) {
+                                        if (!file.toLowerCase().endsWith(".log")) {
+                                            continue;
+                                        }
+
+                                        if (file.toLowerCase().includes("vb.net") || file.toLowerCase().includes("vbnet")) {
+                                            const source = path.join(folderPath, file);
+                                            const destFile = path.join(destPath, "vbnet-lsp-trace.log");
+                                            fs.copyFileSync(source, destFile);
+                                            summaryLines.push(`Trace log: ${source}`);
+                                            traceFound = true;
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if (!traceFound) {
-                            summaryLines.push("Trace log not found in output_logging folders.");
-                        }
+                            if (!traceFound) {
+                                summaryLines.push("Trace log not found in extension or output_logging folders.");
+                            }
 
-                        const summaryPath = path.join(destPath, "vbnet-output-summary.txt");
-                        fs.writeFileSync(summaryPath, summaryLines.join("\n") + "\n");
-                    }
+                            const summaryPath = path.join(destPath, "vbnet-output-summary.txt");
+                            fs.writeFileSync(summaryPath, summaryLines.join("\n") + "\n");
+                        }
                 }
             }
         }
