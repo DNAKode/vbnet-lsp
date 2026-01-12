@@ -148,7 +148,7 @@ We will **fork and host the C# extension** (github.com/dotnet/vscode-csharp) as 
 ### 3.1 Editors
 - VS Code and derivatives (Cursor, VSCodium, etc.)
 - Any LSP-compatible client that supports stdio language servers
-- **Validated with:** VS Code, Cursor (agentic coding focus), Emacs (lsp-mode)
+- **Validated with:** VS Code (automated) and Emacs (eglot) smoke coverage; Cursor/VSCodium planned
 
 ### 3.2 Runtimes
 - **Server:** .NET 10.0+ (latest LTS, forward-compatible)
@@ -416,7 +416,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 | Integration test pass rate | 100% |
 | Critical bugs (P0/P1) | 0 before release |
 | Cross-platform test pass rate | 100% on Windows, macOS, Linux |
-| Multi-editor validation | VS Code, Cursor, Emacs (lsp-mode) |
+| Multi-editor validation | VS Code (automated) + Emacs (eglot) smoke; Cursor/VSCodium planned |
 
 ### 9.3 Multi-Editor Testing
 

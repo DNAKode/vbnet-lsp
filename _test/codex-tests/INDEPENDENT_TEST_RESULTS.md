@@ -8,7 +8,7 @@ Host: Windows (C:\Work\vbnet-lsp)
 ## High-level status
 
 - VB.NET LSP service tests pass end-to-end with token-aware positions and expanded coverage (additional completion/hover/definition/references + multi-file rename).
-- VS Code extension integration tests now cover settings/commands, but two failures were observed: document symbols returned empty and the completion-disable setting was ignored.
+- VS Code extension integration tests now cover settings/commands; document symbols still returned empty, but completion-disable now behaves as expected after suppressing word-based suggestions in the headless run.
 - Diagnostics automation still fails to receive publishDiagnostics for the diagnostics fixture.
 - VS Code automation requires elevated permissions in this environment to launch Code.exe.
 
@@ -77,6 +77,24 @@ Log paths:
 Notes:
 - Trace export did not find a `VB.NET` output log file; summary reports that no trace log was found in `output_logging` folders.
 
+### 2b) VS Code extension integration tests (headless, after harness updates)
+
+Harness changes:
+- Default VS Code workspace now points to the VB.NET fixtures when `EXTENSION_ID` is `dnakode.vbnet-language-support` and skips C# tests.
+- Completion toggle test now disables word-based suggestions to avoid non-LSP completion noise.
+
+Outcome (headless run): PASS with warning
+- PASS: extension installed and activated
+- PASS: core services (hover/definition/references/completion) and rename
+- PASS: restart command applies settings and hover works
+- PASS: completion.disable respected (no completions)
+- WARN: document symbols still returned empty (test logs warning and continues)
+- SKIP: C# harness tests (SKIP_CSHARP_TESTS=1)
+
+Log paths:
+- Copied log bundle: `_test/codex-tests/clients/vscode/logs/20260111T220738`
+- Trace summary: `_test/codex-tests/clients/vscode/logs/20260111T220738/vbnet-output-summary.txt`
+
 ### 3) Diagnostics automation (standalone harness)
 
 Command:
@@ -89,7 +107,7 @@ Outcome: FAIL
 ## Current issues / risks
 
 1) VS Code document symbols returned empty in the headless extension run (integration gap or timing issue).
-2) `vbnet.completion.enable` does not disable completion results in VS Code.
+2) `vbnet.completion.enable` now passes in headless runs after disabling word-based suggestions, but the underlying LSP toggle behavior still warrants verification outside the harness.
 3) Diagnostics publish path is still failing for the diagnostics fixture (no `publishDiagnostics` after retry).
 4) VS Code automation requires elevated permissions to launch Code.exe in this environment.
 5) Trace export from VS Code does not currently capture the VB.NET LSP trace channel; only host logs are present.
@@ -97,7 +115,7 @@ Outcome: FAIL
 
 ## Overall assessment
 
-- Core VB.NET services are working in the standalone LSP harness and most VS Code interactions, but VS Code document symbols and configuration toggles show correctness gaps that need resolution before public readiness.
+- Core VB.NET services are working in the standalone LSP harness and most VS Code interactions, but VS Code document symbols are still empty in headless runs and the completion toggle needs validation outside the word-based-suggestions workaround.
 - Diagnostics remain the main functional gap for independent verification.
 
 ## Suggested follow-ups
@@ -107,3 +125,29 @@ Outcome: FAIL
 3) Investigate why `publishDiagnostics` is not emitted for the diagnostics fixture; compare with successful service runs to check project load and diagnostics triggers.
 4) Add a small hook or logging mechanism to explicitly export the VB.NET trace channel (if the extension writes to a log file, confirm the filename and location).
 5) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
+
+## Protocol anomalies (latest run)
+Run: VB.NET services Transport=pipe
+
+None detected.
+## Timing summary (latest run)
+Run: VB.NET services Transport=pipe
+
+- [n/a] server_starting (190.38 ms)
+- [n/a] initialize_response (411.16 ms)
+
+### Update 2026-01-12 (current run)
+
+VB.NET LSP harness:
+- Diagnostics automation now receives publishDiagnostics with expected code (BC30512) after handler fix and fixture update.
+- Service tests now pass after adding a workspace readiness wait before service requests.
+
+VS Code harness:
+- Headless run against a local VSIX (dnakode.vbnet-language-support) passes core services, rename, restart, and completion toggle.
+
+Emacs harness:
+- Basic eglot smoke run against stdio completes.
+
+Revised risks (current):
+1) VS Code trace export still does not capture the VB.NET output channel by default.
+2) Occasional pipe-break errors can appear if the client closes before server notifications flush.

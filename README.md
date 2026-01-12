@@ -6,7 +6,7 @@
 
 ## Overview
 
-VB.NET Language Support is a fully open-source extension providing first-class VB.NET language support for Visual Studio Code and compatible editors (Cursor, VSCodium, Emacs, etc.). Built on Microsoft's Roslyn compiler platform, it delivers modern IDE features through the Language Server Protocol (LSP).
+VB.NET Language Support is a fully open-source extension providing first-class VB.NET language support for Visual Studio Code and compatible editors (Cursor, VSCodium, Emacs). Built on Microsoft's Roslyn compiler platform, it delivers modern IDE features through the Language Server Protocol (LSP).
 
 ### Key Features
 
@@ -162,7 +162,7 @@ VB.NET Language Support is tested against:
 - **Small projects** (~10 files) - unit test validation
 - **Medium projects** (~50 files) - integration testing
 - **DWSIM** (100+ files) - large real-world VB.NET codebase for performance validation
-- **Multiple editors** - VS Code, Cursor, Emacs (lsp-mode) for LSP protocol compliance
+- **Multiple editors** - VS Code (automated) and Emacs (eglot) smoke coverage; Cursor/VSCodium planned
 
 ## License
 

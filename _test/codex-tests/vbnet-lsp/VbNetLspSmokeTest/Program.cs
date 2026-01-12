@@ -172,65 +172,13 @@ internal static class Program
         DiagnosticsWaiter? diagnosticsWaiter = null;
 
         using var rpc = new JsonRpc(handler);
-        var settingsPayload = BuildSettingsPayload(options);
-        if (settingsPayload != null)
-        {
-            rpc.AddLocalRpcMethod("workspace/configuration", new Func<JsonElement, object?>(paramsElement =>
-            {
-                if (paramsElement.TryGetProperty("items", out var itemsElement) &&
-                    itemsElement.ValueKind == JsonValueKind.Array)
-                {
-                    var results = new List<object?>();
-                    foreach (var _ in itemsElement.EnumerateArray())
-                    {
-                        results.Add(settingsPayload);
-                    }
-
-                    return results;
-                }
-
-                return settingsPayload;
-            }));
-        }
         if (options.ExpectDiagnostics && !string.IsNullOrWhiteSpace(options.TestFilePath))
         {
             diagnosticsWaiter = new DiagnosticsWaiter(new Uri(Path.GetFullPath(options.TestFilePath)).AbsoluteUri);
-            rpc.AddLocalRpcMethod("textDocument/publishDiagnostics", new Action<JsonElement>(paramsElement =>
-            {
-                if (!paramsElement.TryGetProperty("uri", out var uriElement))
-                {
-                    protocolLog.Write("error", "publishDiagnostics missing uri.");
-                    return;
-                }
-
-                var uri = uriElement.GetString();
-                if (!string.Equals(uri, diagnosticsWaiter.TargetUri, StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-
-                if (!paramsElement.TryGetProperty("diagnostics", out var diagnosticsElement) ||
-                    diagnosticsElement.ValueKind != JsonValueKind.Array)
-                {
-                    protocolLog.Write("error", "publishDiagnostics missing diagnostics array.");
-                    return;
-                }
-
-                var count = diagnosticsElement.GetArrayLength();
-                var expectedFound = true;
-                if (!string.IsNullOrWhiteSpace(options.ExpectedDiagnosticCode))
-                {
-                    expectedFound = ContainsDiagnosticCode(diagnosticsElement, options.ExpectedDiagnosticCode);
-                    if (!expectedFound)
-                    {
-                        protocolLog.Write("warn", $"Expected diagnostic code {options.ExpectedDiagnosticCode} not found in publishDiagnostics payload.");
-                    }
-                }
-
-                Console.WriteLine($"diagnostics: {count} for {uri} (expectedCode={options.ExpectedDiagnosticCode}, found={expectedFound})");
-                diagnosticsWaiter.Notify(count, expectedFound);
-            }));
         }
+
+        var settingsPayload = BuildSettingsPayload(options);
+        rpc.AddLocalRpcTarget(new ClientHandlers(settingsPayload, diagnosticsWaiter, options, protocolLog));
         rpc.StartListening();
 
         var rootUri = string.IsNullOrWhiteSpace(options.RootPath)
@@ -482,6 +430,7 @@ internal static class Program
         }).WaitAsync(token);
 
         await Task.Delay(500, token);
+        await WaitForWorkspaceReadyAsync(rpc, protocolLog, token);
 
         var textDocument = new { uri };
         var allOk = true;
@@ -526,6 +475,26 @@ internal static class Program
         }).WaitAsync(token);
 
         return allOk;
+    }
+
+    private static async Task WaitForWorkspaceReadyAsync(JsonRpc rpc, ProtocolLog protocolLog, CancellationToken token)
+    {
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(15);
+        while (DateTimeOffset.UtcNow < deadline && !token.IsCancellationRequested)
+        {
+            var symbols = await rpc
+                .InvokeWithParameterObjectAsync<JsonElement>("workspace/symbol", new { query = "Greeter" })
+                .WaitAsync(token);
+
+            if (symbols.ValueKind == JsonValueKind.Array && symbols.GetArrayLength() > 0)
+            {
+                return;
+            }
+
+            await Task.Delay(500, token);
+        }
+
+        protocolLog.Write("warn", "Service readiness check timed out; proceeding with service tests.");
     }
 
     private static async Task<bool> ExecuteServiceTestAsync(
@@ -1129,6 +1098,112 @@ internal static class Program
         }
 
         return false;
+    }
+
+    private sealed class ClientHandlers
+    {
+        private readonly object? _settingsPayload;
+        private readonly DiagnosticsWaiter? _diagnosticsWaiter;
+        private readonly Options _options;
+        private readonly ProtocolLog _protocolLog;
+
+        public ClientHandlers(object? settingsPayload, DiagnosticsWaiter? diagnosticsWaiter, Options options, ProtocolLog protocolLog)
+        {
+            _settingsPayload = settingsPayload;
+            _diagnosticsWaiter = diagnosticsWaiter;
+            _options = options;
+            _protocolLog = protocolLog;
+        }
+
+        [JsonRpcMethod("workspace/configuration", UseSingleObjectParameterDeserialization = true)]
+        public object? WorkspaceConfiguration(JsonElement paramsElement)
+        {
+            var payload = _settingsPayload;
+            if (paramsElement.TryGetProperty("items", out var itemsElement) &&
+                itemsElement.ValueKind == JsonValueKind.Array)
+            {
+                var results = new List<object?>();
+                foreach (var _ in itemsElement.EnumerateArray())
+                {
+                    results.Add(payload);
+                }
+
+                return results;
+            }
+
+            return payload;
+        }
+
+        [JsonRpcMethod("textDocument/publishDiagnostics", UseSingleObjectParameterDeserialization = true)]
+        public void PublishDiagnostics(JsonElement paramsElement)
+        {
+            if (_diagnosticsWaiter == null)
+            {
+                return;
+            }
+
+            if (!paramsElement.TryGetProperty("uri", out var uriElement))
+            {
+                _protocolLog.Write("error", "publishDiagnostics missing uri.");
+                return;
+            }
+
+            var uri = uriElement.GetString();
+            if (!string.Equals(uri, _diagnosticsWaiter.TargetUri, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!paramsElement.TryGetProperty("diagnostics", out var diagnosticsElement) ||
+                diagnosticsElement.ValueKind != JsonValueKind.Array)
+            {
+                _protocolLog.Write("error", "publishDiagnostics missing diagnostics array.");
+                return;
+            }
+
+            var count = diagnosticsElement.GetArrayLength();
+            var expectedFound = true;
+            if (!string.IsNullOrWhiteSpace(_options.ExpectedDiagnosticCode))
+            {
+                expectedFound = ContainsDiagnosticCode(diagnosticsElement, _options.ExpectedDiagnosticCode);
+                if (!expectedFound)
+                {
+                    var codes = ExtractDiagnosticCodes(diagnosticsElement);
+                    var codesText = codes.Count == 0 ? "none" : string.Join(", ", codes);
+                    _protocolLog.Write("warn", $"Expected diagnostic code {_options.ExpectedDiagnosticCode} not found in publishDiagnostics payload. codes={codesText}");
+                    Console.WriteLine($"diagnostics: codes={codesText}");
+                }
+            }
+
+            Console.WriteLine($"diagnostics: {count} for {uri} (expectedCode={_options.ExpectedDiagnosticCode}, found={expectedFound})");
+            _diagnosticsWaiter.Notify(count, expectedFound);
+        }
+
+        private static List<string> ExtractDiagnosticCodes(JsonElement diagnosticsElement)
+        {
+            var codes = new List<string>();
+            foreach (var diagnostic in diagnosticsElement.EnumerateArray())
+            {
+                if (!diagnostic.TryGetProperty("code", out var codeElement))
+                {
+                    continue;
+                }
+
+                string? codeValue = codeElement.ValueKind switch
+                {
+                    JsonValueKind.String => codeElement.GetString(),
+                    JsonValueKind.Number => codeElement.GetRawText(),
+                    _ => null
+                };
+
+                if (!string.IsNullOrWhiteSpace(codeValue))
+                {
+                    codes.Add(codeValue);
+                }
+            }
+
+            return codes;
+        }
     }
 
     private sealed class DiagnosticsWaiter

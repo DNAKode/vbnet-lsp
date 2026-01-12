@@ -106,6 +106,62 @@
             "type": "boolean",
             "default": true,
             "description": "Enable IntelliSense code completion."
+          },
+          "vbnet.debugger.path": {
+            "type": "string",
+            "default": "",
+            "description": "Path to the netcoredbg executable. Leave empty to search the extension bundle or PATH."
+          },
+          "vbnet.debugger.args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "Extra command line arguments passed to netcoredbg (for example, --engineLogging=/path/to/log.txt)."
+          },
+          "vbnet.workspace.solutionPath": {
+            "type": "string",
+            "default": "",
+            "description": "Explicit path to a .sln file to load. Leave empty for auto-detection."
+          },
+          "vbnet.workspace.ignoreSolutionFiles": {
+            "type": "boolean",
+            "default": false,
+            "description": "Ignore .sln files and load .vbproj files directly (solution-less mode)."
+          },
+          "vbnet.workspace.projectSearchPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "Directories to scan for .vbproj files (relative to workspace). Empty means workspace root."
+          },
+          "vbnet.workspace.excludePaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "_external",
+              "_test",
+              "build",
+              "node_modules",
+              ".git",
+              ".vscode"
+            ],
+            "description": "Directory names to exclude when scanning for .vbproj files."
+          },
+          "vbnet.workspace.projectFilesExcludePattern": {
+            "type": "string",
+            "default": "**/node_modules/**,**/.git/**,**/bower_components/**",
+            "description": "Comma-separated glob patterns to exclude when searching for .sln/.vbproj files."
+          },
+          "vbnet.workspace.maxProjectResults": {
+            "type": "number",
+            "default": 250,
+            "description": "Maximum number of project files to consider when no solution is present."
           }
         }
       }
@@ -120,6 +176,149 @@
         "command": "vbnet.showOutputChannel",
         "title": "Show VB.NET Output",
         "category": "VB.NET"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "vbnet",
+        "label": "VB.NET (netcoredbg)",
+        "languages": [
+          "vb"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the debug configuration."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "vbnet"
+                ],
+                "description": "Debugger type."
+              },
+              "request": {
+                "type": "string",
+                "enum": [
+                  "launch"
+                ],
+                "description": "Debug request type."
+              },
+              "program": {
+                "type": "string",
+                "description": "Path to the compiled .NET assembly (.dll) to launch."
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Arguments passed to the program."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the program."
+              },
+              "env": {
+                "type": "object",
+                "description": "Environment variables for the debuggee."
+              },
+              "console": {
+                "type": "string",
+                "enum": [
+                  "internalConsole",
+                  "integratedTerminal",
+                  "externalTerminal"
+                ],
+                "description": "Console type to use for the debuggee."
+              },
+              "stopAtEntry": {
+                "type": "boolean",
+                "description": "Stop at program entry."
+              },
+              "justMyCode": {
+                "type": "boolean",
+                "description": "Step through user code only."
+              },
+              "enableStepFiltering": {
+                "type": "boolean",
+                "description": "Enable step filtering."
+              }
+            }
+          },
+          "attach": {
+            "required": [
+              "processId"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the debug configuration."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "vbnet"
+                ],
+                "description": "Debugger type."
+              },
+              "request": {
+                "type": "string",
+                "enum": [
+                  "attach"
+                ],
+                "description": "Debug request type."
+              },
+              "processId": {
+                "type": "number",
+                "description": "Process ID to attach to."
+              }
+            }
+          }
+        },
+        "configurationSnippets": [
+          {
+            "label": "VB.NET: Launch (netcoredbg)",
+            "description": "Launch a VB.NET program under netcoredbg.",
+            "body": {
+              "name": "VB.NET Launch",
+              "type": "vbnet",
+              "request": "launch",
+              "program": "${workspaceFolder}/bin/Debug/net8.0/YourApp.dll",
+              "args": [],
+              "cwd": "${workspaceFolder}",
+              "console": "internalConsole",
+              "stopAtEntry": false
+            }
+          },
+          {
+            "label": "VB.NET: Attach (netcoredbg)",
+            "description": "Attach netcoredbg to a running .NET process.",
+            "body": {
+              "name": "VB.NET Attach",
+              "type": "vbnet",
+              "request": "attach",
+              "processId": 0
+            }
+          }
+        ],
+        "initialConfigurations": [
+          {
+            "name": "VB.NET Launch",
+            "type": "vbnet",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/Debug/net8.0/YourApp.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "stopAtEntry": false
+          }
+        ]
       }
     ]
   },

@@ -9,8 +9,13 @@ param(
     [string]$DiagnosticsFilePath = '_test\codex-tests\vbnet-lsp\fixtures\diagnostics\DiagnosticsSample\Class1.vb',
     [string]$DiagnosticsMode = 'openChange',
     [int]$DebounceMs = 300,
-    [string]$ExpectedDiagnosticCode = 'BC30311',
+    [string]$ExpectedDiagnosticCode = 'BC30512',
     [switch]$SendDidSave,
+    [switch]$ServiceTests,
+    [string]$ServiceManifest = '_test\codex-tests\vbnet-lsp\fixtures\services\service-tests.json',
+    [int]$ServiceTimeoutSeconds = 60,
+    [string]$ServiceLogPath = '_test\codex-tests\logs\service-tests.jsonl',
+    [string]$ServiceTestId = '',
     [string]$ProtocolLogPath = '_test\codex-tests\logs\protocol-anomalies.jsonl',
     [string]$TimingLogPath = '_test\codex-tests\logs\timing.jsonl',
     [string]$SnapshotRoot = '_test\codex-tests\vbnet-lsp\snapshots',
@@ -42,6 +47,18 @@ if (-not (Test-Path $timingLogFullPath)) {
     New-Item -ItemType File -Path $timingLogFullPath -Force | Out-Null
 } else {
     Clear-Content -Path $timingLogFullPath
+}
+
+if ([System.IO.Path]::IsPathRooted($ServiceLogPath)) {
+    $serviceLogFullPath = $ServiceLogPath
+} else {
+    $serviceLogFullPath = Join-Path (Resolve-Path '.').Path $ServiceLogPath
+}
+New-Item -ItemType Directory -Path (Split-Path $serviceLogFullPath -Parent) -Force | Out-Null
+if (-not (Test-Path $serviceLogFullPath)) {
+    New-Item -ItemType File -Path $serviceLogFullPath -Force | Out-Null
+} else {
+    Clear-Content -Path $serviceLogFullPath
 }
 
 function Get-ServerOutputPath {
@@ -82,10 +99,13 @@ function Run-SmokeTest {
         '--logLevel', $LogLevel,
         '--transport', $Transport,
         '--rootPath', $RootPath,
-        '--testFile', $TestFile,
         '--protocolLog', $protocolLogFullPath,
         '--timingLog', $timingLogFullPath
     )
+
+    if (-not [string]::IsNullOrWhiteSpace($TestFile)) {
+        $args += @('--testFile', $TestFile)
+    }
 
     if ($ExpectDiagnostics) {
         $shouldSendDidSave = $SendDidSave -or ($DiagnosticsMode -in @('openSave','saveOnly'))
@@ -101,6 +121,18 @@ function Run-SmokeTest {
 
         if ($shouldSendDidSave) {
             $args += '--sendDidSave'
+        }
+    }
+
+    if ($ServiceTests) {
+        $args += @(
+            '--serviceManifest', $ServiceManifest,
+            '--serviceTimeoutSeconds', $ServiceTimeoutSeconds,
+            '--serviceLog', $serviceLogFullPath
+        )
+
+        if (-not [string]::IsNullOrWhiteSpace($ServiceTestId)) {
+            $args += @('--serviceTestId', $ServiceTestId)
         }
     }
 
@@ -123,7 +155,11 @@ if (-not $SkipSnapshot) {
     Write-Host "Snapshot saved to $snapshot"
 }
 
-if ($Diagnostics) {
+if ($ServiceTests) {
+    $manifest = Get-Content -Path $ServiceManifest | ConvertFrom-Json
+    $rootPath = (Resolve-Path $manifest.workspace).Path
+    Run-SmokeTest -ServerPath $serverPath -RootPath $rootPath -TestFile ''
+} elseif ($Diagnostics) {
     $rootPath = (Resolve-Path $DiagnosticsRootPath).Path
     Run-SmokeTest -ServerPath $serverPath -RootPath $rootPath -TestFile $DiagnosticsFilePath -ExpectDiagnostics
 } else {
@@ -131,5 +167,11 @@ if ($Diagnostics) {
     Run-SmokeTest -ServerPath $serverPath -RootPath $rootPath -TestFile $TestFilePath
 }
 
-$runLabel = if ($Diagnostics) { "VB.NET diagnostics Transport=$Transport" } else { "VB.NET smoke Transport=$Transport" }
+$runLabel = if ($ServiceTests) {
+    "VB.NET services Transport=$Transport"
+} elseif ($Diagnostics) {
+    "VB.NET diagnostics Transport=$Transport"
+} else {
+    "VB.NET smoke Transport=$Transport"
+}
 & _test\codex-tests\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel

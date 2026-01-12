@@ -48,7 +48,7 @@ Last Updated: 2026-01-09
   - Repository: https://github.com/Samsung/netcoredbg
   - Installation: Follow platform-specific instructions
 
-- **Emacs** with lsp-mode (for multi-editor testing)
+- **Emacs** with eglot (current harness); lsp-mode optional for future coverage
   - Emacs: https://www.gnu.org/software/emacs/
   - lsp-mode: https://emacs-lsp.github.io/lsp-mode/
 
@@ -291,8 +291,8 @@ npm run test:watch
 ### Multi-Editor Tests (Emacs)
 
 ```bash
-# Requires Emacs and lsp-mode installed
-./scripts/test-emacs-lsp.sh
+# Requires Emacs (eglot is built-in)
+./_test/codex-tests/clients/emacs/run-tests.ps1 -Suite vbnet
 ```
 
 ---
