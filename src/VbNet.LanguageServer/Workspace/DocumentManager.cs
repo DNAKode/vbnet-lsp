@@ -276,9 +276,20 @@ public sealed class DocumentManager
             return false;
         }
 
-        var content = await File.ReadAllTextAsync(filePath, ct);
-        var sourceText = SourceText.From(content);
-        _workspaceManager.ApplyTextChange(document.Id, sourceText);
+        try
+        {
+            var content = await File.ReadAllTextAsync(filePath, ct);
+            var sourceText = SourceText.From(content);
+            _workspaceManager.ApplyTextChange(document.Id, sourceText);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
 
         return true;
     }
