@@ -28,18 +28,18 @@ VB.NET Language Support is configured primarily through VS Code settings. All se
 
 ### Core Settings
 
-#### `vbnetLs.enable`
+#### `vbnet.enable`
 **Type**: `boolean`
 **Default**: `true`
 **Description**: Enable/disable the VB.NET language server
 
 ```json
 {
-  "vbnetLs.enable": true
+  "vbnet.enable": true
 }
 ```
 
-#### `vbnetLs.logLevel`
+#### `vbnet.logLevel`
 **Type**: `enum`
 **Values**: `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"`
 **Default**: `"info"`
@@ -47,7 +47,7 @@ VB.NET Language Support is configured primarily through VS Code settings. All se
 
 ```json
 {
-  "vbnetLs.logLevel": "info"
+  "vbnet.logLevel": "info"
 }
 ```
 
@@ -58,7 +58,7 @@ VB.NET Language Support is configured primarily through VS Code settings. All se
 - `warn`: Recoverable errors only
 - `error`: Critical errors only
 
-#### `vbnetLs.trace.server`
+#### `vbnet.trace.server`
 **Type**: `enum`
 **Values**: `"off"`, `"messages"`, `"verbose"`
 **Default**: `"off"`
@@ -66,7 +66,7 @@ VB.NET Language Support is configured primarily through VS Code settings. All se
 
 ```json
 {
-  "vbnetLs.trace.server": "off"
+  "vbnet.trace.server": "off"
 }
 ```
 
@@ -81,49 +81,49 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ### Feature Toggles
 
-#### `vbnetLs.enableFormatting`
+#### `vbnet.enableFormatting`
 **Type**: `boolean`
 **Default**: `true`
 **Description**: Enable document formatting
 
 ```json
 {
-  "vbnetLs.enableFormatting": true
+  "vbnet.enableFormatting": true
 }
 ```
 
-#### `vbnetLs.enableCodeActions`
+#### `vbnet.enableCodeActions`
 **Type**: `boolean`
 **Default**: `true`
 **Description**: Enable code actions and quick fixes
 
 ```json
 {
-  "vbnetLs.enableCodeActions": true
+  "vbnet.enableCodeActions": true
 }
 ```
 
-#### `vbnetLs.semanticTokens`
+#### `vbnet.semanticTokens`
 **Type**: `boolean`
 **Default**: `true`
 **Description**: Enable semantic syntax highlighting
 
 ```json
 {
-  "vbnetLs.semanticTokens": true
+  "vbnet.semanticTokens": true
 }
 ```
 
 **Note**: Requires Phase 2 implementation. Disabled in MVP.
 
-#### `vbnetLs.inlayHints`
+#### `vbnet.inlayHints`
 **Type**: `boolean`
 **Default**: `false`
 **Description**: Enable inline type and parameter hints
 
 ```json
 {
-  "vbnetLs.inlayHints": false
+  "vbnet.inlayHints": false
 }
 ```
 
@@ -159,7 +159,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ### Diagnostics Settings
 
-#### `vbnetLs.diagnosticsMode`
+#### `vbnet.diagnosticsMode`
 **Type**: `enum`
 **Values**: `"openChange"`, `"openSave"`, `"saveOnly"`
 **Default**: `"openChange"`
@@ -167,7 +167,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ```json
 {
-  "vbnetLs.diagnosticsMode": "openChange"
+  "vbnet.diagnosticsMode": "openChange"
 }
 ```
 
@@ -176,7 +176,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 - `openSave`: Update on file open and save only
 - `saveOnly`: Update only when file is saved
 
-#### `vbnetLs.debounceMs`
+#### `vbnet.debounceMs`
 **Type**: `integer`
 **Range**: 0 - 5000
 **Default**: `300`
@@ -184,7 +184,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ```json
 {
-  "vbnetLs.debounceMs": 300
+  "vbnet.debounceMs": 300
 }
 ```
 
@@ -247,7 +247,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 }
 ```
 
-#### `vbnetLs.solutionPath` (legacy)
+#### `vbnet.solutionPath` (legacy)
 **Type**: `string`
 **Default**: `null` (auto-detect)
 **Description**: Legacy setting; use `vbnet.workspace.solutionPath` instead.
@@ -268,27 +268,27 @@ View traces: "View > Output" > "VB.NET Language Support"
 **Default**: `250`
 **Description**: Maximum number of `.vbproj` files to consider when no solution is present.
 
-#### `vbnetLs.loadProjectsOnStart`
+#### `vbnet.loadProjectsOnStart`
 **Type**: `boolean`
 **Default**: `true`
 **Description**: Load projects during initialization
 
 ```json
 {
-  "vbnetLs.loadProjectsOnStart": true
+  "vbnet.loadProjectsOnStart": true
 }
 ```
 
 **Note**: Setting to `false` defers project loading until first file is opened.
 
-#### `vbnetLs.maxProjectCount`
+#### `vbnet.maxProjectCount`
 **Type**: `integer`
 **Default**: `100`
 **Description**: Maximum number of projects to load
 
 ```json
 {
-  "vbnetLs.maxProjectCount": 100
+  "vbnet.maxProjectCount": 100
 }
 ```
 
@@ -298,27 +298,27 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ### Performance Settings
 
-#### `vbnetLs.msbuildPath`
+#### `vbnet.msbuildPath`
 **Type**: `string`
 **Default**: `null` (auto-detect via MSBuild.Locator)
 **Description**: Explicit MSBuild path override
 
 ```json
 {
-  "vbnetLs.msbuildPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100\\MSBuild.dll"
+  "vbnet.msbuildPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100\\MSBuild.dll"
 }
 ```
 
 **Usage**: Set if MSBuild auto-detection fails or you need a specific version.
 
-#### `vbnetLs.maxMemoryMB`
+#### `vbnet.maxMemoryMB`
 **Type**: `integer`
 **Default**: `2048`
 **Description**: Maximum memory usage (MB) before warning
 
 ```json
 {
-  "vbnetLs.maxMemoryMB": 2048
+  "vbnet.maxMemoryMB": 2048
 }
 ```
 
@@ -332,10 +332,10 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ```json
 {
-  "vbnetLs.debounceMs": 500,
-  "vbnetLs.diagnosticsMode": "openSave",
-  "vbnetLs.maxProjectCount": 150,
-  "vbnetLs.logLevel": "warn"
+  "vbnet.debounceMs": 500,
+  "vbnet.diagnosticsMode": "openSave",
+  "vbnet.maxProjectCount": 150,
+  "vbnet.logLevel": "warn"
 }
 ```
 
@@ -343,9 +343,9 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ```json
 {
-  "vbnetLs.debounceMs": 100,
-  "vbnetLs.diagnosticsMode": "openChange",
-  "vbnetLs.logLevel": "info"
+  "vbnet.debounceMs": 100,
+  "vbnet.diagnosticsMode": "openChange",
+  "vbnet.logLevel": "info"
 }
 ```
 
@@ -353,10 +353,10 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ```json
 {
-  "vbnetLs.debounceMs": 1000,
-  "vbnetLs.diagnosticsMode": "saveOnly",
-  "vbnetLs.maxMemoryMB": 1024,
-  "vbnetLs.semanticTokens": false
+  "vbnet.debounceMs": 1000,
+  "vbnet.diagnosticsMode": "saveOnly",
+  "vbnet.maxMemoryMB": 1024,
+  "vbnet.semanticTokens": false
 }
 ```
 
@@ -376,7 +376,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 **Solution**:
 ```json
 {
-  "vbnetLs.logLevel": "debug"
+  "vbnet.logLevel": "debug"
 }
 ```
 
@@ -395,8 +395,8 @@ Check output panel for startup errors.
 **Solution**:
 ```json
 {
-  "vbnetLs.debounceMs": 500,
-  "vbnetLs.maxProjectCount": 50
+  "vbnet.debounceMs": 500,
+  "vbnet.maxProjectCount": 50
 }
 ```
 
@@ -407,14 +407,14 @@ Check output panel for startup errors.
 **Symptoms**: Errors don't appear or are stale
 
 **Check**:
-1. `vbnetLs.diagnosticsMode` setting
+1. `vbnet.diagnosticsMode` setting
 2. File is saved (if using `saveOnly` mode)
 
 **Solution**:
 ```json
 {
-  "vbnetLs.diagnosticsMode": "openChange",
-  "vbnetLs.debounceMs": 300
+  "vbnet.diagnosticsMode": "openChange",
+  "vbnet.debounceMs": 300
 }
 ```
 
@@ -434,7 +434,7 @@ Check output panel for startup errors.
 **Solution**:
 ```json
 {
-  "vbnetLs.msbuildPath": "/path/to/specific/MSBuild.dll"
+  "vbnet.msbuildPath": "/path/to/specific/MSBuild.dll"
 }
 ```
 
@@ -445,14 +445,14 @@ Check output panel for startup errors.
 **Symptoms**: VS Code sluggish, high CPU in Task Manager
 
 **Check**:
-1. `vbnetLs.debounceMs` is too low
-2. `vbnetLs.diagnosticsMode` is `openChange` with large files
+1. `vbnet.debounceMs` is too low
+2. `vbnet.diagnosticsMode` is `openChange` with large files
 
 **Solution**:
 ```json
 {
-  "vbnetLs.debounceMs": 1000,
-  "vbnetLs.diagnosticsMode": "openSave"
+  "vbnet.debounceMs": 1000,
+  "vbnet.diagnosticsMode": "openSave"
 }
 ```
 
@@ -469,8 +469,8 @@ Check output panel for startup errors.
 **Solution**:
 ```json
 {
-  "vbnetLs.maxProjectCount": 50,
-  "vbnetLs.maxMemoryMB": 1024
+  "vbnet.maxProjectCount": 50,
+  "vbnet.maxMemoryMB": 1024
 }
 ```
 
@@ -519,13 +519,13 @@ For multi-root workspaces, configure per folder:
     {
       "path": "ProjectA",
       "settings": {
-        "vbnetLs.solutionPath": "${workspaceFolder}/ProjectA.sln"
+        "vbnet.solutionPath": "${workspaceFolder}/ProjectA.sln"
       }
     },
     {
       "path": "ProjectB",
       "settings": {
-        "vbnetLs.solutionPath": "${workspaceFolder}/ProjectB.sln"
+        "vbnet.solutionPath": "${workspaceFolder}/ProjectB.sln"
       }
     }
   ]
@@ -559,11 +559,11 @@ dotnet_diagnostic.CA2007.severity = none
 // .vscode/settings.json (workspace)
 {
   // VB.NET Language Support
-  "vbnetLs.enable": true,
-  "vbnetLs.logLevel": "info",
-  "vbnetLs.solutionPath": "${workspaceFolder}/MySolution.sln",
-  "vbnetLs.debounceMs": 300,
-  "vbnetLs.diagnosticsMode": "openChange",
+  "vbnet.enable": true,
+  "vbnet.logLevel": "info",
+  "vbnet.solutionPath": "${workspaceFolder}/MySolution.sln",
+  "vbnet.debounceMs": 300,
+  "vbnet.diagnosticsMode": "openChange",
 
   // Editor preferences
   "editor.formatOnSave": true,
@@ -614,7 +614,7 @@ $env:VBNET_LS_MAX_MEMORY_MB="4096"
 If configuration issues persist:
 
 1. **Check output panel**: "View > Output" > "VB.NET Language Support"
-2. **Enable debug logging**: `"vbnetLs.logLevel": "debug"`
+2. **Enable debug logging**: `"vbnet.logLevel": "debug"`
 3. **Restart language server**: Command Palette > "VB.NET: Restart Language Server"
 4. **Check GitHub issues**: https://github.com/DNAKode/vbnet-lsp/issues
 5. **Ask for help**: https://github.com/DNAKode/vbnet-lsp/discussions
