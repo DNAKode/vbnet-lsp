@@ -7,8 +7,11 @@ suite("Workspace open (VS Code harness)", () => {
         const folders = vscode.workspace.workspaceFolders;
         assert.ok(folders && folders.length > 0, "No workspace folders were opened.");
 
+        const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..", "..");
         const expected = process.env.FIXTURE_WORKSPACE
-            ? path.resolve(process.env.FIXTURE_WORKSPACE)
+            ? (path.isAbsolute(process.env.FIXTURE_WORKSPACE)
+                  ? process.env.FIXTURE_WORKSPACE
+                  : path.resolve(repoRoot, process.env.FIXTURE_WORKSPACE))
             : null;
         if (expected) {
             const opened = folders![0].uri.fsPath;

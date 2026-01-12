@@ -9,6 +9,8 @@ import {
 
 async function main() {
     const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
+    const resolveRepoPath = (value: string) =>
+        path.isAbsolute(value) ? value : path.resolve(repoRoot, value);
     const defaultExtensionId = "dnakode.vbnet-language-support";
     const extensionIdEnv = process.env.EXTENSION_ID ?? defaultExtensionId;
     const extensionDevelopmentPath = process.env.EXTENSION_DEV_PATH
@@ -48,7 +50,7 @@ async function main() {
     }
 
     const fixtureWorkspace = process.env.FIXTURE_WORKSPACE
-        ? path.resolve(process.env.FIXTURE_WORKSPACE)
+        ? resolveRepoPath(process.env.FIXTURE_WORKSPACE)
         : extensionIdEnv === defaultExtensionId
           ? path.resolve(repoRoot, "_test", "codex-tests", "vbnet-lsp", "fixtures", "services")
           : path.resolve(repoRoot, "_test", "codex-tests", "csharp-lsp", "fixtures", "basic");

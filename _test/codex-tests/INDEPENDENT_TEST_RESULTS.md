@@ -170,3 +170,14 @@ Revised risks:
 Follow-up (retry-enabled fuzz checks):
 - MediumProject workspace symbol query succeeded after retry (log: `_test/codex-tests/clients/vscode/logs/20260112T235848`).
 - DWSIM root workspace symbol query still empty after retry window (log: `_test/codex-tests/clients/vscode/logs/20260112T235906`).
+
+### Update 2026-01-13 (fixture path resolution + VS Code smoke)
+
+Harness fix:
+- Resolve `FIXTURE_WORKSPACE`/`FIXTURE_FILE` relative to repo root when passed as relative paths.
+- Updated VS Code harness entry and tests to avoid resolving under the VS Code install directory.
+
+VS Code headless run (smoke):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `FIXTURE_WORKSPACE=_test/codex-tests/vbnet-lsp/fixtures/services`, `FIXTURE_FILE=_test/codex-tests/vbnet-lsp/fixtures/services/ServiceSamples.vb`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
+- Result: PASS (workspace open + VB.NET core services + rename + restart + completion toggle).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T001822`

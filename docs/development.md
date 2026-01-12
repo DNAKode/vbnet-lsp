@@ -164,21 +164,21 @@ ls _test/
 find _test/dwsim -name "*.vb" | head -20
 ```
 
-### _test/codex-tests/ - Independent Verification (DO NOT USE DIRECTLY)
+### _test/codex-tests/ - Unified Verification (Use in improvement cycles)
 
-**IMPORTANT**: The `_test/codex-tests/` directory contains an independent test verification suite maintained separately from regular development. This suite is used for external validation of the language server by an independent reviewer.
+**IMPORTANT**: The `_test/codex-tests/` directory contains the headless harnesses for VS Code, VB.NET LSP, and Emacs. These are now part of the normal improvement cycle.
 
 **Rules for this directory:**
-1. **DO NOT run tests from here** during regular development
-2. **DO NOT modify files** in this directory
-3. **Read-only access** - You may read the test suite and results documents to understand testing status
-4. **Exclude from commits** - When committing, do not stage changes from `_test/codex-tests/`
-5. **Use test/VbNet.LanguageServer.Tests/** for regular development testing instead
+1. **Run tests from here** as part of iterative improvement cycles
+2. **Update harnesses when needed** to improve reliability and coverage
+3. **Record outcomes** in `_test/codex-tests/INDEPENDENT_TEST_RESULTS.md`
+4. **Exclude incidental artifacts** (logs, downloaded runtimes) from commits
+5. **Also use test/VbNet.LanguageServer.Tests/** for unit coverage
 
-**What you CAN do:**
-- Read `_test/codex-tests/INDEPENDENT_TEST_SUITE.md` to understand test coverage
-- Read `_test/codex-tests/INDEPENDENT_TEST_RESULTS.md` to see independent verification status
-- Act on findings from these documents (fix issues found by independent testing)
+**What you SHOULD do:**
+- Run `_test/codex-tests` harnesses during fixes and regressions
+- Capture VS Code logs when needed (`CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`)
+- Update `_test/codex-tests/INDEPENDENT_TEST_RESULTS.md` with test outcomes
 
 ### Directory Structure After Setup
 

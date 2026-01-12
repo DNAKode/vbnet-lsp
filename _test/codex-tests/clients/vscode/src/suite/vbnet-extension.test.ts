@@ -61,7 +61,9 @@ if (skipVbnetSmoke) {
     test("open fixture and run core services", async () => {
         const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..", "..");
         const filePath = process.env.FIXTURE_FILE
-            ? path.resolve(process.env.FIXTURE_FILE)
+            ? (path.isAbsolute(process.env.FIXTURE_FILE)
+                  ? process.env.FIXTURE_FILE
+                  : path.resolve(repoRoot, process.env.FIXTURE_FILE))
             : path.resolve(
                   repoRoot,
                   "_test",
