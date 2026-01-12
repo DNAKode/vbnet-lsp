@@ -228,3 +228,11 @@ Server updates:
 
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
+
+### Update 2026-01-13 (project scan pruning + unit tests)
+
+Server updates:
+- VB.NET project discovery now skips excluded directories while traversing to reduce expensive scans.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).

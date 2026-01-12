@@ -348,11 +348,10 @@ public sealed class LanguageServer : IAsyncDisposable
             }
 
             // No solution, search for VB.NET projects
-            var vbprojFiles = GetProjectSearchRoots(rootPath)
-                .SelectMany(searchRoot => Directory.EnumerateFiles(searchRoot, "*.vbproj", SearchOption.AllDirectories))
-                .Where(path => !ShouldExcludePath(path, _workspaceExcludePaths))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var vbprojFiles = CollectVbProjFiles(
+                GetProjectSearchRoots(rootPath),
+                _workspaceExcludePaths,
+                ct);
 
             if (vbprojFiles.Count > 0)
             {
@@ -1163,6 +1162,83 @@ public sealed class LanguageServer : IAsyncDisposable
         }
 
         return false;
+    }
+
+    private static List<string> CollectVbProjFiles(
+        IEnumerable<string> roots,
+        string[]? excludePaths,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var root in roots)
+        {
+            foreach (var file in EnumerateVbProjFiles(root, excludePaths, cancellationToken))
+            {
+                if (seen.Add(file))
+                {
+                    results.Add(file);
+                }
+            }
+        }
+
+        return results;
+    }
+
+    private static IEnumerable<string> EnumerateVbProjFiles(
+        string root,
+        string[]? excludePaths,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            yield break;
+        }
+
+        var stack = new Stack<string>();
+        stack.Push(root);
+
+        while (stack.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var current = stack.Pop();
+            if (ShouldExcludePath(current, excludePaths))
+            {
+                continue;
+            }
+
+            IEnumerable<string> files;
+            IEnumerable<string> directories;
+
+            try
+            {
+                files = Directory.EnumerateFiles(current, "*.vbproj", SearchOption.TopDirectoryOnly);
+                directories = Directory.EnumerateDirectories(current);
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            foreach (var file in files)
+            {
+                if (!ShouldExcludePath(file, excludePaths))
+                {
+                    yield return file;
+                }
+            }
+
+            foreach (var directory in directories)
+            {
+                stack.Push(directory);
+            }
+        }
     }
 
     private static string[]? GetStringArraySetting(JsonElement settings, string section, string name)
