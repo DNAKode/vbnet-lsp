@@ -236,3 +236,11 @@ Server updates:
 
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).
+
+### Update 2026-01-13 (syntax-only document symbols include members)
+
+Server updates:
+- Syntax-only document symbols now include immediate members for better fallback results.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).

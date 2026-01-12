@@ -147,12 +147,26 @@ public sealed class SymbolsService
                 continue;
             }
 
+            var children = new List<DocumentSymbol>();
+            foreach (var member in GetTypeMembers(node))
+            {
+                children.Add(new DocumentSymbol
+                {
+                    Name = member.Name,
+                    Kind = member.Kind,
+                    Range = GetRange(member.Span, sourceText),
+                    SelectionRange = GetRange(member.Span, sourceText),
+                    Children = null
+                });
+            }
+
             symbols.Add(new DocumentSymbol
             {
                 Name = name,
                 Kind = kind.Value,
                 Range = GetRange(node.Span, sourceText),
-                SelectionRange = GetSelectionRangeFromSyntax(node, sourceText)
+                SelectionRange = GetSelectionRangeFromSyntax(node, sourceText),
+                Children = children.Count > 0 ? children.ToArray() : null
             });
         }
 
