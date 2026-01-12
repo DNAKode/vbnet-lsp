@@ -288,6 +288,21 @@ npm test
 npm run test:watch
 ```
 
+### Debugging Harness (VS Code)
+
+The VS Code harness can exercise netcoredbg-based debug sessions when the debugger binary is available.
+
+```powershell
+# Build debug fixture
+dotnet build test/TestProjects/DebugConsole/DebugConsole.vbproj
+
+# Run harness (skips debug test if netcoredbg is missing)
+$env:FIXTURE_WORKSPACE = "test/TestProjects/DebugConsole"
+$env:NETCOREDBG_PATH = "C:\\tools\\netcoredbg\\netcoredbg.exe" # optional
+cd _test/codex-tests/clients/vscode
+npm test
+```
+
 ### Multi-Editor Tests (Emacs)
 
 ```bash
