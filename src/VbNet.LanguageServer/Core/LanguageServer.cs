@@ -457,6 +457,8 @@ public sealed class LanguageServer : IAsyncDisposable
 
         var settingsElement = ExtractSettingsElement(@params.Settings);
         var diagnosticsEnabled = GetBooleanSetting(settingsElement, "diagnostics", "enable");
+        var diagnosticsMode = GetRootStringSetting(settingsElement, "diagnosticsMode");
+        var debounceMs = GetRootIntSetting(settingsElement, "debounceMs");
         var completionEnabled = GetBooleanSetting(settingsElement, "completion", "enable");
         var solutionPathOverride = GetStringSetting(settingsElement, "workspace", "solutionPath");
         var ignoreSolutionFiles = GetBooleanSetting(settingsElement, "workspace", "ignoreSolutionFiles");
@@ -481,6 +483,20 @@ public sealed class LanguageServer : IAsyncDisposable
             }
 
             _logger.LogInformation("Diagnostics enabled: {Enabled}", _diagnosticsEnabled);
+        }
+
+        if (!string.IsNullOrWhiteSpace(diagnosticsMode) &&
+            TryParseDiagnosticsMode(diagnosticsMode, out var parsedMode) &&
+            parsedMode != _diagnosticsService.Mode)
+        {
+            _diagnosticsService.Mode = parsedMode;
+            _logger.LogInformation("Diagnostics mode: {Mode}", parsedMode);
+        }
+
+        if (debounceMs.HasValue && debounceMs.Value >= 0 && debounceMs.Value != _diagnosticsService.DebounceDelayMs)
+        {
+            _diagnosticsService.DebounceDelayMs = debounceMs.Value;
+            _logger.LogInformation("Diagnostics debounce: {Delay}ms", debounceMs.Value);
         }
 
         if (completionEnabled.HasValue && completionEnabled.Value != _completionEnabled)
@@ -1294,6 +1310,44 @@ public sealed class LanguageServer : IAsyncDisposable
         return null;
     }
 
+    private static string? GetRootStringSetting(JsonElement settings, string name)
+    {
+        var root = settings;
+        if (settings.ValueKind == JsonValueKind.Object &&
+            settings.TryGetProperty("vbnet", out var vbnetSettings) &&
+            vbnetSettings.ValueKind == JsonValueKind.Object)
+        {
+            root = vbnetSettings;
+        }
+
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty(name, out var valueElement))
+        {
+            return null;
+        }
+
+        return TryGetStringValue(valueElement, out var value) ? value : null;
+    }
+
+    private static int? GetRootIntSetting(JsonElement settings, string name)
+    {
+        var root = settings;
+        if (settings.ValueKind == JsonValueKind.Object &&
+            settings.TryGetProperty("vbnet", out var vbnetSettings) &&
+            vbnetSettings.ValueKind == JsonValueKind.Object)
+        {
+            root = vbnetSettings;
+        }
+
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty(name, out var valueElement))
+        {
+            return null;
+        }
+
+        return TryGetIntValue(valueElement, out var value) ? value : null;
+    }
+
     private static int? GetIntSetting(JsonElement settings, string section, string name)
     {
         var root = settings;
@@ -1482,6 +1536,30 @@ public sealed class LanguageServer : IAsyncDisposable
         }
 
         return false;
+    }
+
+    private static bool TryParseDiagnosticsMode(string value, out DiagnosticsMode mode)
+    {
+        mode = DiagnosticsMode.OpenChange;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "openchange":
+                mode = DiagnosticsMode.OpenChange;
+                return true;
+            case "opensave":
+                mode = DiagnosticsMode.OpenSave;
+                return true;
+            case "saveonly":
+                mode = DiagnosticsMode.SaveOnly;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void TriggerDiagnosticsForOpenDocuments()

@@ -102,6 +102,21 @@
             "default": true,
             "description": "Enable real-time diagnostics (errors, warnings)."
           },
+          "vbnet.diagnosticsMode": {
+            "type": "string",
+            "enum": [
+              "openChange",
+              "openSave",
+              "saveOnly"
+            ],
+            "default": "openChange",
+            "description": "When to compute diagnostics (open/change, open/save, or save-only)."
+          },
+          "vbnet.debounceMs": {
+            "type": "number",
+            "default": 300,
+            "description": "Debounce delay in milliseconds for diagnostics updates."
+          },
           "vbnet.completion.enable": {
             "type": "boolean",
             "default": true,

@@ -49,6 +49,11 @@ public sealed class DiagnosticsService : IDisposable
     /// </summary>
     public bool Enabled { get; set; } = true;
 
+    /// <summary>
+    /// Controls when diagnostics are computed.
+    /// </summary>
+    public DiagnosticsMode Mode { get; set; } = DiagnosticsMode.OpenChange;
+
     public DiagnosticsService(
         WorkspaceManager workspaceManager,
         DocumentManager documentManager,
@@ -502,13 +507,27 @@ public sealed class DiagnosticsService : IDisposable
             return;
         }
 
-        if (e.Kind == DocumentChangeKind.Opened)
+        switch (e.Kind)
         {
-            _ = ComputeAndPublishDiagnosticsAsync(e.Uri);
-            return;
+            case DocumentChangeKind.Opened:
+                if (Mode != DiagnosticsMode.SaveOnly)
+                {
+                    _ = ComputeAndPublishDiagnosticsAsync(e.Uri);
+                }
+                break;
+            case DocumentChangeKind.Changed:
+                if (Mode == DiagnosticsMode.OpenChange)
+                {
+                    TriggerDiagnostics(e.Uri);
+                }
+                break;
+            case DocumentChangeKind.Saved:
+                if (Mode == DiagnosticsMode.OpenSave || Mode == DiagnosticsMode.SaveOnly)
+                {
+                    TriggerDiagnostics(e.Uri);
+                }
+                break;
         }
-
-        TriggerDiagnostics(e.Uri);
     }
 
     public void Dispose()
@@ -530,4 +549,14 @@ public sealed class DiagnosticsService : IDisposable
         }
         _pendingComputations.Clear();
     }
+}
+
+/// <summary>
+/// Controls when diagnostics are computed.
+/// </summary>
+public enum DiagnosticsMode
+{
+    OpenChange,
+    OpenSave,
+    SaveOnly
 }

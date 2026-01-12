@@ -276,3 +276,16 @@ Server updates:
 
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DiagnosticsServiceTests` (PASS, 11 tests).
+
+### Update 2026-01-13 (diagnostics mode + debounce settings)
+
+Server/extension updates:
+- Added `vbnet.diagnosticsMode` and `vbnet.debounceMs` settings with server-side behavior.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DiagnosticsServiceTests` (PASS, 11 tests).
+
+VS Code headless run (smoke):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
+- Result: PASS (all VB.NET smoke tests).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T004738`
