@@ -317,6 +317,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DiagnosticsServiceTests` (PASS, 11 tests).
 
+### Update 2026-01-13 (syntax member name guards)
+
+Server updates:
+- Syntax fallback skips empty member names in workspace/document symbol results.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:

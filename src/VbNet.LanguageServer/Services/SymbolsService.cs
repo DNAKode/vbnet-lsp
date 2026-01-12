@@ -477,27 +477,44 @@ public sealed class SymbolsService
             {
                 case MethodBlockSyntax methodBlock:
                     var methodName = methodBlock.SubOrFunctionStatement.Identifier.Text;
-                    yield return (methodName, Protocol.SymbolKind.Method, methodBlock.SubOrFunctionStatement.Span);
+                    if (!string.IsNullOrWhiteSpace(methodName))
+                    {
+                        yield return (methodName, Protocol.SymbolKind.Method, methodBlock.SubOrFunctionStatement.Span);
+                    }
                     break;
                 case PropertyBlockSyntax propertyBlock:
                     var propertyName = propertyBlock.PropertyStatement.Identifier.Text;
-                    yield return (propertyName, Protocol.SymbolKind.Property, propertyBlock.PropertyStatement.Span);
+                    if (!string.IsNullOrWhiteSpace(propertyName))
+                    {
+                        yield return (propertyName, Protocol.SymbolKind.Property, propertyBlock.PropertyStatement.Span);
+                    }
                     break;
                 case EventBlockSyntax eventBlock:
                     var eventName = eventBlock.EventStatement.Identifier.Text;
-                    yield return (eventName, Protocol.SymbolKind.Event, eventBlock.EventStatement.Span);
+                    if (!string.IsNullOrWhiteSpace(eventName))
+                    {
+                        yield return (eventName, Protocol.SymbolKind.Event, eventBlock.EventStatement.Span);
+                    }
                     break;
                 case FieldDeclarationSyntax fieldDecl:
                     foreach (var declarator in fieldDecl.Declarators)
                     {
                         foreach (var name in declarator.Names)
                         {
-                            yield return (name.Identifier.Text, Protocol.SymbolKind.Field, name.Span);
+                            var fieldName = name.Identifier.Text;
+                            if (!string.IsNullOrWhiteSpace(fieldName))
+                            {
+                                yield return (fieldName, Protocol.SymbolKind.Field, name.Span);
+                            }
                         }
                     }
                     break;
                 case EnumMemberDeclarationSyntax enumMember:
-                    yield return (enumMember.Identifier.Text, Protocol.SymbolKind.EnumMember, enumMember.Span);
+                    var enumName = enumMember.Identifier.Text;
+                    if (!string.IsNullOrWhiteSpace(enumName))
+                    {
+                        yield return (enumName, Protocol.SymbolKind.EnumMember, enumMember.Span);
+                    }
                     break;
                 case TypeBlockSyntax typeBlock:
                     var typeName = GetTypeName(typeBlock);
