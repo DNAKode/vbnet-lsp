@@ -301,7 +301,21 @@ public sealed class DiagnosticsService : IDisposable
         try
         {
             var parsedUri = new Uri(uri);
-            return parsedUri.IsFile ? parsedUri.LocalPath : uri;
+            if (!parsedUri.IsFile)
+            {
+                return uri;
+            }
+
+            var localPath = parsedUri.LocalPath;
+            if (localPath.Length >= 3 &&
+                localPath[0] == '/' &&
+                char.IsLetter(localPath[1]) &&
+                localPath[2] == ':')
+            {
+                localPath = localPath.Substring(1);
+            }
+
+            return localPath;
         }
         catch (UriFormatException)
         {
