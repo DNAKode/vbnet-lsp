@@ -378,6 +378,11 @@ public sealed class SymbolsService
                 continue;
             }
 
+            if (!string.Equals(openDoc.LanguageId, "vb", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var syntaxTree = VisualBasicSyntaxTree.ParseText(openDoc.Text);
             var syntaxRoot = await syntaxTree.GetRootAsync(cancellationToken);
             var sourceText = openDoc.Text;

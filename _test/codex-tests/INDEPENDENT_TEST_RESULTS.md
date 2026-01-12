@@ -269,6 +269,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).
 
+### Update 2026-01-13 (open-doc symbols only for VB)
+
+Server updates:
+- Workspace symbol fallback now ignores non-VB open documents.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:
