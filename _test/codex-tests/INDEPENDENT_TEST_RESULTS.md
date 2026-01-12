@@ -345,3 +345,13 @@ VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
 - Result: PASS (all VB.NET smoke tests).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T004738`
+
+### Update 2026-01-13 (debug harness)
+
+Debugging updates:
+- Added VS Code harness debug launch test for netcoredbg (skips if binary is unavailable).
+
+VS Code headless run (debug workspace):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`.
+- Result: SKIP (netcoredbg not found in environment).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T010208`

@@ -46,6 +46,13 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
                 return undefined;
             }
 
+            if (typeof resolved.program === 'string' && !path.isAbsolute(resolved.program)) {
+                const workspaceRoot = folder?.uri.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                if (workspaceRoot) {
+                    resolved.program = path.resolve(workspaceRoot, resolved.program);
+                }
+            }
+
             if (!resolved.cwd) {
                 resolved.cwd = folder?.uri.fsPath ?? path.dirname(resolved.program);
             }
@@ -55,6 +62,13 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
                     'VB.NET attach requires a "processId". Update launch.json and try again.'
                 );
                 return undefined;
+            }
+
+            if (typeof resolved.processId === 'string') {
+                const parsed = Number.parseInt(resolved.processId, 10);
+                if (!Number.isNaN(parsed)) {
+                    resolved.processId = parsed;
+                }
             }
         }
 
@@ -142,6 +156,10 @@ class NetCoreDbgAdapterFactory implements vscode.DebugAdapterDescriptorFactory {
         if (!path.isAbsolute(trimmed)) {
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
             resolvedPath = workspaceFolder ? path.resolve(workspaceFolder, trimmed) : path.resolve(this.extensionPath, trimmed);
+        }
+
+        if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
+            resolvedPath = path.join(resolvedPath, `netcoredbg${ext}`);
         }
 
         if (ext && path.extname(resolvedPath).length === 0) {
