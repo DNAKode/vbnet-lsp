@@ -64,7 +64,8 @@ public sealed class SymbolsService
 
             if (syntaxRoot == null || semanticModel == null)
             {
-                return Array.Empty<DocumentSymbol>();
+                _logger.LogTrace("Roslyn model not ready for: {Uri}, using syntax-only symbols", uri);
+                return await GetDocumentSymbolsFromOpenDocumentAsync(uri, cancellationToken);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
