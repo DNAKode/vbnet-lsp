@@ -166,3 +166,7 @@ Fuzz log bundles:
 Revised risks:
 1) Workspace/document symbols appear empty in deep subfolder workspaces without a nearby solution/project; investigate fallback behavior.
 2) VS Code fuzz runs show empty workspace symbol results even for small projects; add readiness/diagnostics checks or ensure project load under non-root workspaces.
+
+Follow-up (retry-enabled fuzz checks):
+- MediumProject workspace symbol query succeeded after retry (log: `_test/codex-tests/clients/vscode/logs/20260112T235848`).
+- DWSIM root workspace symbol query still empty after retry window (log: `_test/codex-tests/clients/vscode/logs/20260112T235906`).
