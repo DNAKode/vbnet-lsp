@@ -475,6 +475,7 @@ public sealed class LanguageServer : IAsyncDisposable
 
             if (!_diagnosticsEnabled)
             {
+                _diagnosticsService.CancelPendingWork();
                 await ClearDiagnosticsForOpenDocumentsAsync(ct);
             }
             else

@@ -549,6 +549,25 @@ public sealed class DiagnosticsService : IDisposable
         }
         _pendingComputations.Clear();
     }
+
+    /// <summary>
+    /// Cancels any pending diagnostic work without publishing.
+    /// </summary>
+    public void CancelPendingWork()
+    {
+        foreach (var timer in _debounceTimers.Values)
+        {
+            timer.Dispose();
+        }
+        _debounceTimers.Clear();
+
+        foreach (var cts in _pendingComputations.Values)
+        {
+            cts.Cancel();
+            cts.Dispose();
+        }
+        _pendingComputations.Clear();
+    }
 }
 
 /// <summary>

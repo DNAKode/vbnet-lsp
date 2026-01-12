@@ -277,6 +277,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
 
+### Update 2026-01-13 (cancel pending diagnostics on disable)
+
+Server updates:
+- Disabling diagnostics now cancels pending debounce timers and computations.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DiagnosticsServiceTests` (PASS, 11 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:
