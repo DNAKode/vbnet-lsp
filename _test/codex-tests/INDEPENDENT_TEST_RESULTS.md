@@ -202,3 +202,11 @@ VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
 - Result: PASS (all VB.NET smoke tests).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T002807`
+
+### Update 2026-01-13 (workspace symbols filter + unit tests)
+
+Server updates:
+- Workspace symbols now filter to `.vb` sources when solutions include mixed-language projects.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).

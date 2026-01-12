@@ -299,6 +299,11 @@ public sealed class SymbolsService
                     continue;
                 }
 
+                if (!syntaxTree.FilePath.EndsWith(".vb", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var sourceText = await syntaxTree.GetTextAsync(cancellationToken);
                 var range = GetRange(location.SourceSpan, sourceText);
                 var uri = new Uri(syntaxTree.FilePath).ToString();
