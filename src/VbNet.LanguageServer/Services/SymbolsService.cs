@@ -252,8 +252,8 @@ public sealed class SymbolsService
             solution = _workspaceManager.CurrentSolution;
             if (solution == null)
             {
-                _logger.LogTrace("No solution available after initial load wait");
-                return Array.Empty<SymbolInformation>();
+                _logger.LogTrace("No solution available after initial load wait; using open documents only");
+                return await GetWorkspaceSymbolsFromOpenDocumentsAsync(query, cancellationToken);
             }
         }
 
@@ -340,6 +340,132 @@ public sealed class SymbolsService
         {
             _logger.LogError(ex, "Error getting workspace symbols for query: '{Query}'", query);
             return Array.Empty<SymbolInformation>();
+        }
+    }
+
+    private async Task<SymbolInformation[]> GetWorkspaceSymbolsFromOpenDocumentsAsync(
+        string query,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Array.Empty<SymbolInformation>();
+        }
+
+        var results = new List<SymbolInformation>();
+
+        foreach (var uri in _documentManager.OpenDocumentUris)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var openDoc = _documentManager.GetOpenDocument(uri);
+            if (openDoc == null)
+            {
+                continue;
+            }
+
+            var syntaxTree = VisualBasicSyntaxTree.ParseText(openDoc.Text);
+            var syntaxRoot = await syntaxTree.GetRootAsync(cancellationToken);
+            var sourceText = openDoc.Text;
+
+            foreach (var typeNode in GetTopLevelTypeBlocks(syntaxRoot))
+            {
+                var typeName = GetTypeName(typeNode);
+                if (MatchesQuery(typeName, query))
+                {
+                    var kind = GetTypeSymbolKind(typeNode);
+                    if (kind != null)
+                    {
+                        results.Add(CreateSymbolInformation(typeName!, kind.Value, uri, typeNode.Span, sourceText, null));
+                    }
+                }
+
+                foreach (var member in GetTypeMembers(typeNode))
+                {
+                    if (MatchesQuery(member.Name, query))
+                    {
+                        results.Add(CreateSymbolInformation(
+                            member.Name,
+                            member.Kind,
+                            uri,
+                            member.Span,
+                            sourceText,
+                            typeName));
+                    }
+                }
+
+                if (results.Count >= 100)
+                {
+                    return results.ToArray();
+                }
+            }
+        }
+
+        return results.ToArray();
+    }
+
+    private static bool MatchesQuery(string? name, string query)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        return name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static SymbolInformation CreateSymbolInformation(
+        string name,
+        Protocol.SymbolKind kind,
+        string uri,
+        TextSpan span,
+        SourceText sourceText,
+        string? containerName)
+    {
+        return new SymbolInformation
+        {
+            Name = name,
+            Kind = kind,
+            Location = new Protocol.Location
+            {
+                Uri = uri,
+                Range = GetRange(span, sourceText)
+            },
+            ContainerName = containerName
+        };
+    }
+
+    private static IEnumerable<(string Name, Protocol.SymbolKind Kind, TextSpan Span)> GetTypeMembers(SyntaxNode typeNode)
+    {
+        foreach (var member in typeNode.DescendantNodes())
+        {
+            switch (member)
+            {
+                case MethodBlockSyntax methodBlock:
+                    var methodName = methodBlock.SubOrFunctionStatement.Identifier.Text;
+                    yield return (methodName, Protocol.SymbolKind.Method, methodBlock.SubOrFunctionStatement.Span);
+                    break;
+                case PropertyBlockSyntax propertyBlock:
+                    var propertyName = propertyBlock.PropertyStatement.Identifier.Text;
+                    yield return (propertyName, Protocol.SymbolKind.Property, propertyBlock.PropertyStatement.Span);
+                    break;
+                case EventBlockSyntax eventBlock:
+                    var eventName = eventBlock.EventStatement.Identifier.Text;
+                    yield return (eventName, Protocol.SymbolKind.Event, eventBlock.EventStatement.Span);
+                    break;
+                case FieldDeclarationSyntax fieldDecl:
+                    foreach (var declarator in fieldDecl.Declarators)
+                    {
+                        foreach (var name in declarator.Names)
+                        {
+                            yield return (name.Identifier.Text, Protocol.SymbolKind.Field, name.Span);
+                        }
+                    }
+                    break;
+                case EnumMemberDeclarationSyntax enumMember:
+                    yield return (enumMember.Identifier.Text, Protocol.SymbolKind.EnumMember, enumMember.Span);
+                    break;
+            }
         }
     }
 

@@ -220,3 +220,11 @@ VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
 - Result: PASS (all VB.NET smoke tests).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T003121`
+
+### Update 2026-01-13 (open-doc workspace symbol fallback)
+
+Server updates:
+- Workspace symbol requests fall back to open documents when no solution is loaded.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
