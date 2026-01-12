@@ -126,6 +126,37 @@ public class DocumentManagerTests
     }
 
     [Fact]
+    public void HandleDidChange_EmptyChanges_DoesNotUpdateVersion()
+    {
+        var uri = "file:///c:/test/module1.vb";
+
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = uri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = "Module Module1\nEnd Module"
+            }
+        });
+
+        _documentManager.HandleDidChange(new DidChangeTextDocumentParams
+        {
+            TextDocument = new VersionedTextDocumentIdentifier
+            {
+                Uri = uri,
+                Version = 2
+            },
+            ContentChanges = Array.Empty<TextDocumentContentChangeEvent>()
+        });
+
+        var doc = _documentManager.GetOpenDocument(uri);
+        Assert.NotNull(doc);
+        Assert.Equal(1, doc.Version);
+    }
+
+    [Fact]
     public void HandleDidClose_RemovesDocument()
     {
         var uri = "file:///c:/test/module1.vb";

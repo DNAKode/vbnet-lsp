@@ -117,6 +117,12 @@ public sealed class DocumentManager
             return;
         }
 
+        if (@params.ContentChanges == null || @params.ContentChanges.Length == 0)
+        {
+            _logger.LogTrace("No content changes provided for: {Uri}", uri);
+            return;
+        }
+
         _logger.LogTrace("Document changed: {Uri} (version {OldVersion} -> {NewVersion})",
             uri, openDoc.Version, version);
 

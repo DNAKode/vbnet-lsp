@@ -325,6 +325,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SymbolsServiceTests` (PASS, 7 tests).
 
+### Update 2026-01-13 (empty change guard)
+
+Server updates:
+- Ignore empty `didChange` payloads to avoid spurious version bumps.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DocumentManagerTests` (PASS, 10 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:
