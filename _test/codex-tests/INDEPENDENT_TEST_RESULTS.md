@@ -301,6 +301,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DocumentManagerTests` (PASS, 9 tests).
 
+### Update 2026-01-13 (solution candidate de-duplication)
+
+Server updates:
+- Workspace discovery now de-duplicates nearby solution candidates.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:

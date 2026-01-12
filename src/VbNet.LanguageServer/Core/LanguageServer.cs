@@ -1142,6 +1142,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private List<string> FindSolutionCandidates(string rootPath)
     {
         var candidates = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var searchRoot in GetAncestorRoots(rootPath))
         {
@@ -1170,7 +1171,13 @@ public sealed class LanguageServer : IAsyncDisposable
                 _logger.LogInformation("Multiple solutions found in {Root}", searchRoot);
             }
 
-            candidates.AddRange(solutionCandidates);
+            foreach (var candidate in solutionCandidates)
+            {
+                if (seen.Add(candidate))
+                {
+                    candidates.Add(candidate);
+                }
+            }
         }
 
         return candidates;
