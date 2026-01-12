@@ -309,6 +309,14 @@ Server updates:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~WorkspaceManagerTests` (PASS, 13 tests).
 
+### Update 2026-01-13 (zero debounce fast path)
+
+Server updates:
+- Diagnostics now run immediately when `vbnet.debounceMs` is set to 0.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~DiagnosticsServiceTests` (PASS, 11 tests).
+
 ### Update 2026-01-13 (diagnostics file path normalization)
 
 Server updates:

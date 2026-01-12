@@ -81,6 +81,12 @@ public sealed class DiagnosticsService : IDisposable
 
         _logger.LogTrace("Diagnostics triggered for: {Uri}", uri);
 
+        if (DebounceDelayMs <= 0)
+        {
+            _ = ComputeAndPublishDiagnosticsAsync(uri);
+            return;
+        }
+
         // Cancel any existing timer for this document
         if (_debounceTimers.TryRemove(uri, out var existingTimer))
         {
