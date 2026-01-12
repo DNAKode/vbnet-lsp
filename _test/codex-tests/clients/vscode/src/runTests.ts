@@ -8,7 +8,9 @@ import {
 } from "@vscode/test-electron";
 
 async function main() {
-    const repoRoot = path.resolve(__dirname, "..", "..", "..", "..");
+    const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
+    const defaultExtensionId = "dnakode.vbnet-language-support";
+    const extensionIdEnv = process.env.EXTENSION_ID ?? defaultExtensionId;
     const extensionDevelopmentPath = process.env.EXTENSION_DEV_PATH
         ? path.resolve(process.env.EXTENSION_DEV_PATH)
         : path.resolve(__dirname, "..", "extension");
@@ -47,7 +49,9 @@ async function main() {
 
     const fixtureWorkspace = process.env.FIXTURE_WORKSPACE
         ? path.resolve(process.env.FIXTURE_WORKSPACE)
-        : path.resolve(repoRoot, "_test", "codex-tests", "csharp-lsp", "fixtures", "basic");
+        : extensionIdEnv === defaultExtensionId
+          ? path.resolve(repoRoot, "_test", "codex-tests", "vbnet-lsp", "fixtures", "services")
+          : path.resolve(repoRoot, "_test", "codex-tests", "csharp-lsp", "fixtures", "basic");
 
     const launchArgs = [
         fixtureWorkspace,
@@ -101,6 +105,12 @@ async function main() {
         "VbNet.LanguageServer.dll"
     );
     const extensionTestsEnv = { ...process.env };
+    if (!extensionTestsEnv.EXTENSION_ID) {
+        extensionTestsEnv.EXTENSION_ID = extensionIdEnv;
+    }
+    if (extensionTestsEnv.EXTENSION_ID === defaultExtensionId && !extensionTestsEnv.SKIP_CSHARP_TESTS) {
+        extensionTestsEnv.SKIP_CSHARP_TESTS = "1";
+    }
     if (!extensionTestsEnv.VBNET_SERVER_PATH && fs.existsSync(defaultServerPath)) {
         extensionTestsEnv.VBNET_SERVER_PATH = defaultServerPath;
     }

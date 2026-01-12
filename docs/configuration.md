@@ -2,8 +2,8 @@
 
 **VB.NET Language Support - User Configuration**
 
-Version: 1.0
-Last Updated: 2026-01-09
+Version: 1.1
+Last Updated: 2026-01-12
 
 ## Table of Contents
 
@@ -131,6 +131,32 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ---
 
+### Debugger Settings (Extension)
+
+#### `vbnet.debugger.path`
+**Type**: `string`
+**Default**: `""`
+**Description**: Path to the `netcoredbg` executable. Leave empty to search the extension bundle or PATH.
+
+```json
+{
+  "vbnet.debugger.path": "C:\\tools\\netcoredbg\\netcoredbg.exe"
+}
+```
+
+#### `vbnet.debugger.args`
+**Type**: `string[]`
+**Default**: `[]`
+**Description**: Extra command line arguments passed to `netcoredbg` (for example, `--engineLogging=/tmp/netcoredbg.log`).
+
+```json
+{
+  "vbnet.debugger.args": ["--engineLogging=C:\\temp\\netcoredbg.log"]
+}
+```
+
+---
+
 ### Diagnostics Settings
 
 #### `vbnetLs.diagnosticsMode`
@@ -171,18 +197,76 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ### Workspace Settings
 
-#### `vbnetLs.solutionPath`
+#### `vbnet.workspace.solutionPath`
 **Type**: `string`
-**Default**: `null` (auto-detect)
-**Description**: Explicit path to .sln file
+**Default**: `""` (auto-detect)
+**Description**: Explicit path to a `.sln` file. Leave empty to auto-detect.
 
 ```json
 {
-  "vbnetLs.solutionPath": "${workspaceFolder}/MySolution.sln"
+  "vbnet.workspace.solutionPath": "${workspaceFolder}/MySolution.sln"
 }
 ```
 
-**Usage**: Set when workspace contains multiple .sln files
+#### `vbnet.workspace.ignoreSolutionFiles`
+**Type**: `boolean`
+**Default**: `false`
+**Description**: Ignore `.sln` files and load `.vbproj` files directly (solution-less mode).
+
+```json
+{
+  "vbnet.workspace.ignoreSolutionFiles": true
+}
+```
+
+#### `vbnet.workspace.projectSearchPaths`
+**Type**: `string[]`
+**Default**: `[]` (workspace root)
+**Description**: Directories to scan for `.vbproj` files when not loading a solution.
+
+```json
+{
+  "vbnet.workspace.projectSearchPaths": [
+    "test/TestProjects/MediumProject"
+  ]
+}
+```
+
+#### `vbnet.workspace.excludePaths`
+**Type**: `string[]`
+**Default**: `["_external", "_test", "build", "node_modules", ".git", ".vscode"]`
+**Description**: Directory names to exclude when scanning for `.vbproj` files.
+
+```json
+{
+  "vbnet.workspace.excludePaths": [
+    "_external",
+    "_test",
+    "build"
+  ]
+}
+```
+
+#### `vbnetLs.solutionPath` (legacy)
+**Type**: `string`
+**Default**: `null` (auto-detect)
+**Description**: Legacy setting; use `vbnet.workspace.solutionPath` instead.
+
+#### `vbnet.workspace.projectFilesExcludePattern`
+**Type**: `string`
+**Default**: `"**/node_modules/**,**/.git/**,**/bower_components/**"`
+**Description**: Comma-separated glob patterns used by the extension when searching for solutions/projects.
+
+```json
+{
+  "vbnet.workspace.projectFilesExcludePattern": "**/_external/**,**/_test/**,**/node_modules/**,**/.git/**"
+}
+```
+
+#### `vbnet.workspace.maxProjectResults`
+**Type**: `number`
+**Default**: `250`
+**Description**: Maximum number of `.vbproj` files to consider when no solution is present.
 
 #### `vbnetLs.loadProjectsOnStart`
 **Type**: `boolean`
@@ -546,6 +630,6 @@ If configuration issues persist:
 
 ---
 
-**Last Updated**: 2026-01-09
+**Last Updated**: 2026-01-12
 
 **Maintained by**: VB.NET Language Support Contributors

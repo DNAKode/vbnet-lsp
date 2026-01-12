@@ -2,8 +2,8 @@
 
 **Single Source of Truth for Architectural Decisions**
 
-Version: 2.3
-Last Updated: 2026-01-11
+Version: 2.6
+Last Updated: 2026-01-12
 Status: Living Document
 
 ## Document Purpose
@@ -165,6 +165,8 @@ VB.NET Language Support consists of two primary components:
 - `vbnet.server.path` - Custom server path override
 - `vbnet.server.transportType` - Transport selection (auto/namedPipe/stdio)
 - `vbnet.trace.server` - LSP trace level
+- `vbnet.debugger.path` - netcoredbg path override
+- `vbnet.debugger.args` - Additional netcoredbg arguments
 
 ### 3.2 Language Server (C#/.NET)
 
@@ -656,7 +658,7 @@ Extension Debug Adapter
   .NET Runtime
 ```
 
-**Phase**: Phase 2 (post-MVP)
+**Phase**: Phase 2 (in progress)
 
 ### 11.2 Why netcoredbg?
 
@@ -667,7 +669,20 @@ Extension Debug Adapter
 - **Active maintenance** - Samsung continues development
 - **Replaces proprietary** - Microsoft's debugger is closed-source
 
-### 11.3 Debug Features (Phase 2)
+### 11.3 Debug Adapter Integration (netcoredbg)
+
+**Extension Integration**:
+- Debugger type: `vbnet`
+- Adapter: `netcoredbg --interpreter=vscode` (stdio)
+- Registration: `DebugAdapterDescriptorFactory` + `DebugConfigurationProvider`
+- Discovery order: `vbnet.debugger.path` > bundled `.debugger` > local dev `_external/netcoredbg/bin` > PATH
+- Extra adapter args: `vbnet.debugger.args`
+
+**Launch/Attach Contract**:
+- `launch`: `program` (compiled `.dll`), `args`, `cwd`, `env`, `console`, `stopAtEntry`
+- `attach`: `processId`
+
+### 11.4 Debug Features (Phase 2)
 
 - Breakpoints (line, conditional)
 - Step in/out/over
@@ -1249,6 +1264,7 @@ Located in `test/TestProjects/`:
 | 2026-01-11 | 2.3 | **Request Cancellation**: Documented `$/cancelRequest` handling and protocol-level request tracking |
 | 2026-01-11 | 2.4 | **Completion Resolve Alignment**: Resolve uses original request position and Roslyn text edits |
 | 2026-01-11 | 2.5 | **Configuration + File Watch Handling**: Settings toggles and watched file reload behavior |
+| 2026-01-12 | 2.6 | **Debug Adapter Integration**: netcoredbg adapter wiring and configuration details |
 
 ---
 

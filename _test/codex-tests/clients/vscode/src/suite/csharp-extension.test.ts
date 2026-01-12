@@ -32,7 +32,7 @@ const skipCsharp = process.env.SKIP_CSHARP_TESTS === "1" || extensionId === "dna
     });
 
     test("hover/definition/completion/symbols", async () => {
-        const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
+        const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..", "..");
         const filePath = process.env.FIXTURE_FILE
             ? path.resolve(process.env.FIXTURE_FILE)
             : path.resolve(

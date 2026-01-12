@@ -2,8 +2,8 @@
 
 **VB.NET Language Support - LSP Features and Roadmap**
 
-Version: 2.0
-Last Updated: 2026-01-11
+Version: 2.1
+Last Updated: 2026-01-12
 
 ## Table of Contents
 
@@ -279,8 +279,8 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 
 | Feature | Status | Phase | Notes |
 |---------|--------|-------|-------|
-| Launch configuration | 📋 Planned | Phase 2 | Start debugging |
-| Attach to process | 📋 Planned | Phase 2 | Attach debugger |
+| Launch configuration | ✅ Implemented | Phase 2 | Start debugging |
+| Attach to process | ✅ Implemented | Phase 2 | Attach debugger |
 | Breakpoints (line) | 📋 Planned | Phase 2 | Set breakpoints |
 | Conditional breakpoints | 📋 Planned | Phase 4 | Advanced breakpoints |
 | Step in / out / over | 📋 Planned | Phase 2 | Code stepping |
@@ -413,7 +413,7 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 | Inlay Hints | ✅ Full | 📋 Planned (Phase 3) |
 | Call Hierarchy | ✅ Full | 📋 Planned (Phase 3) |
 | Type Hierarchy | ✅ Full | 📋 Planned (Phase 3) |
-| Debugging | ✅ Proprietary | 📋 netcoredbg (Phase 2) |
+| Debugging | ✅ Proprietary | ✅ netcoredbg (basic) |
 | Razor Support | ✅ Yes | ❌ Not Applicable |
 | Mixed C#/VB | ⚠️ Limited | 📋 Planned (Phase 4) |
 
@@ -426,7 +426,7 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 - **Single-root workspaces only** - Multi-root in Phase 4
 - **VB.NET projects only** - Mixed C#/VB in Phase 4
 - **No proprietary features** - Fully open source
-- **No debugging yet** - netcoredbg planned for Phase 2
+- **Basic debugging only** - netcoredbg adapter wired; advanced features unverified
 
 ---
 

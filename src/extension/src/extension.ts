@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import { PlatformInformation } from './platform';
 import { VbNetLanguageClient } from './languageClient';
 import { VbNetStatusBar } from './statusBar';
+import { activateDebugging } from './debugger';
 
 // Global instances
 let languageClient: VbNetLanguageClient | undefined;
@@ -67,6 +68,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
         // Register commands
         registerCommands(context);
+
+        // Register debugging integration
+        activateDebugging(context, outputChannel, platformInfo);
 
         // Start the language client
         await languageClient.start();

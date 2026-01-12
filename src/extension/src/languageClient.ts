@@ -33,6 +33,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
     private serverLauncher: ServerLauncher;
     private readonly onStateChangeEmitter = new vscode.EventEmitter<LanguageClientStateChangeEvent>();
     private traceConfigDisposable: vscode.Disposable | undefined;
+    private initializationOptions: object | undefined;
 
     public readonly onStateChange = this.onStateChangeEmitter.event;
 
@@ -63,7 +64,8 @@ export class VbNetLanguageClient implements vscode.Disposable {
             const serverResult = await this.serverLauncher.startServer(transportType);
 
             // Create the language client
-            this.client = await this.createLanguageClient(serverResult);
+            this.initializationOptions = await this.buildInitializationOptions();
+            this.client = await this.createLanguageClient(serverResult, this.initializationOptions);
 
             // Register state change handler
             this.client.onDidChangeState((event) => {
@@ -73,7 +75,9 @@ export class VbNetLanguageClient implements vscode.Disposable {
 
             // Start the client
             await this.client.start();
-            await this.client.onReady();
+            if (typeof (this.client as any).onReady === 'function') {
+                await (this.client as any).onReady();
+            }
             await this.updateTraceLevel();
 
             this.traceConfigDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
@@ -95,8 +99,8 @@ export class VbNetLanguageClient implements vscode.Disposable {
     /**
      * Creates the language client based on the server start result.
      */
-    private async createLanguageClient(serverResult: ServerStartResult): Promise<LanguageClient> {
-        const clientOptions = this.getClientOptions();
+    private async createLanguageClient(serverResult: ServerStartResult, initializationOptions?: object): Promise<LanguageClient> {
+        const clientOptions = this.getClientOptions(initializationOptions);
         let serverOptions: ServerOptions;
 
         if (serverResult.transport === 'namedPipe' && serverResult.pipeName) {
@@ -129,7 +133,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
     /**
      * Gets the language client options.
      */
-    private getClientOptions(): LanguageClientOptions {
+    private getClientOptions(initializationOptions?: object): LanguageClientOptions {
         const config = vscode.workspace.getConfiguration('vbnet');
         const traceLevel = config.get<string>('trace.server', 'off');
 
@@ -172,9 +176,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
                     return next(document, position, context, token);
                 }
             },
-            initializationOptions: {
-                // Options to pass to the server during initialization
-            }
+            initializationOptions
         };
     }
 
@@ -247,5 +249,92 @@ export class VbNetLanguageClient implements vscode.Disposable {
 
         await this.client.setTrace(trace);
         this.channel.appendLine(`Language client trace level set to ${traceLevel}`);
+    }
+
+    private async buildInitializationOptions(): Promise<object | undefined> {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            return undefined;
+        }
+
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const defaultExclude = '**/node_modules/**,**/.git/**,**/bower_components/**';
+        const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
+        const maxProjectResults = config.get<number>('workspace.maxProjectResults', 250);
+        const configuredSolution = (config.get<string>('workspace.solutionPath', '') || '').trim();
+        const ignoreSolutionFiles = config.get<boolean>('workspace.ignoreSolutionFiles', false);
+
+        if (configuredSolution) {
+            return {
+                workspace: {
+                    solutionPath: configuredSolution,
+                    ignoreSolutionFiles
+                }
+            };
+        }
+
+        const resources = await vscode.workspace.findFiles(
+            '{**/*.sln,**/*.slnf,**/*.vbproj}',
+            `{${excludePattern}}`
+        );
+
+        const workspaceRoot = workspaceFolders[0].uri.fsPath;
+        const solutionCandidates = resources.filter((resource) => /\.slnf?$/i.test(resource.fsPath));
+        const vbProjectFiles = resources.filter((resource) => /\.vbproj$/i.test(resource.fsPath));
+
+        const solutionPath = await this.pickSolutionWithVbProjects(solutionCandidates);
+        if (solutionPath && !ignoreSolutionFiles) {
+            return {
+                workspace: {
+                    solutionPath,
+                    ignoreSolutionFiles
+                }
+            };
+        }
+
+        const projectPaths = vbProjectFiles
+            .map((resource) => resource.fsPath)
+            .slice(0, Math.max(0, maxProjectResults));
+
+        if (projectPaths.length === 0) {
+            return {
+                workspace: {
+                    ignoreSolutionFiles
+                }
+            };
+        }
+
+        return {
+            workspace: {
+                projectPaths,
+                ignoreSolutionFiles
+            }
+        };
+    }
+
+    private async pickSolutionWithVbProjects(candidates: vscode.Uri[]): Promise<string | undefined> {
+        if (candidates.length === 0) {
+            return undefined;
+        }
+
+        const filtered = [];
+        for (const candidate of candidates) {
+            try {
+                const content = await vscode.workspace.fs.readFile(candidate);
+                const text = Buffer.from(content).toString('utf8');
+                if (text.toLowerCase().includes('.vbproj')) {
+                    filtered.push(candidate);
+                }
+            } catch {
+                filtered.push(candidate);
+            }
+        }
+
+        if (filtered.length === 0) {
+            return undefined;
+        }
+
+        filtered.sort((a, b) => a.fsPath.split(/\\|\//).length - b.fsPath.split(/\\|\//).length);
+        return filtered[0].fsPath;
     }
 }

@@ -39,6 +39,12 @@ public sealed class LanguageServer : IAsyncDisposable
     private TaskCompletionSource? _shutdownRequested;
     private bool _diagnosticsEnabled = true;
     private bool _completionEnabled = true;
+    private string? _workspaceRootUri;
+    private string? _workspaceSolutionPathOverride;
+    private string[]? _workspaceProjectPathsOverride;
+    private bool _ignoreSolutionFiles;
+    private string[]? _workspaceProjectSearchPaths;
+    private string[]? _workspaceExcludePaths;
 
     /// <summary>
     /// Server name reported in initialize response.
@@ -206,6 +212,8 @@ public sealed class LanguageServer : IAsyncDisposable
         _initializeParams = @params;
         _state = ServerState.Initializing;
 
+        ApplyInitializationOptions(@params?.InitializationOptions);
+
         _logger.LogInformation("Initialize request received from client: {ClientName} {ClientVersion}",
             @params?.ClientInfo?.Name ?? "unknown",
             @params?.ClientInfo?.Version ?? "unknown");
@@ -248,10 +256,12 @@ public sealed class LanguageServer : IAsyncDisposable
         // Try to load workspace from root URI
         if (_initializeParams?.RootUri != null)
         {
+            _workspaceRootUri = _initializeParams.RootUri;
             await LoadWorkspaceAsync(_initializeParams.RootUri, ct);
         }
         else if (_initializeParams?.WorkspaceFolders?.Length > 0)
         {
+            _workspaceRootUri = _initializeParams.WorkspaceFolders[0].Uri;
             await LoadWorkspaceAsync(_initializeParams.WorkspaceFolders[0].Uri, ct);
         }
         else
@@ -277,23 +287,77 @@ public sealed class LanguageServer : IAsyncDisposable
             }
 
             // Search for solution files (per architecture: search for .sln, if multiple use nearest to root)
-            var slnFiles = Directory.GetFiles(rootPath, "*.sln", SearchOption.AllDirectories)
-                .OrderBy(f => f.Split(Path.DirectorySeparatorChar).Length)
-                .ToList();
-
-            if (slnFiles.Count > 0)
+            if (!string.IsNullOrWhiteSpace(_workspaceSolutionPathOverride))
             {
-                var solutionPath = slnFiles[0];
-                if (slnFiles.Count > 1)
+                var explicitSolutionPath = ResolvePath(_workspaceSolutionPathOverride, rootPath);
+                if (!string.IsNullOrEmpty(explicitSolutionPath))
                 {
-                    _logger.LogInformation("Multiple solutions found, using nearest to root: {Path}", solutionPath);
+                    await _workspaceManager.LoadSolutionAsync(explicitSolutionPath, ct);
+                    return;
                 }
-                await _workspaceManager.LoadSolutionAsync(solutionPath, ct);
-                return;
+            }
+
+            if (_workspaceProjectPathsOverride != null && _workspaceProjectPathsOverride.Length > 0)
+            {
+                var anyLoaded = false;
+                foreach (var projectPath in _workspaceProjectPathsOverride)
+                {
+                    if (string.IsNullOrWhiteSpace(projectPath) ||
+                        !projectPath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var resolved = ResolvePath(projectPath, rootPath);
+                    if (string.IsNullOrEmpty(resolved))
+                    {
+                        continue;
+                    }
+
+                    anyLoaded |= await _workspaceManager.LoadProjectAsync(resolved, ct);
+                }
+
+                if (anyLoaded)
+                {
+                    return;
+                }
+            }
+
+            if (!_ignoreSolutionFiles)
+            {
+                var slnFiles = Directory.GetFiles(rootPath, "*.sln", SearchOption.AllDirectories)
+                    .OrderBy(f => f.Split(Path.DirectorySeparatorChar).Length)
+                    .ToList();
+
+                if (slnFiles.Count > 0)
+                {
+                    var solutionPath = slnFiles[0];
+                    if (slnFiles.Count > 1)
+                    {
+                        _logger.LogInformation("Multiple solutions found, using nearest to root: {Path}", solutionPath);
+                    }
+
+                    if (SolutionContainsVbProject(solutionPath))
+                    {
+                        var loadedVb = await _workspaceManager.LoadSolutionAsync(solutionPath, ct);
+                        if (loadedVb)
+                        {
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Skipping solution without VB.NET projects: {Path}", solutionPath);
+                    }
+                }
             }
 
             // No solution, search for VB.NET projects
-            var vbprojFiles = Directory.GetFiles(rootPath, "*.vbproj", SearchOption.AllDirectories).ToList();
+            var vbprojFiles = GetProjectSearchRoots(rootPath)
+                .SelectMany(searchRoot => Directory.EnumerateFiles(searchRoot, "*.vbproj", SearchOption.AllDirectories))
+                .Where(path => !ShouldExcludePath(path, _workspaceExcludePaths))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             if (vbprojFiles.Count > 0)
             {
@@ -385,6 +449,12 @@ public sealed class LanguageServer : IAsyncDisposable
         var settingsElement = ExtractSettingsElement(@params.Settings);
         var diagnosticsEnabled = GetBooleanSetting(settingsElement, "diagnostics", "enable");
         var completionEnabled = GetBooleanSetting(settingsElement, "completion", "enable");
+        var solutionPathOverride = GetStringSetting(settingsElement, "workspace", "solutionPath");
+        var ignoreSolutionFiles = GetBooleanSetting(settingsElement, "workspace", "ignoreSolutionFiles");
+        var projectSearchPaths = GetStringArraySetting(settingsElement, "workspace", "projectSearchPaths");
+        var excludePaths = GetStringArraySetting(settingsElement, "workspace", "excludePaths");
+
+        var reloadWorkspace = false;
 
         if (diagnosticsEnabled.HasValue && diagnosticsEnabled.Value != _diagnosticsEnabled)
         {
@@ -407,6 +477,42 @@ public sealed class LanguageServer : IAsyncDisposable
         {
             _completionEnabled = completionEnabled.Value;
             _logger.LogInformation("Completion enabled: {Enabled}", _completionEnabled);
+        }
+
+        if (solutionPathOverride != null && !string.Equals(solutionPathOverride, _workspaceSolutionPathOverride, StringComparison.OrdinalIgnoreCase))
+        {
+            _workspaceSolutionPathOverride = solutionPathOverride;
+            reloadWorkspace = true;
+        }
+
+        if (ignoreSolutionFiles.HasValue && ignoreSolutionFiles.Value != _ignoreSolutionFiles)
+        {
+            _ignoreSolutionFiles = ignoreSolutionFiles.Value;
+            reloadWorkspace = true;
+        }
+
+        var projectPathsOverride = GetStringArraySetting(settingsElement, "workspace", "projectPaths");
+        if (projectPathsOverride != null && !AreEquivalent(projectPathsOverride, _workspaceProjectPathsOverride))
+        {
+            _workspaceProjectPathsOverride = projectPathsOverride;
+            reloadWorkspace = true;
+        }
+
+        if (projectSearchPaths != null && !AreEquivalent(projectSearchPaths, _workspaceProjectSearchPaths))
+        {
+            _workspaceProjectSearchPaths = projectSearchPaths;
+            reloadWorkspace = true;
+        }
+
+        if (excludePaths != null && !AreEquivalent(excludePaths, _workspaceExcludePaths))
+        {
+            _workspaceExcludePaths = excludePaths;
+            reloadWorkspace = true;
+        }
+
+        if (reloadWorkspace && !string.IsNullOrWhiteSpace(_workspaceRootUri))
+        {
+            await LoadWorkspaceAsync(_workspaceRootUri, ct);
         }
     }
 
@@ -779,6 +885,328 @@ public sealed class LanguageServer : IAsyncDisposable
         }
 
         return null;
+    }
+
+    private void ApplyInitializationOptions(JsonElement? initializationOptions)
+    {
+        if (initializationOptions == null || initializationOptions.Value.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var root = initializationOptions.Value;
+        if (root.TryGetProperty("workspace", out var workspaceOptions) &&
+            workspaceOptions.ValueKind == JsonValueKind.Object)
+        {
+            if (TryGetStringValue(workspaceOptions, "solutionPath", out var solutionPath))
+            {
+                _workspaceSolutionPathOverride = solutionPath;
+            }
+
+            if (TryGetStringArrayValue(workspaceOptions, "projectPaths", out var projectPaths))
+            {
+                _workspaceProjectPathsOverride = projectPaths;
+            }
+
+            if (TryGetStringArrayValue(workspaceOptions, "projectSearchPaths", out var projectSearchPaths))
+            {
+                _workspaceProjectSearchPaths = projectSearchPaths;
+            }
+
+            if (TryGetStringArrayValue(workspaceOptions, "excludePaths", out var excludePaths))
+            {
+                _workspaceExcludePaths = excludePaths;
+            }
+
+            if (workspaceOptions.TryGetProperty("ignoreSolutionFiles", out var ignoreSolutionElement) &&
+                TryGetBooleanValue(ignoreSolutionElement, out var ignoreSolution))
+            {
+                _ignoreSolutionFiles = ignoreSolution;
+            }
+        }
+    }
+
+    private static bool TryGetStringValue(JsonElement root, string name, out string? value)
+    {
+        value = null;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty(name, out var element))
+        {
+            return false;
+        }
+
+        if (element.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        value = element.GetString();
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool TryGetStringArrayValue(JsonElement root, string name, out string[]? value)
+    {
+        value = null;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty(name, out var element))
+        {
+            return false;
+        }
+
+        return TryGetStringArrayValue(element, out value);
+    }
+
+    private static string? GetStringSetting(JsonElement settings, string section, string name)
+    {
+        var root = settings;
+        if (settings.ValueKind == JsonValueKind.Object &&
+            settings.TryGetProperty("vbnet", out var vbnetSettings) &&
+            vbnetSettings.ValueKind == JsonValueKind.Object)
+        {
+            root = vbnetSettings;
+        }
+
+        if (TryGetStringSetting(root, section, name, out var value))
+        {
+            return value;
+        }
+
+        if (TryGetStringSetting(root, $"{section}.{name}", null, out value))
+        {
+            return value;
+        }
+
+        return null;
+    }
+
+    private static bool TryGetStringSetting(
+        JsonElement root,
+        string section,
+        string? name,
+        out string? value)
+    {
+        value = null;
+
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!root.TryGetProperty(section, out var sectionElement))
+        {
+            return false;
+        }
+
+        if (name == null)
+        {
+            return TryGetStringValue(sectionElement, out value);
+        }
+
+        if (sectionElement.ValueKind != JsonValueKind.Object ||
+            !sectionElement.TryGetProperty(name, out var valueElement))
+        {
+            return false;
+        }
+
+        return TryGetStringValue(valueElement, out value);
+    }
+
+    private static bool TryGetStringValue(JsonElement element, out string? value)
+    {
+        value = null;
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            value = element.GetString();
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        return false;
+    }
+
+    private static string? ResolvePath(string? pathValue, string rootPath)
+    {
+        if (string.IsNullOrWhiteSpace(pathValue))
+        {
+            return null;
+        }
+
+        var trimmed = pathValue.Trim();
+        var resolved = Path.IsPathRooted(trimmed)
+            ? trimmed
+            : Path.Combine(rootPath, trimmed);
+
+        return File.Exists(resolved) ? resolved : null;
+    }
+
+    private static string? ResolveDirectoryPath(string pathValue, string rootPath)
+    {
+        if (string.IsNullOrWhiteSpace(pathValue))
+        {
+            return null;
+        }
+
+        var trimmed = pathValue.Trim();
+        var resolved = Path.IsPathRooted(trimmed)
+            ? trimmed
+            : Path.Combine(rootPath, trimmed);
+
+        return Directory.Exists(resolved) ? resolved : null;
+    }
+
+    private static bool SolutionContainsVbProject(string solutionPath)
+    {
+        try
+        {
+            var content = File.ReadAllText(solutionPath);
+            return content.IndexOf(".vbproj", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private IEnumerable<string> GetProjectSearchRoots(string rootPath)
+    {
+        if (_workspaceProjectSearchPaths == null || _workspaceProjectSearchPaths.Length == 0)
+        {
+            return new[] { rootPath };
+        }
+
+        var resolvedRoots = new List<string>();
+        foreach (var path in _workspaceProjectSearchPaths)
+        {
+            var resolved = ResolveDirectoryPath(path, rootPath);
+            if (!string.IsNullOrEmpty(resolved))
+            {
+                resolvedRoots.Add(resolved);
+            }
+        }
+
+        return resolvedRoots.Count > 0 ? resolvedRoots : new[] { rootPath };
+    }
+
+    private static bool ShouldExcludePath(string path, string[]? excludePaths)
+    {
+        if (excludePaths == null || excludePaths.Length == 0)
+        {
+            return false;
+        }
+
+        var fullPath = Path.GetFullPath(path);
+        var segments = fullPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Where(segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray();
+
+        foreach (var exclude in excludePaths)
+        {
+            if (string.IsNullOrWhiteSpace(exclude))
+            {
+                continue;
+            }
+
+            var trimmed = exclude.Trim();
+            if (segments.Any(segment => string.Equals(segment, trimmed, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string[]? GetStringArraySetting(JsonElement settings, string section, string name)
+    {
+        var root = settings;
+        if (settings.ValueKind == JsonValueKind.Object &&
+            settings.TryGetProperty("vbnet", out var vbnetSettings) &&
+            vbnetSettings.ValueKind == JsonValueKind.Object)
+        {
+            root = vbnetSettings;
+        }
+
+        if (TryGetStringArraySetting(root, section, name, out var value))
+        {
+            return value;
+        }
+
+        if (TryGetStringArraySetting(root, $"{section}.{name}", null, out value))
+        {
+            return value;
+        }
+
+        return null;
+    }
+
+    private static bool TryGetStringArraySetting(
+        JsonElement root,
+        string section,
+        string? name,
+        out string[]? value)
+    {
+        value = null;
+
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!root.TryGetProperty(section, out var sectionElement))
+        {
+            return false;
+        }
+
+        if (name == null)
+        {
+            return TryGetStringArrayValue(sectionElement, out value);
+        }
+
+        if (sectionElement.ValueKind != JsonValueKind.Object ||
+            !sectionElement.TryGetProperty(name, out var valueElement))
+        {
+            return false;
+        }
+
+        return TryGetStringArrayValue(valueElement, out value);
+    }
+
+    private static bool TryGetStringArrayValue(JsonElement element, out string[]? value)
+    {
+        value = null;
+
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            var list = new List<string>();
+            foreach (var item in element.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String)
+                {
+                    var text = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        list.Add(text.Trim());
+                    }
+                }
+            }
+
+            value = list.ToArray();
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool AreEquivalent(string[]? left, string[]? right)
+    {
+        if (left == null && right == null)
+        {
+            return true;
+        }
+
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left.SequenceEqual(right, StringComparer.OrdinalIgnoreCase);
     }
 
     private static bool TryGetBooleanSetting(

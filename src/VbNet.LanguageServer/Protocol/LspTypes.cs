@@ -1,6 +1,7 @@
 // LSP (Language Server Protocol) type definitions
 // See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/
 
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace VbNet.LanguageServer.Protocol;
@@ -32,6 +33,9 @@ public class InitializeParams
 
     [JsonPropertyName("workspaceFolders")]
     public WorkspaceFolder[]? WorkspaceFolders { get; set; }
+
+    [JsonPropertyName("initializationOptions")]
+    public JsonElement? InitializationOptions { get; set; }
 }
 
 public class ClientInfo
