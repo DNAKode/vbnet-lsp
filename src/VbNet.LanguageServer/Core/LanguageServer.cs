@@ -822,6 +822,7 @@ public sealed class LanguageServer : IAsyncDisposable
     {
         var fileName = Path.GetFileName(filePath);
         return filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
+               filePath.EndsWith(".slnf", StringComparison.OrdinalIgnoreCase) ||
                filePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(fileName, "Directory.Build.props", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(fileName, "Directory.Build.targets", StringComparison.OrdinalIgnoreCase);
@@ -829,7 +830,8 @@ public sealed class LanguageServer : IAsyncDisposable
 
     private bool ShouldReloadForWorkspaceFile(string filePath)
     {
-        if (filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
+        if (filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
+            filePath.EndsWith(".slnf", StringComparison.OrdinalIgnoreCase))
         {
             return !string.IsNullOrEmpty(_workspaceManager.LoadedSolutionPath) &&
                 string.Equals(Path.GetFullPath(_workspaceManager.LoadedSolutionPath), Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase);

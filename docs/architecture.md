@@ -429,7 +429,7 @@ public async Task<CompletionList> GetCompletionAsync(
 ### 7.1 Solution Discovery
 
 **Strategy**:
-1. Search workspace root for `.sln` files
+1. Search workspace root for `.sln`/`.slnf` files
 2. If multiple found, use nearest to root
 3. If no `.sln`, search for `.vbproj` files
 4. Allow client to override via configuration
