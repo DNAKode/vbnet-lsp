@@ -149,7 +149,9 @@ export class VbNetLanguageClient implements vscode.Disposable {
                     vscode.workspace.createFileSystemWatcher('**/*.vb'),
                     vscode.workspace.createFileSystemWatcher('**/*.vbproj'),
                     vscode.workspace.createFileSystemWatcher('**/*.sln'),
-                    vscode.workspace.createFileSystemWatcher('**/*.slnf')
+                    vscode.workspace.createFileSystemWatcher('**/*.slnf'),
+                    vscode.workspace.createFileSystemWatcher('**/Directory.Build.props'),
+                    vscode.workspace.createFileSystemWatcher('**/Directory.Build.targets')
                 ]
             },
             outputChannel: this.channel,
