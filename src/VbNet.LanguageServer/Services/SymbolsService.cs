@@ -246,8 +246,14 @@ public sealed class SymbolsService
         var solution = _workspaceManager.CurrentSolution;
         if (solution == null)
         {
-            _logger.LogTrace("No solution available");
-            return Array.Empty<SymbolInformation>();
+            _logger.LogTrace("No solution available; waiting for initial load");
+            await _workspaceManager.WaitForInitialLoadAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            solution = _workspaceManager.CurrentSolution;
+            if (solution == null)
+            {
+                _logger.LogTrace("No solution available after initial load wait");
+                return Array.Empty<SymbolInformation>();
+            }
         }
 
         try

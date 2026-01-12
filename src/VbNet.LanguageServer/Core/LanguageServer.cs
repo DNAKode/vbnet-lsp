@@ -45,6 +45,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private bool _ignoreSolutionFiles;
     private string[]? _workspaceProjectSearchPaths;
     private string[]? _workspaceExcludePaths;
+    private const int MaxAncestorSearchDepth = 4;
 
     /// <summary>
     /// Server name reported in initialize response.
@@ -276,6 +277,7 @@ public sealed class LanguageServer : IAsyncDisposable
     /// </summary>
     private async Task LoadWorkspaceAsync(string rootUri, CancellationToken ct)
     {
+        var loadSucceeded = false;
         try
         {
             var rootPath = UriToLocalPath(rootUri);
@@ -292,7 +294,7 @@ public sealed class LanguageServer : IAsyncDisposable
                 var explicitSolutionPath = ResolvePath(_workspaceSolutionPathOverride, rootPath);
                 if (!string.IsNullOrEmpty(explicitSolutionPath))
                 {
-                    await _workspaceManager.LoadSolutionAsync(explicitSolutionPath, ct);
+                    loadSucceeded = await _workspaceManager.LoadSolutionAsync(explicitSolutionPath, ct);
                     return;
                 }
             }
@@ -317,6 +319,7 @@ public sealed class LanguageServer : IAsyncDisposable
                     anyLoaded |= await _workspaceManager.LoadProjectAsync(resolved, ct);
                 }
 
+                loadSucceeded = anyLoaded;
                 if (anyLoaded)
                 {
                     return;
@@ -325,21 +328,13 @@ public sealed class LanguageServer : IAsyncDisposable
 
             if (!_ignoreSolutionFiles)
             {
-                var slnFiles = Directory.GetFiles(rootPath, "*.sln", SearchOption.AllDirectories)
-                    .OrderBy(f => f.Split(Path.DirectorySeparatorChar).Length)
-                    .ToList();
-
-                if (slnFiles.Count > 0)
+                var solutionPath = FindSolutionPath(rootPath);
+                if (!string.IsNullOrEmpty(solutionPath))
                 {
-                    var solutionPath = slnFiles[0];
-                    if (slnFiles.Count > 1)
-                    {
-                        _logger.LogInformation("Multiple solutions found, using nearest to root: {Path}", solutionPath);
-                    }
-
                     if (SolutionContainsVbProject(solutionPath))
                     {
                         var loadedVb = await _workspaceManager.LoadSolutionAsync(solutionPath, ct);
+                        loadSucceeded = loadedVb;
                         if (loadedVb)
                         {
                             return;
@@ -364,7 +359,8 @@ public sealed class LanguageServer : IAsyncDisposable
                 _logger.LogInformation("No solution found, loading {Count} VB.NET project(s)", vbprojFiles.Count);
                 foreach (var projectPath in vbprojFiles)
                 {
-                    await _workspaceManager.LoadProjectAsync(projectPath, ct);
+                    var loaded = await _workspaceManager.LoadProjectAsync(projectPath, ct);
+                    loadSucceeded |= loaded;
                 }
                 return;
             }
@@ -374,6 +370,10 @@ public sealed class LanguageServer : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load workspace from: {Uri}", rootUri);
+        }
+        finally
+        {
+            _workspaceManager.SignalInitialLoadCompleted(loadSucceeded);
         }
     }
 
@@ -1068,7 +1068,7 @@ public sealed class LanguageServer : IAsyncDisposable
     {
         if (_workspaceProjectSearchPaths == null || _workspaceProjectSearchPaths.Length == 0)
         {
-            return new[] { rootPath };
+            return GetAncestorRoots(rootPath);
         }
 
         var resolvedRoots = new List<string>();
@@ -1082,6 +1082,56 @@ public sealed class LanguageServer : IAsyncDisposable
         }
 
         return resolvedRoots.Count > 0 ? resolvedRoots : new[] { rootPath };
+    }
+
+    private IEnumerable<string> GetAncestorRoots(string rootPath)
+    {
+        yield return rootPath;
+
+        var current = Directory.GetParent(rootPath);
+        var depth = 0;
+        while (current != null && depth < MaxAncestorSearchDepth)
+        {
+            yield return current.FullName;
+            current = current.Parent;
+            depth++;
+        }
+    }
+
+    private string? FindSolutionPath(string rootPath)
+    {
+        foreach (var searchRoot in GetAncestorRoots(rootPath))
+        {
+            if (!Directory.Exists(searchRoot))
+            {
+                continue;
+            }
+
+            var solutionCandidates = Directory.EnumerateFiles(searchRoot, "*.sln", SearchOption.TopDirectoryOnly)
+                .Concat(Directory.EnumerateFiles(searchRoot, "*.slnf", SearchOption.TopDirectoryOnly))
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (solutionCandidates.Count == 0)
+            {
+                continue;
+            }
+
+            var solutionPath = solutionCandidates[0];
+            if (!string.Equals(searchRoot, rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Workspace root is subfolder; using ancestor solution: {Path}", solutionPath);
+            }
+
+            if (solutionCandidates.Count > 1)
+            {
+                _logger.LogInformation("Multiple solutions found in {Root}, using: {Path}", searchRoot, solutionPath);
+            }
+
+            return solutionPath;
+        }
+
+        return null;
     }
 
     private static bool ShouldExcludePath(string path, string[]? excludePaths)

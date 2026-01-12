@@ -434,6 +434,9 @@ public async Task<CompletionList> GetCompletionAsync(
 3. If no `.sln`, search for `.vbproj` files
 4. Allow client to override via configuration
 
+**Subfolder Workspaces**:
+If the workspace root is a deep subfolder (no solution or project files present), the server will also probe parent directories (bounded to a few levels) to locate a nearby `.sln`/`.vbproj`. This mirrors typical VS Code behavior when opening a subfolder of a larger repo and improves symbol availability.
+
 **Implementation** (verified from C# extension):
 - Pattern matching: `**/*.sln`, `**/*.vbproj`
 - Depth-first search from workspace root

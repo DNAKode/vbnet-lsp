@@ -16,6 +16,9 @@ public sealed class WorkspaceManager : IAsyncDisposable
 {
     private readonly ILogger<WorkspaceManager> _logger;
     private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private readonly TaskCompletionSource<bool> _initialLoadTcs =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _initialLoadSignaled;
 
     private MSBuildWorkspace? _workspace;
     private string? _loadedSolutionPath;
@@ -215,6 +218,38 @@ public sealed class WorkspaceManager : IAsyncDisposable
         {
             _loadLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Signals that the initial workspace load attempt has completed.
+    /// </summary>
+    public void SignalInitialLoadCompleted(bool loaded)
+    {
+        if (Interlocked.Exchange(ref _initialLoadSignaled, 1) == 1)
+        {
+            return;
+        }
+
+        _initialLoadTcs.TrySetResult(loaded);
+    }
+
+    /// <summary>
+    /// Waits for the initial workspace load attempt to complete or time out.
+    /// </summary>
+    public async Task<bool> WaitForInitialLoadAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        if (_initialLoadTcs.Task.IsCompleted)
+        {
+            return await _initialLoadTcs.Task;
+        }
+
+        var completed = await Task.WhenAny(_initialLoadTcs.Task, Task.Delay(timeout, cancellationToken));
+        if (completed == _initialLoadTcs.Task)
+        {
+            return await _initialLoadTcs.Task;
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -181,3 +181,14 @@ VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `FIXTURE_WORKSPACE=_test/codex-tests/vbnet-lsp/fixtures/services`, `FIXTURE_FILE=_test/codex-tests/vbnet-lsp/fixtures/services/ServiceSamples.vb`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
 - Result: PASS (workspace open + VB.NET core services + rename + restart + completion toggle).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T001822`
+
+### Update 2026-01-13 (ancestor discovery + deep subfolder fuzz)
+
+Server updates:
+- Workspace discovery now probes ancestor directories for `.sln`/`.slnf` and `.vbproj` when the workspace root is a deep subfolder.
+- Workspace symbol requests wait briefly for the initial workspace load to complete.
+
+VS Code headless run (deep subfolder fuzz):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `SKIP_VBNET_SMOKE=1`, `FIXTURE_WORKSPACE=test/TestProjects/SmallProject/Deep`, `FUZZ_FILES=test/TestProjects/SmallProject/Deep/DeepGreeter.vb`, `FUZZ_QUERY=DeepGreeter`, `FUZZ_REQUIRE_SYMBOLS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
+- Result: PASS (document symbols + workspace symbols returned).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T002607`
