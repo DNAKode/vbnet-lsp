@@ -44,6 +44,8 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
+    "onDebugInitialConfigurations",
+    "onDebugResolve:vbnet",
     "onLanguage:vb",
     "workspaceContains:**/*.vbproj",
     "workspaceContains:**/*.sln"
