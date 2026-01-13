@@ -35,6 +35,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly SymbolsService _symbolsService;
     private readonly FoldingRangeService _foldingRangeService;
     private readonly FormattingService _formattingService;
+    private readonly SignatureHelpService _signatureHelpService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -118,6 +119,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<FormattingService>());
 
+        _signatureHelpService = new SignatureHelpService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<SignatureHelpService>());
+
         RegisterHandlers();
     }
 
@@ -181,6 +187,9 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<DocumentRangeFormattingParams, TextEdit[]>(
             "textDocument/rangeFormatting",
             HandleDocumentRangeFormattingAsync);
+        _dispatcher.RegisterRequest<SignatureHelpParams, SignatureHelp?>(
+            "textDocument/signatureHelp",
+            HandleSignatureHelpAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -764,6 +773,16 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _formattingService.FormatRangeAsync(@params, ct);
     }
 
+    private async Task<SignatureHelp?> HandleSignatureHelpAsync(SignatureHelpParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return null;
+        }
+
+        return await _signatureHelpService.GetSignatureHelpAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -812,7 +831,10 @@ public sealed class LanguageServer : IAsyncDisposable
 
             // Formatting
             DocumentFormattingProvider = true,
-            DocumentRangeFormattingProvider = true
+            DocumentRangeFormattingProvider = true,
+
+            // Signature help
+            SignatureHelpProvider = SignatureHelpService.GetDefaultOptions()
         };
     }
 
@@ -876,6 +898,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the formatting service.
     /// </summary>
     public FormattingService FormattingService => _formattingService;
+
+    /// <summary>
+    /// Gets the signature help service.
+    /// </summary>
+    public SignatureHelpService SignatureHelpService => _signatureHelpService;
 
     internal MessageDispatcher Dispatcher => _dispatcher;
 

@@ -208,6 +208,15 @@ VS Code headless run (debug only):
 - Result: PASS (workspace open + debug session start/terminate).
 - Note: VS Code printed `Failed command 'threads' : 0x80004005` during the debug session, but the test completed successfully.
 
+### Update 2026-01-13 (signature help)
+
+Server updates:
+- Added signature help handler + capability, with Roslyn-backed results and a semantic-model fallback.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SignatureHelp`
+- Result: PASS (3 tests).
+
 VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
 - Result: PASS (all VB.NET smoke tests).

@@ -87,6 +87,7 @@ if (skipVbnetSmoke) {
         const hoverPosition = getMarkerPosition(doc, "MARKER: hover_text", "sum");
         const definitionPosition = getMarkerPosition(doc, "MARKER: definition_add", "Add");
         const referencesPosition = getMarkerPosition(doc, "MARKER: references_greet", "Greet");
+        const signaturePosition = getMarkerPosition(doc, "MARKER: signature_help", "Add(", "Add(".length);
 
         const hover = await retryUntil(
             () =>
@@ -143,6 +144,17 @@ if (skipVbnetSmoke) {
         );
         const extensionItem = extensionCompletions.items.find((item) => item.label === "DoubleIt");
         assert.ok(extensionItem, "Extension method completion DoubleIt not found.");
+
+        const signatureHelp = await retryUntil(
+            () =>
+                vscode.commands.executeCommand<vscode.SignatureHelp>(
+                    "vscode.executeSignatureHelpProvider",
+                    doc.uri,
+                    signaturePosition
+                ),
+            (help) => !!help && help.signatures.length > 0
+        );
+        assert.ok(signatureHelp && signatureHelp.signatures.length > 0, "Signature help was empty.");
 
         const documentSymbols = await retryUntil(
             () =>

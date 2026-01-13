@@ -44,4 +44,12 @@ Public Class Helper
         Return n * Factorial(n - 1)
     End Function
 
-End Class
+    Public Sub SignatureHelpTest()
+        Dim result = Add(1, 2)
+    End Sub
+
+
+    Public Sub SignatureHelpTest()
+        Dim result = Add(1, 2)
+    End SubEnd Class
+

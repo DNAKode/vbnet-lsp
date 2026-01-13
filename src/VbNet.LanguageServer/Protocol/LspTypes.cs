@@ -238,6 +238,9 @@ public class ServerCapabilities
     [JsonPropertyName("workspaceSymbolProvider")]
     public bool? WorkspaceSymbolProvider { get; set; }
 
+    [JsonPropertyName("signatureHelpProvider")]
+    public SignatureHelpOptions? SignatureHelpProvider { get; set; }
+
     [JsonPropertyName("foldingRangeProvider")]
     public bool? FoldingRangeProvider { get; set; }
 
