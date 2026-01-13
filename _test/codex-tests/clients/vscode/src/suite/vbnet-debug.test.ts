@@ -53,7 +53,7 @@ suite("VB.NET debugging (VS Code harness)", () => {
             request: "launch",
             program: path.relative(workspaceRoot, programPath),
             cwd: "${workspaceFolder}",
-            stopAtEntry: true
+            stopAtEntry: false
         };
 
         const startPromise = waitForDebugStart(30000);
@@ -64,14 +64,22 @@ suite("VB.NET debugging (VS Code harness)", () => {
             started = await vscode.debug.startDebugging(vscode.workspace.workspaceFolders?.[0], debugConfig);
             assert.ok(started, "Debug session did not start.");
             await startPromise;
-        } finally {
-            if (started) {
-                await vscode.debug.stopDebugging();
-                try {
-                    await terminatePromise;
-                } catch (error) {
-                    console.warn(`Debug session did not terminate cleanly: ${error}`);
+            try {
+                await terminatePromise;
+            } catch (error) {
+                console.warn(`Debug session did not terminate cleanly: ${error}`);
+                if (started) {
+                    await vscode.debug.stopDebugging();
+                    try {
+                        await waitForDebugTerminate(10000);
+                    } catch (stopError) {
+                        console.warn(`Debug session still did not terminate after stop: ${stopError}`);
+                    }
                 }
+            }
+        } finally {
+            if (started && vscode.debug.activeDebugSession) {
+                await vscode.debug.stopDebugging();
             }
         }
     });

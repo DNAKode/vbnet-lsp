@@ -198,6 +198,16 @@ VS Code headless run (deep subfolder fuzz):
 Server updates:
 - Document symbol requests now fall back to syntax-only symbols when Roslyn semantic model is not yet available.
 
+### Update 2026-01-13 (debug harness termination)
+
+Debug harness updates:
+- Debug test now launches without `stopAtEntry` and waits for a natural terminate event, with a fallback stop if termination doesn’t arrive.
+
+VS Code headless run (debug only):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `NETCOREDBG_PATH=_external/netcoredbg/bin/netcoredbg.exe`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`, `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`.
+- Result: PASS (workspace open + debug session start/terminate).
+- Note: VS Code printed `Failed command 'threads' : 0x80004005` during the debug session, but the test completed successfully.
+
 VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
 - Result: PASS (all VB.NET smoke tests).
