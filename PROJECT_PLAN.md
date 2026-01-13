@@ -282,6 +282,8 @@ The language server is organized into five distinct layers:
 - Folding ranges
 - **Debugging integration with netcoredbg** (DAP)
 
+**Status (2026-01-13):** Formatting, code actions, semantic tokens, signature help, folding ranges, and netcoredbg debug harness coverage are implemented.
+
 ### Phase 3
 **Goal:** Advanced navigation and productivity
 
