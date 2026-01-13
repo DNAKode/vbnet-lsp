@@ -143,7 +143,8 @@ async function main() {
     if (extensionTestsEnv.EXTENSION_ID === defaultExtensionId && !extensionTestsEnv.SKIP_CSHARP_TESTS) {
         extensionTestsEnv.SKIP_CSHARP_TESTS = "1";
     }
-    if (!extensionTestsEnv.VBNET_SERVER_PATH && fs.existsSync(defaultServerPath)) {
+    const skipDefaultServerPath = extensionTestsEnv.VBNET_SKIP_DEFAULT_SERVER_PATH === "1";
+    if (!skipDefaultServerPath && !extensionTestsEnv.VBNET_SERVER_PATH && fs.existsSync(defaultServerPath)) {
         extensionTestsEnv.VBNET_SERVER_PATH = defaultServerPath;
     }
 

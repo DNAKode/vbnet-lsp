@@ -440,6 +440,7 @@ dist
 out/
 dist/
 *.vsix
+src/extension/.server/
 
 # Webpack cache
 .webpack/

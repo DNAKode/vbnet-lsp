@@ -8,8 +8,8 @@ This file tracks reported issues to revisit later. No fixes are applied here.
 - Categories: currently includes "Programming Languages" (ok), "Snippets" (questionable), "Linters" (maybe).
 
 ## Completion behavior
-- Typing `Dim x As ` can result in `Dim x AAs `.
-- Reported to occur when tab-completing through the suggestion list as well.
+- (Fixed) Typing `Dim x As ` could result in `Dim x AAs `.
+- (Fixed) Reported to occur when tab-completing through the suggestion list as well.
 
 ## Debugging
 - Debugging does not appear to work (details to capture later).

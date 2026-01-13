@@ -566,3 +566,10 @@ VS Code headless run (smoke + typing completion):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `VBNET_SERVER_PATH=src/VbNet.LanguageServer/bin/Release/net10.0/VbNet.LanguageServer.dll`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
 - Result: PASS (typing completion test added).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T214345`.
+
+### Update 2026-01-13 (bundled server harness run)
+
+VS Code headless run (uses bundled .server, no VBNET_SERVER_PATH):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_DEV_PATH=src/extension`, `VBNET_SKIP_DEFAULT_SERVER_PATH=1`, `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
+- Result: PASS (typing completion test).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T215752`.
