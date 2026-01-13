@@ -55,10 +55,18 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
                 }
             }
 
-            if (typeof resolved.program === 'string' && !path.isAbsolute(resolved.program)) {
-                const workspaceRoot = folder?.uri.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-                if (workspaceRoot) {
-                    resolved.program = path.resolve(workspaceRoot, resolved.program);
+            if (typeof resolved.program === 'string') {
+                const resolvedTemplate = await this.tryResolveProgramTemplate(folder, resolved.program, resolved);
+                if (resolvedTemplate) {
+                    resolved.program = resolvedTemplate;
+                }
+
+                resolved.program = this.replaceWorkspaceFolderToken(resolved.program, folder);
+                if (!path.isAbsolute(resolved.program)) {
+                    const workspaceRoot = folder?.uri.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                    if (workspaceRoot) {
+                        resolved.program = path.resolve(workspaceRoot, resolved.program);
+                    }
                 }
             }
 
@@ -190,6 +198,56 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
         if (candidates.length > 0) {
             return candidates[0].fsPath;
         }
+        return undefined;
+    }
+
+    private replaceWorkspaceFolderToken(
+        value: string,
+        folder: vscode.WorkspaceFolder | undefined
+    ): string {
+        const workspaceRoot = folder?.uri.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (!workspaceRoot) {
+            return value;
+        }
+        return value.replace('${workspaceFolder}', workspaceRoot);
+    }
+
+    private async tryResolveProgramTemplate(
+        folder: vscode.WorkspaceFolder | undefined,
+        program: string,
+        config: vscode.DebugConfiguration
+    ): Promise<string | undefined> {
+        if (!program.includes('<target-framework>') && !program.includes('<project-name>')) {
+            return undefined;
+        }
+
+        const projectPath = this.getProjectPathFromConfig(config, folder) ?? (await this.findSingleProjectPath(folder));
+        if (!projectPath) {
+            return undefined;
+        }
+
+        const projectInfo = await this.readProjectInfo(projectPath);
+        const assemblyName = projectInfo.assemblyName ?? path.basename(projectPath, path.extname(projectPath));
+        const targetFramework = projectInfo.targetFramework;
+
+        let resolved = program.replace('<project-name>', assemblyName);
+        if (resolved.includes('<target-framework>')) {
+            if (!targetFramework) {
+                this.outputChannel.appendLine(
+                    `Cannot resolve <target-framework> placeholder; no TargetFramework found in ${projectPath}.`
+                );
+                return undefined;
+            }
+            resolved = resolved.replace('<target-framework>', targetFramework);
+        }
+
+        const replaced = this.replaceWorkspaceFolderToken(resolved, folder);
+        if (fs.existsSync(replaced)) {
+            this.outputChannel.appendLine(`Resolved debug program template: ${replaced}`);
+            return replaced;
+        }
+
+        this.outputChannel.appendLine(`Resolved debug program template not found on disk: ${replaced}`);
         return undefined;
     }
 }

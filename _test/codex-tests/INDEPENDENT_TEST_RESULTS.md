@@ -598,3 +598,13 @@ VS Code headless run (debug workspace):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`.
 - Result: FAIL (VS Code reported another instance running: "Running extension tests from the command line is currently only supported if no other instance of Code is running.").
 - Note: Earlier run timed out before completion while VS Code was still running; rerun needed after closing other VS Code instances.
+
+### Update 2026-01-13 (debug program template resolution)
+
+Extension updates:
+- Debug configuration provider now resolves `<target-framework>` and `<project-name>` placeholders in `program` values.
+- Debug harness adds a launch test that uses a template program path.
+
+VS Code headless run (debug workspace):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`.
+- Result: FAIL (VS Code reported another instance running: "Running extension tests from the command line is currently only supported if no other instance of Code is running.").
