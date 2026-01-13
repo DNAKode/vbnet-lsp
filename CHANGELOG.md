@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 - Bundle Windows netcoredbg into the VSIX and activate debug sessions reliably.
 - Ensure marketplace README is included and icon transparency is correct.
 
+**Known issues**
+- Debugger is only bundled for Windows in this release; macOS/Linux still require external netcoredbg.
+
 ## 0.1.0-alpha
 
 Initial alpha release with:
