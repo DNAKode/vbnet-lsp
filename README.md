@@ -25,29 +25,34 @@ VB.NET Language Support is a fully open-source extension providing first-class V
 
 ## Status
 
-**Current Phase:** Phase 1 - MVP (Language Services Complete)
+**Current Phase:** Phase 2 - Enhanced Editing & Debugging (baseline complete)
 **Version:** 0.1.0-alpha
 **Status:** In active development
 
-### Implemented Features (Phase 1 MVP)
+### Implemented Features
 
 | Feature | Status |
 |---------|--------|
-| Text Synchronization | ✅ Implemented |
-| Diagnostics (real-time errors) | ✅ Implemented |
-| Completion (IntelliSense) | ✅ Implemented |
-| Hover (symbol info) | ✅ Implemented |
-| Go to Definition | ✅ Implemented |
-| Find All References | ✅ Implemented |
-| Rename Symbol | ✅ Implemented |
-| Document Symbols (outline) | ✅ Implemented |
-| Workspace Symbols (search) | ✅ Implemented |
-| Solution/Project Loading | ✅ Implemented |
+| Text Synchronization | Implemented |
+| Diagnostics (real-time errors) | Implemented |
+| Completion (IntelliSense) | Implemented |
+| Hover (symbol info) | Implemented |
+| Go to Definition | Implemented |
+| Find All References | Implemented |
+| Rename Symbol | Implemented |
+| Document Symbols (outline) | Implemented |
+| Workspace Symbols (search) | Implemented |
+| Solution/Project Loading | Implemented |
+| Formatting (document + range) | Implemented |
+| Code Actions (baseline) | Implemented |
+| Semantic Tokens (full + range) | Implemented |
+| Signature Help | Implemented |
+| Folding Ranges | Implemented |
+| Debugging (netcoredbg integration) | Implemented (requires netcoredbg) |
 
-**Test Coverage:** 113 tests passing
+**Test Coverage:** 136 tests passing
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
-
 ## Installation
 
 ### Prerequisites
@@ -55,6 +60,7 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download) or later
 - [Visual Studio Code](https://code.visualstudio.com/) 1.80.0 or later
 - [Node.js](https://nodejs.org/) 18.0 or later (for extension development)
+- Optional: [netcoredbg](https://github.com/Samsung/netcoredbg) for debugging (set `vbnet.debugger.path`)
 
 ### Remote + Web Notes
 
@@ -126,19 +132,21 @@ VB.NET Language Support aims to provide:
 
 ## Roadmap
 
-### Phase 1 (MVP) - ✅ Complete
+### Phase 1 (MVP) - Complete
 - Core language server with essential LSP features
 - Solution and project loading
 - Diagnostics, completion, navigation
 - Symbol search and rename
 
-### Phase 2 (Next)
+### Phase 2 (Complete)
 - Code formatting
-- Code actions and quick fixes
+- Code actions (baseline)
 - Semantic tokens (enhanced syntax highlighting)
+- Signature help
+- Folding ranges
 - Debugging integration with netcoredbg
 
-### Phase 3
+### Phase 3 (Next)
 - Advanced navigation (call hierarchy, type hierarchy)
 - Inlay hints
 - Performance optimization
@@ -149,7 +157,6 @@ VB.NET Language Support aims to provide:
 - Multi-root workspace handling
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete implementation roadmap.
-
 ## Contributing
 
 We welcome contributions, especially:
@@ -190,3 +197,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **Built with focus on the VB.NET community. Designed for lasting infrastructure.**
+
+

@@ -364,7 +364,7 @@ View extension logs:
 
 Enable LSP tracing:
 
-1. VS Code Settings: `vbnetLs.trace.server` = `"verbose"`
+1. VS Code Settings: `vbnet.trace.server` = `"verbose"`
 2. View LSP messages: "View > Output" > "VB.NET Language Support"
 
 ---

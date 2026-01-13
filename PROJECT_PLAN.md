@@ -507,22 +507,28 @@ See `docs/development.md` Section 2.1 for setup instructions.
 
 ### Phase 1 Follow-ups (Production Quality)
 
-**Tracked issues to align with C# extension/Roslyn behavior**:
+**Remaining items to align with C# extension/Roslyn behavior**:
 - LSP request cancellation (`$/cancelRequest`) should cancel in-flight handlers consistently (verify end-to-end).
 - Completion resolve uses an approximate position; align with Roslyn completion item resolution.
 - Completion items should apply Roslyn text changes (`TextEdit`/`AdditionalTextEdits`) instead of plain insert text.
 - Handle `workspace/didChangeWatchedFiles` to keep the workspace in sync with external edits.
+
+**Completed follow-ups**:
 - Honor `vbnet.diagnostics.enable` and `vbnet.completion.enable` settings in client/server behavior.
 
-### Phase 2: Enhanced Editing - Next
+### Phase 2: Enhanced Editing - Complete
 
-**Planned features**:
+**Implemented features**:
 - Code formatting (document and range)
-- Code actions and quick fixes
+- Code actions (baseline source actions)
 - Semantic tokens
 - Signature help
 - Folding ranges
 - Debugging integration (netcoredbg)
+
+**Planned extensions**:
+- Code action resolve
+- Diagnostic quick fixes
 
 ---
 
@@ -539,7 +545,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 ---
 
 **Plan Version:** 4.0 (Phase 1 MVP Complete)
-**Last Updated:** 2026-01-11
+**Last Updated:** 2026-01-13
 **Status:** Phase 1 MVP Complete
 **Key Change:** Shifted from C# Dev Kit to C# extension as reference model + added netcoredbg
 **License:** MIT (fully open source)
