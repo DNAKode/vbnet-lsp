@@ -187,6 +187,12 @@ public sealed class WorkspaceManager : IAsyncDisposable
         await _loadLock.WaitAsync(cancellationToken);
         try
         {
+            if (IsProjectLoaded(projectPath))
+            {
+                _logger.LogDebug("Project already loaded, skipping: {Path}", projectPath);
+                return true;
+            }
+
             _logger.LogInformation("Loading project: {Path}", projectPath);
 
             var project = await _workspace.OpenProjectAsync(projectPath, cancellationToken: cancellationToken);
@@ -211,7 +217,14 @@ public sealed class WorkspaceManager : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load project: {Path}", projectPath);
+            if (ex is ArgumentException && ex.Message.Contains("already part of the workspace", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogDebug(ex, "Project already part of workspace: {Path}", projectPath);
+            }
+            else
+            {
+                _logger.LogError(ex, "Failed to load project: {Path}", projectPath);
+            }
             return false;
         }
         finally

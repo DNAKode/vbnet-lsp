@@ -459,3 +459,23 @@ VS Code headless run (services + debug):
 - Result: PASS (all VB.NET smoke tests + debug harness).
 - Note: VS Code logged a `threads` request error after the adapter already reported `exited` + `terminated`.
 - DAP trace: `_test/codex-tests/clients/vscode/logs/dap-trace-2026-01-13T113435152Z.log`.
+
+### Update 2026-01-13 (logging cleanup + integration pass)
+
+Server updates:
+- Skip duplicate project loads instead of logging errors.
+- Signature help no longer logs reflection constraint errors; fallback paths log at debug.
+- Fixed `test/TestProjects/SmallProject/Helper.vb` duplication to restore valid syntax.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~Integration` (PASS, 46 tests).
+
+VS Code headless run (logs captured):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
+- Result: PASS (all VB.NET smoke tests + debug harness).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T141046`.
+
+Emacs eglot run:
+- Command: `_test/codex-tests/clients/emacs/run-tests.ps1 -Suite vbnet`.
+- Result: PASS (VB.NET eglot smoke).
+- Log: `_test/codex-tests/clients/emacs/logs/emacs-eglot-20260113T141735.log`.

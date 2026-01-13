@@ -83,14 +83,14 @@ public sealed class SignatureHelpService
             var signatureHelpService = GetSignatureHelpService(document);
             if (signatureHelpService == null)
             {
-                _logger.LogWarning("Signature help service not available for document: {Uri}", uri);
+                _logger.LogDebug("Signature help service not available for document: {Uri}", uri);
                 return await GetFallbackSignatureHelpAsync(document, offset, cancellationToken);
             }
 
             var triggerInfo = CreateTriggerInfo(signatureHelpService, @params.Context);
             if (triggerInfo == null)
             {
-                _logger.LogWarning("Signature help trigger info could not be created for: {Uri}", uri);
+                _logger.LogDebug("Signature help trigger info could not be created for: {Uri}", uri);
                 return await GetFallbackSignatureHelpAsync(document, offset, cancellationToken);
             }
 
@@ -117,7 +117,7 @@ public sealed class SignatureHelpService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting signature help for: {Uri}", uri);
+            _logger.LogWarning(ex, "Error getting signature help for: {Uri}", uri);
             var fallbackText = sourceText ?? await document.GetTextAsync(cancellationToken);
             var fallbackOffset = sourceText != null ? offset : GetOffset(position, fallbackText);
             return await GetFallbackSignatureHelpAsync(document, fallbackOffset, cancellationToken);
@@ -401,22 +401,17 @@ public sealed class SignatureHelpService
         }
 
         var services = document.Project.Services;
-        var getServiceByType = services.GetType().GetMethod("GetService", new[] { typeof(Type) });
+        var getServiceByType = services.GetType().GetMethod(
+            "GetService",
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
+            binder: null,
+            types: new[] { typeof(Type) },
+            modifiers: null);
         if (getServiceByType != null)
         {
             return getServiceByType.Invoke(services, new object[] { signatureHelpServiceType });
         }
-
-        var genericGetService = services.GetType()
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .FirstOrDefault(m => m.Name == "GetService" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
-
-        if (genericGetService == null)
-        {
-            return null;
-        }
-
-        return genericGetService.MakeGenericMethod(signatureHelpServiceType).Invoke(services, Array.Empty<object>());
+        return null;
     }
 
     private static Protocol.SignatureInformation ToSignatureInformation(

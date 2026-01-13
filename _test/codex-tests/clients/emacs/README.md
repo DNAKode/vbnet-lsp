@@ -13,6 +13,7 @@ This folder contains a headless Emacs-based LSP client harness. It is intended t
 - `run-tests.ps1`: bootstraps Emacs (portable zip), runs batch tests.
 - `eglot-smoke.el`: Emacs batch script that connects to LSP servers and runs a few requests.
 - `emacs/`: local portable Emacs download (not intended for commit).
+- `logs/`: batch run logs from Emacs/eglot (timestamped).
 
 ## Usage (manual)
 
