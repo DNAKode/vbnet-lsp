@@ -167,6 +167,16 @@ if (skipVbnetSmoke) {
             (items) => !!items && items.length > 0
         );
         assert.ok(workspaceSymbols && workspaceSymbols.length > 0, "Workspace symbols were empty.");
+
+        const foldingRanges = await retryUntil(
+            () =>
+                vscode.commands.executeCommand<vscode.FoldingRange[]>(
+                    "vscode.executeFoldingRangeProvider",
+                    doc.uri
+                ),
+            (items) => !!items && items.length > 0
+        );
+        assert.ok(foldingRanges && foldingRanges.length > 0, "Folding ranges were empty.");
     });
 
     test("rename provider returns workspace edits", async () => {
@@ -250,6 +260,37 @@ if (skipVbnetSmoke) {
             );
             await vscode.commands.executeCommand("vbnet.restartServer");
         }
+    });
+
+    test("formatting returns edits for unformatted document", async () => {
+        const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..", "..");
+        const filePath = path.resolve(
+            repoRoot,
+            "_test",
+            "codex-tests",
+            "vbnet-lsp",
+            "fixtures",
+            "services",
+            "FormattingSample.vb"
+        );
+
+        const formatDoc = await vscode.workspace.openTextDocument(filePath);
+        await vscode.window.showTextDocument(formatDoc);
+
+        const edits = await retryUntil(
+            () =>
+                vscode.commands.executeCommand<vscode.TextEdit[]>(
+                    "vscode.executeFormatDocumentProvider",
+                    formatDoc.uri,
+                    {
+                        tabSize: 4,
+                        insertSpaces: true
+                    }
+                ),
+            (items) => !!items
+        );
+
+        assert.ok(edits && edits.length > 0, "Format document edits were empty.");
     });
     });
 }

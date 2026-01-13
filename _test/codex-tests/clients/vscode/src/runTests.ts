@@ -67,6 +67,36 @@ async function main() {
     const extensionId = process.env.EXTENSION_ID;
     const extensionVsix = process.env.EXTENSION_VSIX;
     if (extensionId || extensionVsix) {
+        const extensionsJsonPath = path.join(extensionsDir, "extensions.json");
+        if (fs.existsSync(extensionsJsonPath)) {
+            try {
+                const raw = fs.readFileSync(extensionsJsonPath, "utf8");
+                const installs = JSON.parse(raw);
+                if (Array.isArray(installs)) {
+                    const filtered = installs.filter((install) => {
+                        const id = install?.identifier?.id;
+                        if (id !== extensionIdEnv) {
+                            return true;
+                        }
+
+                        const relativeLocation = install?.relativeLocation;
+                        if (!relativeLocation) {
+                            return false;
+                        }
+
+                        const fullPath = path.join(extensionsDir, relativeLocation);
+                        return fs.existsSync(fullPath);
+                    });
+
+                    if (filtered.length !== installs.length) {
+                        fs.writeFileSync(extensionsJsonPath, JSON.stringify(filtered));
+                    }
+                }
+            } catch (error) {
+                console.warn(`Failed to prune extensions.json: ${error}`);
+            }
+        }
+
         const [cliPath, ...cliArgs] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
         const filteredCliArgs = cliArgs.filter(
             (arg) => !arg.startsWith("--extensions-dir") && !arg.startsWith("--user-data-dir")

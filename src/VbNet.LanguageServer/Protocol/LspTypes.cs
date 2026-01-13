@@ -240,6 +240,12 @@ public class ServerCapabilities
 
     [JsonPropertyName("foldingRangeProvider")]
     public bool? FoldingRangeProvider { get; set; }
+
+    [JsonPropertyName("documentFormattingProvider")]
+    public bool? DocumentFormattingProvider { get; set; }
+
+    [JsonPropertyName("documentRangeFormattingProvider")]
+    public bool? DocumentRangeFormattingProvider { get; set; }
 }
 
 public class TextDocumentSyncOptions

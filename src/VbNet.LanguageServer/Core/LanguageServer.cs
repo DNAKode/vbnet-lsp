@@ -34,6 +34,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly RenameService _renameService;
     private readonly SymbolsService _symbolsService;
     private readonly FoldingRangeService _foldingRangeService;
+    private readonly FormattingService _formattingService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -112,6 +113,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<FoldingRangeService>());
 
+        _formattingService = new FormattingService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<FormattingService>());
+
         RegisterHandlers();
     }
 
@@ -171,6 +177,10 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<DocumentSymbolParams, DocumentSymbol[]>("textDocument/documentSymbol", HandleDocumentSymbolAsync);
         _dispatcher.RegisterRequest<WorkspaceSymbolParams, SymbolInformation[]>("workspace/symbol", HandleWorkspaceSymbolAsync);
         _dispatcher.RegisterRequest<FoldingRangeParams, FoldingRange[]>("textDocument/foldingRange", HandleFoldingRangeAsync);
+        _dispatcher.RegisterRequest<DocumentFormattingParams, TextEdit[]>("textDocument/formatting", HandleDocumentFormattingAsync);
+        _dispatcher.RegisterRequest<DocumentRangeFormattingParams, TextEdit[]>(
+            "textDocument/rangeFormatting",
+            HandleDocumentRangeFormattingAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -732,6 +742,28 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _foldingRangeService.GetFoldingRangesAsync(@params, ct);
     }
 
+    private async Task<TextEdit[]> HandleDocumentFormattingAsync(DocumentFormattingParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<TextEdit>();
+        }
+
+        return await _formattingService.FormatDocumentAsync(@params, ct);
+    }
+
+    private async Task<TextEdit[]> HandleDocumentRangeFormattingAsync(
+        DocumentRangeFormattingParams? @params,
+        CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<TextEdit>();
+        }
+
+        return await _formattingService.FormatRangeAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -776,7 +808,11 @@ public sealed class LanguageServer : IAsyncDisposable
             WorkspaceSymbolProvider = true,
 
             // Folding ranges
-            FoldingRangeProvider = true
+            FoldingRangeProvider = true,
+
+            // Formatting
+            DocumentFormattingProvider = true,
+            DocumentRangeFormattingProvider = true
         };
     }
 
@@ -835,6 +871,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the folding range service.
     /// </summary>
     public FoldingRangeService FoldingRangeService => _foldingRangeService;
+
+    /// <summary>
+    /// Gets the formatting service.
+    /// </summary>
+    public FormattingService FormattingService => _formattingService;
 
     internal MessageDispatcher Dispatcher => _dispatcher;
 

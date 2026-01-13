@@ -21,7 +21,7 @@ Last Updated: 2026-01-13
 
 This document provides a comprehensive view of LSP features supported by VB.NET Language Support, their implementation status, and roadmap.
 
-**Current Phase**: Phase 1 (MVP Complete)
+**Current Phase**: Phase 2 (In Progress)
 **Test Coverage**: 113 tests passing
 
 ---
@@ -160,8 +160,8 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 
 | Feature | Status | Phase | Notes |
 |---------|--------|-------|-------|
-| `textDocument/formatting` | 📋 Planned | Phase 2 | Format entire document |
-| `textDocument/rangeFormatting` | 📋 Planned | Phase 2 | Format selection |
+| `textDocument/formatting` | ?o. Implemented | Phase 2 | Format entire document |
+| `textDocument/rangeFormatting` | ?o. Implemented | Phase 2 | Format selection |
 | `textDocument/onTypeFormatting` | 📋 Planned | Phase 3 | Format on typing (`;`, `}`, etc.) |
 | EditorConfig support | 📋 Planned | Phase 2 | Respect `.editorconfig` |
 
@@ -407,7 +407,7 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 | Find References | ✅ Full | ✅ Implemented |
 | Rename | ✅ Full | ✅ Implemented |
 | Symbols | ✅ Full | ✅ Implemented |
-| Formatting | ✅ Full | 📋 Planned (Phase 2) |
+| Formatting | ?o. Full | ?o. Implemented |
 | Code Actions | ✅ Full | 📋 Planned (Phase 2) |
 | Semantic Tokens | ✅ Full | 📋 Planned (Phase 2) |
 | Inlay Hints | ✅ Full | 📋 Planned (Phase 3) |

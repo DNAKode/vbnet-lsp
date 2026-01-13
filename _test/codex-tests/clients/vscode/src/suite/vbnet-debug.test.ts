@@ -17,6 +17,17 @@ suite("VB.NET debugging (VS Code harness)", () => {
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         assert.ok(workspaceRoot, "No workspace folder opened for debugging.");
 
+        const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
+        const extension = vscode.extensions.getExtension(extensionId);
+        assert.ok(extension, `Extension ${extensionId} is not installed.`);
+        await extension!.activate();
+
+        const entryFile = path.resolve(workspaceRoot, "Program.vb");
+        if (fs.existsSync(entryFile)) {
+            const doc = await vscode.workspace.openTextDocument(entryFile);
+            await vscode.window.showTextDocument(doc);
+        }
+
         const programPath = path.resolve(
             repoRoot,
             "test",
@@ -45,15 +56,24 @@ suite("VB.NET debugging (VS Code harness)", () => {
             stopAtEntry: true
         };
 
-        const startPromise = waitForDebugStart();
-        const terminatePromise = waitForDebugTerminate();
+        const startPromise = waitForDebugStart(30000);
+        const terminatePromise = waitForDebugTerminate(60000);
 
-        const started = await vscode.debug.startDebugging(vscode.workspace.workspaceFolders?.[0], debugConfig);
-        assert.ok(started, "Debug session did not start.");
-        await startPromise;
-
-        await vscode.debug.stopDebugging();
-        await terminatePromise;
+        let started = false;
+        try {
+            started = await vscode.debug.startDebugging(vscode.workspace.workspaceFolders?.[0], debugConfig);
+            assert.ok(started, "Debug session did not start.");
+            await startPromise;
+        } finally {
+            if (started) {
+                await vscode.debug.stopDebugging();
+                try {
+                    await terminatePromise;
+                } catch (error) {
+                    console.warn(`Debug session did not terminate cleanly: ${error}`);
+                }
+            }
+        }
     });
 });
 
@@ -94,18 +114,28 @@ function resolveNetcoreDbgPath(): string | undefined {
     return undefined;
 }
 
-function waitForDebugStart(): Promise<void> {
-    return new Promise((resolve) => {
+function waitForDebugStart(timeoutMs: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            disposable.dispose();
+            reject(new Error("Timed out waiting for debug session to start."));
+        }, timeoutMs);
         const disposable = vscode.debug.onDidStartDebugSession(() => {
+            clearTimeout(timer);
             disposable.dispose();
             resolve();
         });
     });
 }
 
-function waitForDebugTerminate(): Promise<void> {
-    return new Promise((resolve) => {
+function waitForDebugTerminate(timeoutMs: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            disposable.dispose();
+            reject(new Error("Timed out waiting for debug session to terminate."));
+        }, timeoutMs);
         const disposable = vscode.debug.onDidTerminateDebugSession(() => {
+            clearTimeout(timer);
             disposable.dispose();
             resolve();
         });

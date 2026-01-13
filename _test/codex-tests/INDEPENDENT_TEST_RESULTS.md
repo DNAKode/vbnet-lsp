@@ -378,3 +378,14 @@ VS Code debug harness:
 - Debug harness updated to tolerate configuration update failures when setting `vbnet.debugger.path`.
 - Run attempt failed because another VS Code instance was running (VS Code test runner limitation).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T074304`.
+### Update 2026-01-13 (formatting + harness checks)
+
+Server updates:
+- Added document/range formatting via Roslyn Formatter with LSP options mapping and post-format trimming rules.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~FormattingServiceTests` (PASS).
+
+VS Code headless runs:
+- Debug workspace run (netcoredbg) succeeded; debug session did not terminate cleanly and logged a threads command error. Logs: `_test/codex-tests/clients/vscode/logs/20260113T094602`, `_test/codex-tests/clients/vscode/logs/20260113T094915`.
+- Services fixture run (smoke + folding + formatting) PASS; debug test still reports termination timeout. Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T095205`.
