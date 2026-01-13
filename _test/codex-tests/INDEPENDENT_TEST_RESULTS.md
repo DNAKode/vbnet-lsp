@@ -608,3 +608,12 @@ Extension updates:
 VS Code headless run (debug workspace):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`.
 - Result: FAIL (VS Code reported another instance running: "Running extension tests from the command line is currently only supported if no other instance of Code is running.").
+
+### Update 2026-01-13 (debug project selection prompt)
+
+Extension updates:
+- When `program` is missing and multiple `.vbproj` files exist, the debug configuration provider now prompts to select the project to debug.
+
+VS Code headless run (debug workspace):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`.
+- Result: FAIL (VS Code reported another instance running: "Running extension tests from the command line is currently only supported if no other instance of Code is running.").

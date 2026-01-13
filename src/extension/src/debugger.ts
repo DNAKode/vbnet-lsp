@@ -108,7 +108,8 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
         folder: vscode.WorkspaceFolder | undefined,
         config: vscode.DebugConfiguration
     ): Promise<string | undefined> {
-        const projectPath = this.getProjectPathFromConfig(config, folder) ?? (await this.findSingleProjectPath(folder));
+        const projectPath =
+            this.getProjectPathFromConfig(config, folder) ?? (await this.selectProjectPath(folder));
         if (!projectPath) {
             return undefined;
         }
@@ -153,26 +154,6 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
         }
 
         return path.isAbsolute(candidate) ? candidate : path.resolve(candidate);
-    }
-
-    private async findSingleProjectPath(folder: vscode.WorkspaceFolder | undefined): Promise<string | undefined> {
-        const root = folder ?? vscode.workspace.workspaceFolders?.[0];
-        if (!root) {
-            return undefined;
-        }
-
-        const pattern = new vscode.RelativePattern(root, '**/*.vbproj');
-        const candidates = await vscode.workspace.findFiles(pattern, '**/{bin,obj,.git}/**', 2);
-        if (candidates.length !== 1) {
-            if (candidates.length > 1) {
-                this.outputChannel.appendLine(
-                    `Multiple VB projects found; unable to infer debug program automatically (${candidates.length} projects).`
-                );
-            }
-            return undefined;
-        }
-
-        return candidates[0].fsPath;
     }
 
     private async readProjectInfo(projectPath: string): Promise<{ assemblyName?: string; targetFramework?: string }> {
@@ -221,7 +202,8 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
             return undefined;
         }
 
-        const projectPath = this.getProjectPathFromConfig(config, folder) ?? (await this.findSingleProjectPath(folder));
+        const projectPath =
+            this.getProjectPathFromConfig(config, folder) ?? (await this.selectProjectPath(folder));
         if (!projectPath) {
             return undefined;
         }
@@ -249,6 +231,38 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
 
         this.outputChannel.appendLine(`Resolved debug program template not found on disk: ${replaced}`);
         return undefined;
+    }
+
+    private async selectProjectPath(folder: vscode.WorkspaceFolder | undefined): Promise<string | undefined> {
+        const candidates = await this.findProjectCandidates(folder);
+        if (candidates.length === 0) {
+            return undefined;
+        }
+        if (candidates.length === 1) {
+            return candidates[0];
+        }
+
+        const pick = await vscode.window.showQuickPick(
+            candidates.map((candidate) => ({
+                label: vscode.workspace.asRelativePath(candidate),
+                description: candidate,
+                detail: 'Select the project to debug'
+            })),
+            { placeHolder: 'Select a VB.NET project to debug' }
+        );
+
+        return pick?.description;
+    }
+
+    private async findProjectCandidates(folder: vscode.WorkspaceFolder | undefined): Promise<string[]> {
+        const root = folder ?? vscode.workspace.workspaceFolders?.[0];
+        if (!root) {
+            return [];
+        }
+
+        const pattern = new vscode.RelativePattern(root, '**/*.vbproj');
+        const candidates = await vscode.workspace.findFiles(pattern, '**/{bin,obj,.git}/**', 5);
+        return candidates.map((candidate) => candidate.fsPath);
     }
 }
 
