@@ -431,3 +431,13 @@ Tests:
 VS Code headless runs:
 - Debug workspace run (netcoredbg) succeeded; debug session did not terminate cleanly and logged a threads command error. Logs: `_test/codex-tests/clients/vscode/logs/20260113T094602`, `_test/codex-tests/clients/vscode/logs/20260113T094915`.
 - Services fixture run (smoke + folding + formatting) PASS; debug test still reports termination timeout. Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T095205`.
+
+### Update 2026-01-13 (netcoredbg rebuild + debug harness rerun)
+
+Debugger build:
+- Rebuilt netcoredbg from `_external/netcoredbg` using Visual Studio 2022 CMake generator; binaries installed to `_external/netcoredbg/bin`.
+
+VS Code debug harness:
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`.
+- Result: PASS (debug test) after terminating leftover VS Code test processes.
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T095205`.
