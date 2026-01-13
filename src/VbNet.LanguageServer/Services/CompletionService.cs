@@ -30,7 +30,8 @@ public sealed class CompletionService
     /// <summary>
     /// Commit characters that should trigger completion acceptance.
     /// </summary>
-    private static readonly string[] DefaultCommitCharacters = new[] { ".", "(", "[", " " };
+    // Avoid space as a commit character to prevent duplicate keyword insertion (e.g., "AAs").
+    private static readonly string[] DefaultCommitCharacters = new[] { ".", "(", "[" };
 
     public CompletionService(
         WorkspaceManager workspaceManager,
@@ -104,7 +105,7 @@ public sealed class CompletionService
 
             // Translate to LSP CompletionItems
             var items = completions.ItemsList
-                .Select((item, index) => TranslateCompletionItem(item, index, uri, position))
+                .Select((item, index) => TranslateCompletionItem(item, index, uri, position, sourceText, offset))
                 .ToArray();
 
             _logger.LogDebug("Returning {Count} completion items for: {Uri}", items.Length, uri);
@@ -276,16 +277,19 @@ public sealed class CompletionService
         RoslynCompletion.CompletionItem roslynItem,
         int index,
         string uri,
-        Position position)
+        Position position,
+        SourceText sourceText,
+        int offset)
     {
         var kind = TranslateCompletionKind(roslynItem.Tags);
+        var displayText = roslynItem.DisplayText;
 
         var item = new Protocol.CompletionItem
         {
-            Label = roslynItem.DisplayText,
+            Label = displayText,
             Kind = kind,
             Detail = GetDetail(roslynItem),
-            InsertText = roslynItem.DisplayText,
+            TextEdit = CreateDefaultTextEdit(displayText, sourceText, offset),
             InsertTextFormat = InsertTextFormat.PlainText,
             SortText = index.ToString("D5"), // Preserve Roslyn's ordering
             FilterText = roslynItem.FilterText,
@@ -294,7 +298,7 @@ public sealed class CompletionService
             Data = new
             {
                 uri,
-                displayText = roslynItem.DisplayText,
+                displayText,
                 filterText = roslynItem.FilterText,
                 sortText = roslynItem.SortText,
                 index,
@@ -495,6 +499,32 @@ public sealed class CompletionService
             Range = GetRange(change.Span, sourceText),
             NewText = change.NewText ?? string.Empty
         };
+    }
+
+    private static TextEdit CreateDefaultTextEdit(string insertText, SourceText sourceText, int offset)
+    {
+        var start = offset;
+        while (start > 0)
+        {
+            var ch = sourceText[start - 1];
+            if (!IsWordCharacter(ch))
+            {
+                break;
+            }
+            start--;
+        }
+
+        var span = TextSpan.FromBounds(start, offset);
+        return new TextEdit
+        {
+            Range = GetRange(span, sourceText),
+            NewText = insertText
+        };
+    }
+
+    private static bool IsWordCharacter(char ch)
+    {
+        return char.IsLetterOrDigit(ch) || ch == '_';
     }
 
     private static RoslynCompletion.CompletionItem? FindMatchingCompletionItem(

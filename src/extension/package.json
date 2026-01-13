@@ -8,6 +8,7 @@
   "author": "DNA Kode",
   "license": "MIT",
   "preview": true,
+  "readme": "README.md",
   "repository": {
     "type": "git",
     "url": "https://github.com/DNAKode/vbnet-lsp"
@@ -16,9 +17,7 @@
     "url": "https://github.com/DNAKode/vbnet-lsp/issues"
   },
   "categories": [
-    "Programming Languages",
-    "Linters",
-    "Snippets"
+    "Programming Languages"
   ],
   "keywords": [
     "VB.NET",

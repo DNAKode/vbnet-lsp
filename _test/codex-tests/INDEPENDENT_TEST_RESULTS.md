@@ -553,3 +553,9 @@ Release:
 - Command: `vsce publish --pre-release -p $env:VSCODE_PAT` from `src/extension`.
 - Result: Published `dnakode.vbnet-language-support` v0.1.0 (pre-release).
 - Marketplace listing: `https://marketplace.visualstudio.com/items?itemName=dnakode.vbnet-language-support`.
+
+### Update 2026-01-13 (completion prefix text edit)
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests/VbNet.LanguageServer.Tests.csproj -c Release -v minimal --filter FullyQualifiedName~GetCompletionAsync_KeywordCompletion_ReplacesPrefix`
+- Result: PASS (1 test).

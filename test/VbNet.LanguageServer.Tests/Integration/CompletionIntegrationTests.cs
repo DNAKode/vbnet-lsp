@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
 using VbNet.LanguageServer.Protocol;
 using VbNet.LanguageServer.Services;
@@ -288,5 +289,65 @@ public class CompletionIntegrationTests : IAsyncLifetime
 
         Assert.NotNull(resolved);
         Assert.NotNull(resolved.TextEdit);
+    }
+
+    [Fact]
+    public async Task GetCompletionAsync_KeywordCompletion_ReplacesPrefix()
+    {
+        var projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj");
+        var helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb");
+
+        if (!File.Exists(projectPath))
+        {
+            return;
+        }
+
+        await _workspaceManager.LoadProjectAsync(projectPath);
+
+        var helperUri = new Uri(helperPath).ToString();
+        var text = await File.ReadAllTextAsync(helperPath);
+        var updatedText = text.Replace("_counter += 1", "Dim x A");
+
+        _documentManager.HandleDidOpen(new DidOpenTextDocumentParams
+        {
+            TextDocument = new TextDocumentItem
+            {
+                Uri = helperUri,
+                LanguageId = "vb",
+                Version = 1,
+                Text = updatedText
+            }
+        });
+
+        var lines = updatedText.Split('\n');
+        var lineIndex = Array.FindIndex(lines, l => l.Contains("Dim x A"));
+
+        if (lineIndex < 0)
+        {
+            return;
+        }
+
+        var line = lines[lineIndex];
+        var aIndex = line.IndexOf("A", StringComparison.Ordinal);
+        if (aIndex < 0)
+        {
+            return;
+        }
+
+        var @params = new CompletionParams
+        {
+            TextDocument = new TextDocumentIdentifier { Uri = helperUri },
+            Position = new Position { Line = lineIndex, Character = aIndex + 1 }
+        };
+
+        var result = await _completionService.GetCompletionAsync(@params, CancellationToken.None);
+        var asItem = result.Items.FirstOrDefault(item => item.Label == "As");
+
+        Assert.NotNull(asItem);
+        Assert.NotNull(asItem!.TextEdit);
+        Assert.Equal(lineIndex, asItem.TextEdit!.Range.Start.Line);
+        Assert.Equal(aIndex, asItem.TextEdit.Range.Start.Character);
+        Assert.Equal(lineIndex, asItem.TextEdit.Range.End.Line);
+        Assert.Equal(aIndex + 1, asItem.TextEdit.Range.End.Character);
     }
 }
