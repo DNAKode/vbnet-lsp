@@ -2,8 +2,8 @@
 
 **VB.NET Language Support - LSP Features and Roadmap**
 
-Version: 2.1
-Last Updated: 2026-01-12
+Version: 2.2
+Last Updated: 2026-01-13
 
 ## Table of Contents
 
@@ -242,10 +242,10 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 
 | Feature | Status | Phase | Notes |
 |---------|--------|-------|-------|
-| `textDocument/foldingRange` | 📋 Planned | Phase 2 | Code folding |
-| Method folding | 📋 Planned | Phase 2 | Collapse methods |
-| Region folding | 📋 Planned | Phase 2 | `#Region` / `#End Region` |
-| Comment folding | 📋 Planned | Phase 2 | Multi-line comments |
+| `textDocument/foldingRange` | ?o. Implemented | Phase 2 | Type/member blocks + regions |
+| Method folding | ?o. Implemented | Phase 2 | Collapse methods |
+| Region folding | ?o. Implemented | Phase 2 | `#Region` / `#End Region` |
+| Comment folding | dY"< Planned | Phase 2 | Multi-line comments |
 
 ---
 

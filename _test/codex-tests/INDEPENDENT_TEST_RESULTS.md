@@ -363,3 +363,18 @@ VS Code headless run (debug workspace):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`.
 - Result: SKIP (netcoredbg not found in environment).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T010208`
+### Update 2026-01-13 (folding ranges + netcoredbg build + debug harness)
+
+Server updates:
+- Added folding range support for VB blocks and #Region pairs (textDocument/foldingRange).
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~FoldingRangeServiceTests` (PASS).
+
+Debugger build:
+- Built netcoredbg from `_external/netcoredbg` using Visual Studio 2022 CMake generator; binaries installed to `_external/netcoredbg/bin`.
+
+VS Code debug harness:
+- Debug harness updated to tolerate configuration update failures when setting `vbnet.debugger.path`.
+- Run attempt failed because another VS Code instance was running (VS Code test runner limitation).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T074304`.

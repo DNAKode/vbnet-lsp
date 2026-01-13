@@ -237,6 +237,9 @@ public class ServerCapabilities
 
     [JsonPropertyName("workspaceSymbolProvider")]
     public bool? WorkspaceSymbolProvider { get; set; }
+
+    [JsonPropertyName("foldingRangeProvider")]
+    public bool? FoldingRangeProvider { get; set; }
 }
 
 public class TextDocumentSyncOptions

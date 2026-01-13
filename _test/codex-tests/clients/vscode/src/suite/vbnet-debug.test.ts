@@ -30,7 +30,11 @@ suite("VB.NET debugging (VS Code harness)", () => {
         assert.ok(fs.existsSync(programPath), `Debug program not found at ${programPath}`);
 
         const config = vscode.workspace.getConfiguration("vbnet");
-        await config.update("debugger.path", netcoredbgPath, vscode.ConfigurationTarget.Workspace);
+        try {
+            await config.update("debugger.path", netcoredbgPath, vscode.ConfigurationTarget.Workspace);
+        } catch (error) {
+            console.warn(`Unable to update vbnet.debugger.path in workspace settings: ${error}`);
+        }
 
         const debugConfig: vscode.DebugConfiguration = {
             type: "vbnet",

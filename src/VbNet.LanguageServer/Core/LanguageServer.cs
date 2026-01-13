@@ -33,6 +33,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly ReferencesService _referencesService;
     private readonly RenameService _renameService;
     private readonly SymbolsService _symbolsService;
+    private readonly FoldingRangeService _foldingRangeService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -106,6 +107,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<SymbolsService>());
 
+        _foldingRangeService = new FoldingRangeService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<FoldingRangeService>());
+
         RegisterHandlers();
     }
 
@@ -164,6 +170,7 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<RenameParams, WorkspaceEdit?>("textDocument/rename", HandleRenameAsync);
         _dispatcher.RegisterRequest<DocumentSymbolParams, DocumentSymbol[]>("textDocument/documentSymbol", HandleDocumentSymbolAsync);
         _dispatcher.RegisterRequest<WorkspaceSymbolParams, SymbolInformation[]>("workspace/symbol", HandleWorkspaceSymbolAsync);
+        _dispatcher.RegisterRequest<FoldingRangeParams, FoldingRange[]>("textDocument/foldingRange", HandleFoldingRangeAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -715,6 +722,16 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _symbolsService.GetWorkspaceSymbolsAsync(@params, ct);
     }
 
+    private async Task<FoldingRange[]> HandleFoldingRangeAsync(FoldingRangeParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<FoldingRange>();
+        }
+
+        return await _foldingRangeService.GetFoldingRangesAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -756,7 +773,10 @@ public sealed class LanguageServer : IAsyncDisposable
 
             // Symbol navigation
             DocumentSymbolProvider = true,
-            WorkspaceSymbolProvider = true
+            WorkspaceSymbolProvider = true,
+
+            // Folding ranges
+            FoldingRangeProvider = true
         };
     }
 
@@ -810,6 +830,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the symbols service.
     /// </summary>
     public SymbolsService SymbolsService => _symbolsService;
+
+    /// <summary>
+    /// Gets the folding range service.
+    /// </summary>
+    public FoldingRangeService FoldingRangeService => _foldingRangeService;
 
     internal MessageDispatcher Dispatcher => _dispatcher;
 
