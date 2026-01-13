@@ -451,3 +451,11 @@ VS Code debug harness:
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_DAP_TRACE=1`.
 - Result: PASS (debug test).
 - DAP trace: `_test/codex-tests/clients/vscode/logs/dap-trace-2026-01-13T113145188Z.log`.
+
+### Update 2026-01-13 (full harness + DAP trace review)
+
+VS Code headless run (services + debug):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_DAP_TRACE=1`.
+- Result: PASS (all VB.NET smoke tests + debug harness).
+- Note: VS Code logged a `threads` request error after the adapter already reported `exited` + `terminated`.
+- DAP trace: `_test/codex-tests/clients/vscode/logs/dap-trace-2026-01-13T113435152Z.log`.
