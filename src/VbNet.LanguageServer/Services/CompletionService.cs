@@ -249,9 +249,18 @@ public sealed class CompletionService
             var additionalChanges = GetAdditionalTextChanges(change);
             if (additionalChanges is { Count: > 0 })
             {
-                item.AdditionalTextEdits = additionalChanges
+                var filteredChanges = additionalChanges
+                    .Where(textChange =>
+                        textChange.Span != change.TextChange.Span ||
+                        !string.Equals(textChange.NewText, change.TextChange.NewText, StringComparison.Ordinal))
+                    .ToList();
+
+                if (filteredChanges.Count > 0)
+                {
+                    item.AdditionalTextEdits = filteredChanges
                     .Select(textChange => CreateTextEdit(textChange, sourceText))
                     .ToArray();
+                }
             }
 
             item.InsertText = null;
@@ -289,11 +298,11 @@ public sealed class CompletionService
             Label = displayText,
             Kind = kind,
             Detail = GetDetail(roslynItem),
-            TextEdit = CreateDefaultTextEdit(displayText, sourceText, offset),
+            TextEdit = CreateDefaultTextEdit(displayText, sourceText, offset, position),
             InsertTextFormat = InsertTextFormat.PlainText,
             SortText = index.ToString("D5"), // Preserve Roslyn's ordering
             FilterText = roslynItem.FilterText,
-            CommitCharacters = DefaultCommitCharacters,
+            CommitCharacters = GetCommitCharacters(roslynItem),
             // Store data for resolve
             Data = new
             {
@@ -501,8 +510,31 @@ public sealed class CompletionService
         };
     }
 
-    private static TextEdit CreateDefaultTextEdit(string insertText, SourceText sourceText, int offset)
+    private static TextEdit CreateDefaultTextEdit(
+        string insertText,
+        SourceText sourceText,
+        int offset,
+        Position position)
     {
+        if (position.Line >= 0 && position.Line < sourceText.Lines.Count)
+        {
+            var textLine = sourceText.Lines[position.Line];
+            var lineLength = textLine.End - textLine.Start;
+            if (position.Character > lineLength)
+            {
+                var fallbackStart = Math.Max(0, position.Character - 1);
+                return new TextEdit
+                {
+                    Range = new Protocol.Range
+                    {
+                        Start = new Position { Line = position.Line, Character = fallbackStart },
+                        End = new Position { Line = position.Line, Character = position.Character }
+                    },
+                    NewText = insertText
+                };
+            }
+        }
+
         var start = offset;
         while (start > 0)
         {
@@ -525,6 +557,47 @@ public sealed class CompletionService
     private static bool IsWordCharacter(char ch)
     {
         return char.IsLetterOrDigit(ch) || ch == '_';
+    }
+
+    private static string[]? GetCommitCharacters(RoslynCompletion.CompletionItem item)
+    {
+        var rules = item.Rules.CommitCharacterRules;
+        if (rules.IsDefaultOrEmpty)
+        {
+            return DefaultCommitCharacters;
+        }
+
+        var commitCharacters = new List<string>(DefaultCommitCharacters);
+
+        foreach (var rule in rules)
+        {
+            switch (rule.Kind)
+            {
+                case RoslynCompletion.CharacterSetModificationKind.Add:
+                    foreach (var character in rule.Characters)
+                    {
+                        var value = character.ToString();
+                        if (!commitCharacters.Contains(value))
+                        {
+                            commitCharacters.Add(value);
+                        }
+                    }
+                    break;
+
+                case RoslynCompletion.CharacterSetModificationKind.Remove:
+                    foreach (var character in rule.Characters)
+                    {
+                        commitCharacters.Remove(character.ToString());
+                    }
+                    break;
+
+                case RoslynCompletion.CharacterSetModificationKind.Replace:
+                    commitCharacters = rule.Characters.Select(character => character.ToString()).ToList();
+                    break;
+            }
+        }
+
+        return commitCharacters.Count == 0 ? null : commitCharacters.ToArray();
     }
 
     private static RoslynCompletion.CompletionItem? FindMatchingCompletionItem(

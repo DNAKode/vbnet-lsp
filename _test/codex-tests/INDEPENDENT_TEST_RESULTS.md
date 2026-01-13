@@ -559,3 +559,10 @@ Release:
 Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests/VbNet.LanguageServer.Tests.csproj -c Release -v minimal --filter FullyQualifiedName~GetCompletionAsync_KeywordCompletion_ReplacesPrefix`
 - Result: PASS (1 test).
+
+### Update 2026-01-13 (typing completion harness)
+
+VS Code headless run (smoke + typing completion):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `VBNET_SERVER_PATH=src/VbNet.LanguageServer/bin/Release/net10.0/VbNet.LanguageServer.dll`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
+- Result: PASS (typing completion test added).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T214345`.

@@ -291,6 +291,77 @@ if (skipVbnetSmoke) {
         }
     });
 
+    test("typing completion does not duplicate prefix", async () => {
+        const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..", "..");
+        const workspaceRoot = process.env.FIXTURE_WORKSPACE
+            ? (path.isAbsolute(process.env.FIXTURE_WORKSPACE)
+                  ? process.env.FIXTURE_WORKSPACE
+                  : path.resolve(repoRoot, process.env.FIXTURE_WORKSPACE))
+            : path.resolve(repoRoot, "_test", "codex-tests", "vbnet-lsp", "fixtures", "services");
+        const tempFilePath = path.join(workspaceRoot, `TypingSample-${Date.now()}.vb`);
+        const tempUri = vscode.Uri.file(tempFilePath);
+        const editorConfig = vscode.workspace.getConfiguration("editor");
+        const originalWordBasedSuggestions = editorConfig.get<unknown>("wordBasedSuggestions");
+
+        try {
+            await editorConfig.update("wordBasedSuggestions", "off", vscode.ConfigurationTarget.Workspace);
+
+            const content = [
+                "Public Class TypingSample",
+                "    Public Sub Test()",
+                "        Dim x ",
+                "    End Sub",
+                "End Class",
+                ""
+            ].join("\n");
+            await vscode.workspace.fs.writeFile(tempUri, Buffer.from(content, "utf8"));
+
+            const typingDoc = await vscode.workspace.openTextDocument(tempUri);
+            const editor = await vscode.window.showTextDocument(typingDoc);
+
+            const insertIndex = typingDoc.getText().indexOf("Dim x ");
+            assert.ok(insertIndex >= 0, "Failed to find typing location.");
+            const insertPosition = typingDoc.positionAt(insertIndex + "Dim x ".length);
+            editor.selection = new vscode.Selection(insertPosition, insertPosition);
+
+            await vscode.commands.executeCommand("type", { text: "A" });
+
+            const completionPosition = editor.selection.active;
+            const completions = await retryUntil(
+                () =>
+                    vscode.commands.executeCommand<vscode.CompletionList>(
+                        "vscode.executeCompletionItemProvider",
+                        typingDoc.uri,
+                        completionPosition
+                    ),
+                (list) => !!list && list.items.length > 0
+            );
+            const hasAs = completions.items.some((item) => item.label === "As");
+            assert.ok(hasAs, "Expected 'As' completion after typing 'A'.");
+
+            await vscode.commands.executeCommand("editor.action.triggerSuggest");
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            await vscode.commands.executeCommand("acceptSelectedSuggestion");
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            const updatedLine = editor.document.lineAt(insertPosition.line).text;
+            assert.ok(updatedLine.includes("Dim x As"), `Expected "Dim x As" but got: ${updatedLine}`);
+            assert.ok(!updatedLine.includes("AAs"), `Unexpected duplicate prefix in line: ${updatedLine}`);
+        } finally {
+            await editorConfig.update(
+                "wordBasedSuggestions",
+                originalWordBasedSuggestions,
+                vscode.ConfigurationTarget.Workspace
+            );
+            await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+            try {
+                await vscode.workspace.fs.delete(tempUri);
+            } catch {
+                // Ignore cleanup failures if file is already removed.
+            }
+        }
+    });
+
     test("formatting returns edits for unformatted document", async () => {
         const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..", "..");
         const filePath = path.resolve(
