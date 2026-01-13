@@ -47,6 +47,7 @@ suite("VB.NET debugging (VS Code harness)", () => {
             console.warn(`Unable to update vbnet.debugger.path in workspace settings: ${error}`);
         }
 
+        const traceCapture = setupDapTrace(repoRoot);
         const debugConfig: vscode.DebugConfiguration = {
             type: "vbnet",
             name: "VB.NET Debug Console",
@@ -78,6 +79,10 @@ suite("VB.NET debugging (VS Code harness)", () => {
                 }
             }
         } finally {
+            traceCapture?.dispose();
+            if (traceCapture?.tracePath) {
+                console.log(`DAP trace written to ${traceCapture.tracePath}`);
+            }
             if (started && vscode.debug.activeDebugSession) {
                 await vscode.debug.stopDebugging();
             }
@@ -148,4 +153,44 @@ function waitForDebugTerminate(timeoutMs: number): Promise<void> {
             resolve();
         });
     });
+}
+
+function setupDapTrace(repoRoot: string): { tracePath: string; dispose: () => void } | undefined {
+    if (process.env.CAPTURE_DAP_TRACE === "0") {
+        return undefined;
+    }
+
+    const traceRoot = path.resolve(repoRoot, "_test", "codex-tests", "clients", "vscode", "logs");
+    fs.mkdirSync(traceRoot, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "");
+    const tracePath = path.join(traceRoot, `dap-trace-${timestamp}.log`);
+
+    const writeLine = (direction: string, message: unknown) => {
+        try {
+            const payload = JSON.stringify(message);
+            fs.appendFileSync(tracePath, `[${new Date().toISOString()}] ${direction} ${payload}\n`, "utf8");
+        } catch (error) {
+            console.warn(`Failed to write DAP trace: ${error}`);
+        }
+    };
+
+    const trackerFactory = vscode.debug.registerDebugAdapterTrackerFactory("vbnet", {
+        createDebugAdapterTracker(session) {
+            writeLine("session-start", { id: session.id, name: session.name, type: session.type });
+            return {
+                onWillReceiveMessage: (message) => writeLine("client->adapter", message),
+                onDidSendMessage: (message) => writeLine("adapter->client", message),
+                onError: (error) => writeLine("adapter-error", { message: error.message, name: error.name }),
+                onExit: (code, signal) => writeLine("adapter-exit", { code, signal }),
+            };
+        },
+    });
+
+    return {
+        tracePath,
+        dispose: () => {
+            writeLine("session-end", { reason: "disposed" });
+            trackerFactory.dispose();
+        },
+    };
 }

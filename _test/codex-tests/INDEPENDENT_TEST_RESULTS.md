@@ -441,3 +441,13 @@ VS Code debug harness:
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`.
 - Result: PASS (debug test) after terminating leftover VS Code test processes.
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T095205`.
+
+### Update 2026-01-13 (debug DAP trace capture)
+
+Harness update:
+- Added DAP message trace capture for the debug harness to record terminate/disconnect sequencing.
+
+VS Code debug harness:
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_DAP_TRACE=1`.
+- Result: PASS (debug test).
+- DAP trace: `_test/codex-tests/clients/vscode/logs/dap-trace-2026-01-13T113145188Z.log`.
