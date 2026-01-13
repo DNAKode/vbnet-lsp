@@ -60,6 +60,7 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 
 - **Dev containers/SSH/WSL:** Supported as long as the remote environment has the .NET SDK installed.
 - **VS Code Web (vscode.dev/github.dev):** Not supported because the language server requires a .NET runtime and local project system access.
+- **Dev container config:** See `.devcontainer/devcontainer.json` for a repeatable setup with .NET + Node.js.
 
 ### From Source (Development)
 

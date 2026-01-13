@@ -519,6 +519,12 @@ Emacs eglot run:
 Dev container smoke check:
 - Attempted to run a local dev container smoke test, but Docker was not available on this host (skipped).
 
+### Update 2026-01-13 (dev container setup)
+
+Dev container setup:
+- Added `.devcontainer/devcontainer.json` to make a repeatable .NET + Node dev container environment.
+- Dev container smoke check still pending due to Docker unavailability on this host.
+
 ### Update 2026-01-13 (virtual workspace guard + full rerun)
 
 Extension updates:
