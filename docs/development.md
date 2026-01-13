@@ -651,7 +651,7 @@ Follow Semantic Versioning (SemVer 2.0):
 
 - [ ] All tests passing (unit, integration, E2E)
 - [ ] Documentation updated
-- [ ] CHANGELOG.md updated
+- [ ] CHANGELOG.md updated (root) and synced into `src/extension/CHANGELOG.md` (run `npm run package` or `npm run copy-changelog`)
 - [ ] Performance targets met
 - [ ] No P0/P1 bugs open
 - [ ] Cross-platform testing complete (Windows, macOS, Linux)
@@ -676,6 +676,14 @@ Follow Semantic Versioning (SemVer 2.0):
 
    ### Fixed
    - Bug fix 1
+   ```
+
+   Then sync it into the extension bundle:
+
+   ```bash
+   cd src/extension
+   npm run copy-changelog
+   cd ../..
    ```
 
 3. **Commit version bump**

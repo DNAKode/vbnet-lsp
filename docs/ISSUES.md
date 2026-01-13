@@ -3,7 +3,7 @@
 This file tracks reported issues to revisit later. No fixes are applied here.
 
 ## Marketplace listing
-- Icon has a white background outside rounded corners (should be transparent).
+- Icon still shows a white background outside rounded corners in marketplace listing (should be transparent).
 - README is not showing in the marketplace listing.
 - Categories: currently includes "Programming Languages" (ok), "Snippets" (questionable), "Linters" (maybe).
 
