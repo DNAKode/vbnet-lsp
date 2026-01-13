@@ -2,7 +2,7 @@
 
 **VB.NET Language Support - LSP Features and Roadmap**
 
-Version: 2.3
+Version: 2.4
 Last Updated: 2026-01-13
 
 ## Table of Contents
@@ -107,5 +107,7 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 | `textDocument/signatureHelp` | ? Implemented | Phase 2 | Parameter hints |
 | Multiple overloads | ? Implemented | Phase 2 | All method overloads |
 | Active parameter highlighting | ? Implemented | Phase 2 | Current parameter |
+
+
 
 

@@ -217,6 +217,15 @@ Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SignatureHelp`
 - Result: PASS (3 tests).
 
+### Update 2026-01-13 (semantic tokens baseline)
+
+Server updates:
+- Added semantic tokens full/range handlers and Roslyn classification mapping.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SemanticTokens`
+- Result: PASS (3 tests).
+
 VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
 - Result: PASS (all VB.NET smoke tests).

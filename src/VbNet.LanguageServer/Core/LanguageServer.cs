@@ -36,6 +36,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly FoldingRangeService _foldingRangeService;
     private readonly FormattingService _formattingService;
     private readonly SignatureHelpService _signatureHelpService;
+    private readonly SemanticTokensService _semanticTokensService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -124,6 +125,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<SignatureHelpService>());
 
+        _semanticTokensService = new SemanticTokensService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<SemanticTokensService>());
+
         RegisterHandlers();
     }
 
@@ -190,6 +196,12 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<SignatureHelpParams, SignatureHelp?>(
             "textDocument/signatureHelp",
             HandleSignatureHelpAsync);
+        _dispatcher.RegisterRequest<SemanticTokensParams, SemanticTokens>(
+            "textDocument/semanticTokens/full",
+            HandleSemanticTokensAsync);
+        _dispatcher.RegisterRequest<SemanticTokensRangeParams, SemanticTokens>(
+            "textDocument/semanticTokens/range",
+            HandleSemanticTokensRangeAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -783,6 +795,28 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _signatureHelpService.GetSignatureHelpAsync(@params, ct);
     }
 
+    private async Task<SemanticTokens> HandleSemanticTokensAsync(SemanticTokensParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return new SemanticTokens();
+        }
+
+        return await _semanticTokensService.GetSemanticTokensAsync(@params, ct);
+    }
+
+    private async Task<SemanticTokens> HandleSemanticTokensRangeAsync(
+        SemanticTokensRangeParams? @params,
+        CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return new SemanticTokens();
+        }
+
+        return await _semanticTokensService.GetSemanticTokensRangeAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -834,7 +868,10 @@ public sealed class LanguageServer : IAsyncDisposable
             DocumentRangeFormattingProvider = true,
 
             // Signature help
-            SignatureHelpProvider = SignatureHelpService.GetDefaultOptions()
+            SignatureHelpProvider = SignatureHelpService.GetDefaultOptions(),
+
+            // Semantic tokens
+            SemanticTokensProvider = SemanticTokensService.GetDefaultOptions()
         };
     }
 
@@ -903,6 +940,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the signature help service.
     /// </summary>
     public SignatureHelpService SignatureHelpService => _signatureHelpService;
+
+    /// <summary>
+    /// Gets the semantic tokens service.
+    /// </summary>
+    public SemanticTokensService SemanticTokensService => _semanticTokensService;
 
     internal MessageDispatcher Dispatcher => _dispatcher;
 

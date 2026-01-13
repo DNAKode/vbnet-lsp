@@ -241,6 +241,9 @@ public class ServerCapabilities
     [JsonPropertyName("signatureHelpProvider")]
     public SignatureHelpOptions? SignatureHelpProvider { get; set; }
 
+    [JsonPropertyName("semanticTokensProvider")]
+    public SemanticTokensOptions? SemanticTokensProvider { get; set; }
+
     [JsonPropertyName("foldingRangeProvider")]
     public bool? FoldingRangeProvider { get; set; }
 
@@ -289,6 +292,52 @@ public class RenameOptions
 {
     [JsonPropertyName("prepareProvider")]
     public bool? PrepareProvider { get; set; }
+}
+
+#endregion
+
+#region Semantic Tokens
+
+public class SemanticTokensParams
+{
+    [JsonPropertyName("textDocument")]
+    public TextDocumentIdentifier TextDocument { get; set; } = new();
+}
+
+public class SemanticTokensRangeParams : SemanticTokensParams
+{
+    [JsonPropertyName("range")]
+    public Range Range { get; set; } = new();
+}
+
+public class SemanticTokens
+{
+    [JsonPropertyName("data")]
+    public uint[] Data { get; set; } = [];
+
+    [JsonPropertyName("resultId")]
+    public string? ResultId { get; set; }
+}
+
+public class SemanticTokensLegend
+{
+    [JsonPropertyName("tokenTypes")]
+    public string[] TokenTypes { get; set; } = [];
+
+    [JsonPropertyName("tokenModifiers")]
+    public string[] TokenModifiers { get; set; } = [];
+}
+
+public class SemanticTokensOptions
+{
+    [JsonPropertyName("legend")]
+    public SemanticTokensLegend Legend { get; set; } = new();
+
+    [JsonPropertyName("range")]
+    public bool? Range { get; set; }
+
+    [JsonPropertyName("full")]
+    public bool? Full { get; set; }
 }
 
 #endregion
