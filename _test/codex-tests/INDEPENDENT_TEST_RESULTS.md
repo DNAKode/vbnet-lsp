@@ -546,3 +546,10 @@ Emacs eglot run:
 - Command: `_test/codex-tests/clients/emacs/run-tests.ps1 -Suite vbnet`.
 - Result: PASS (VB.NET eglot smoke; jsonrpc reports exit status 9 on shutdown).
 - Log: `_test/codex-tests/clients/emacs/logs/emacs-eglot-20260113T152027.log`.
+
+### Update 2026-01-13 (Marketplace pre-release published)
+
+Release:
+- Command: `vsce publish --pre-release -p $env:VSCODE_PAT` from `src/extension`.
+- Result: Published `dnakode.vbnet-language-support` v0.1.0 (pre-release).
+- Marketplace listing: `https://marketplace.visualstudio.com/items?itemName=dnakode.vbnet-language-support`.
