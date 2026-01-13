@@ -284,6 +284,10 @@ The language server is organized into five distinct layers:
 
 **Status (2026-01-13):** Formatting, code actions, semantic tokens, signature help, folding ranges, and netcoredbg debug harness coverage are implemented.
 
+**Follow-ups (2026-01-13):**
+- Bundle netcoredbg into the Windows VSIX (done locally; ship with `package:vsix`).
+- Plan cross-platform netcoredbg bundling (macOS/Linux) via prebuilt artifacts or CI builds; require platform-targeted VSIX outputs.
+
 ### Phase 3
 **Goal:** Advanced navigation and productivity
 
@@ -464,6 +468,12 @@ See `docs/development.md` Section 2.1 for setup instructions.
 - Replaces proprietary Microsoft debugger
 - Implements Debug Adapter Protocol (DAP)
 - Bundled with extension for better UX
+ - **Windows bundling implemented**: `package:vsix` now includes `.debugger/netcoredbg.exe` and LICENSE.
+ - **Cross-platform plan**:
+   - netcoredbg docs indicate Linux packages (Arch/Gentoo/NixOS/etc.), Scoop on Windows, and GitHub releases for Linux; build from source on Linux/macOS/Windows.
+   - Investigate GitHub release assets for macOS/Linux binaries; if available, download and bundle per platform.
+   - If release assets are incomplete, add CI builds for macOS/Linux and publish platform-specific VSIX (`vsce package --target <platform>`).
+   - Ensure `.debugger/LICENSE.netcoredbg` is included for every platform bundle.
 
 ### 11.3 VB.NET Only
 - Focused scope (no mixed-language complexity)

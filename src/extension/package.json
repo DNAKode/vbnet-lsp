@@ -348,7 +348,8 @@
     "watch": "tsc -watch -p ./",
     "package": "npm run compile && node esbuild.js --production",
     "bundle-server": "dotnet build ../VbNet.LanguageServer/VbNet.LanguageServer.csproj -c Release && node scripts/copy-server.js",
-    "package:vsix": "npm run bundle-server && npm run package && vsce package --out vbnet-language-support.vsix",
+    "bundle-debugger": "node scripts/copy-debugger.js",
+    "package:vsix": "npm run bundle-server && npm run bundle-debugger && npm run package && vsce package --out vbnet-language-support.vsix",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
   },
