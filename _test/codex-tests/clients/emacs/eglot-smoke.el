@@ -30,6 +30,16 @@
   (let ((proc (jsonrpc-process server)))
     (and proc (process-live-p proc))))
 
+(defun codex--log-server-exit (server name)
+  (if (fboundp 'jsonrpc-process)
+      (let ((proc (jsonrpc-process server)))
+        (when proc
+          (let ((status (process-status proc)))
+            (when (memq status '(exit signal))
+              (codex--log "Server process for %s exited (%s) with status %s"
+                          name status (process-exit-status proc)))))))
+  nil)
+
 (defun codex--run-eglot-test (name mode server-command file-path request-hover)
   (let ((buffer (find-file-noselect file-path)))
     (unwind-protect
@@ -54,7 +64,8 @@
               (jsonrpc-error
                (if (codex--server-live-p server)
                    (codex--log "Shutdown request failed for %s: %s" name err)
-                 (codex--log "Shutdown timed out for %s after server exit." name))))))
+                 (codex--log "Shutdown timed out for %s after server exit." name))))
+            (codex--log-server-exit server name)))
       (kill-buffer buffer))))
 
 (defun codex-run ()
