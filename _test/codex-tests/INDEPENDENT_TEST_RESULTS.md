@@ -518,3 +518,25 @@ Emacs eglot run:
 
 Dev container smoke check:
 - Attempted to run a local dev container smoke test, but Docker was not available on this host (skipped).
+
+### Update 2026-01-13 (virtual workspace guard + full rerun)
+
+Extension updates:
+- Added a virtual workspace guard using non-file workspace folder schemes.
+
+Test project fix:
+- Restored `test/TestProjects/SmallProject/Helper.vb` to valid syntax after accidental duplication.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests` (PASS, 136 tests; warning CS0219 pre-existing).
+
+VS Code headless run (logs captured):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`, `CAPTURE_DAP_TRACE=1`.
+- Result: PASS (all VB.NET smoke tests + debug harness).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T151947`.
+- DAP trace: `_test/codex-tests/clients/vscode/logs/dap-trace-2026-01-13T132005650Z.log`.
+
+Emacs eglot run:
+- Command: `_test/codex-tests/clients/emacs/run-tests.ps1 -Suite vbnet`.
+- Result: PASS (VB.NET eglot smoke; jsonrpc reports exit status 9 on shutdown).
+- Log: `_test/codex-tests/clients/emacs/logs/emacs-eglot-20260113T152027.log`.

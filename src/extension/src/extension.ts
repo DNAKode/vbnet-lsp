@@ -49,6 +49,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             return;
         }
 
+        const workspaceIsVirtual = vscode.workspace.workspaceFolders?.some(
+            (folder) => folder.uri.scheme !== 'file'
+        );
+        if (workspaceIsVirtual) {
+            outputChannel.appendLine('VB.NET Language Support is not available in virtual workspaces.');
+            statusBar.setStatus('stopped');
+            const action = await vscode.window.showInformationMessage(
+                'VB.NET Language Support requires a local or remote workspace with files on disk (not a virtual workspace).',
+                'Show Output'
+            );
+            if (action === 'Show Output') {
+                outputChannel.show();
+            }
+            return;
+        }
+
         if (vscode.env.uiKind === vscode.UIKind.Web) {
             outputChannel.appendLine('VB.NET Language Support is not available in VS Code Web or virtual workspaces.');
             statusBar.setStatus('stopped');
