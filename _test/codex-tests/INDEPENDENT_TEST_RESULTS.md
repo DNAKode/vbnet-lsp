@@ -580,3 +580,10 @@ VS Code headless run (bundled server + debugger):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `EXTENSION_DEV_PATH=src/extension`, `VBNET_SKIP_DEFAULT_SERVER_PATH=1`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`.
 - Result: PASS (all VB.NET smoke tests + debug harness).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T222824`.
+
+### Update 2026-01-13 (Marketplace pre-release published 0.1.1)
+
+Release:
+- Command: `vsce publish --pre-release -p $env:VSCODE_PAT` from `src/extension`.
+- Result: Published `dnakode.vbnet-language-support` v0.1.1 (pre-release).
+- Marketplace listing: `https://marketplace.visualstudio.com/items?itemName=dnakode.vbnet-language-support`.
