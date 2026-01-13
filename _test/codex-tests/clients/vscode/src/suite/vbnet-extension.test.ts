@@ -156,6 +156,23 @@ if (skipVbnetSmoke) {
         );
         assert.ok(signatureHelp && signatureHelp.signatures.length > 0, "Signature help was empty.");
 
+        const codeActions = await retryUntil(
+            () =>
+                vscode.commands.executeCommand<(vscode.CodeAction | vscode.Command)[]>(
+                    "vscode.executeCodeActionProvider",
+                    doc.uri,
+                    new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0))
+                ),
+            (items) => !!items
+        );
+        const optionAction = (codeActions ?? []).find(
+            (item): item is vscode.CodeAction =>
+                "title" in item &&
+                typeof item.title === "string" &&
+                item.title.startsWith("Add Option ")
+        );
+        assert.ok(optionAction, "Option code action was not offered.");
+
         const documentSymbols = await retryUntil(
             () =>
                 vscode.commands.executeCommand<vscode.DocumentSymbol[]>(

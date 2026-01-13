@@ -226,6 +226,20 @@ Tests:
 - `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~SemanticTokens`
 - Result: PASS (3 tests).
 
+### Update 2026-01-13 (code actions baseline + VS Code harness)
+
+Server updates:
+- Added `textDocument/codeAction` with source actions for VB `Option` statements.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests --filter FullyQualifiedName~CodeActions`
+- Result: PASS (3 tests).
+
+VS Code headless run (smoke):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `SKIP_CSHARP_TESTS=1`, `FIXTURE_WORKSPACE=_test/codex-tests/vbnet-lsp/fixtures/services`, `FIXTURE_FILE=_test/codex-tests/vbnet-lsp/fixtures/services/ServiceSamples.vb`.
+- Result: PASS (core services + signature help + code action presence).
+- Note: VS Code still printed `Failed command 'threads' : 0x80004005` during the debug session, but the test completed successfully.
+
 VS Code headless run (smoke):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with the services fixture and trace capture enabled.
 - Result: PASS (all VB.NET smoke tests).

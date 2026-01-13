@@ -244,6 +244,9 @@ public class ServerCapabilities
     [JsonPropertyName("semanticTokensProvider")]
     public SemanticTokensOptions? SemanticTokensProvider { get; set; }
 
+    [JsonPropertyName("codeActionProvider")]
+    public CodeActionOptions? CodeActionProvider { get; set; }
+
     [JsonPropertyName("foldingRangeProvider")]
     public bool? FoldingRangeProvider { get; set; }
 
@@ -773,6 +776,90 @@ public class OptionalVersionedTextDocumentIdentifier : TextDocumentIdentifier
 {
     [JsonPropertyName("version")]
     public int? Version { get; set; }
+}
+
+#endregion
+
+#region Code Actions
+
+public class CodeActionParams
+{
+    [JsonPropertyName("textDocument")]
+    public TextDocumentIdentifier TextDocument { get; set; } = new();
+
+    [JsonPropertyName("range")]
+    public Range Range { get; set; } = new();
+
+    [JsonPropertyName("context")]
+    public CodeActionContext Context { get; set; } = new();
+}
+
+public class CodeActionContext
+{
+    [JsonPropertyName("diagnostics")]
+    public Diagnostic[] Diagnostics { get; set; } = [];
+
+    [JsonPropertyName("only")]
+    public string[]? Only { get; set; }
+
+    [JsonPropertyName("triggerKind")]
+    public CodeActionTriggerKind? TriggerKind { get; set; }
+}
+
+public enum CodeActionTriggerKind
+{
+    Invoked = 1,
+    Automatic = 2
+}
+
+public class CodeAction
+{
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("kind")]
+    public string? Kind { get; set; }
+
+    [JsonPropertyName("diagnostics")]
+    public Diagnostic[]? Diagnostics { get; set; }
+
+    [JsonPropertyName("edit")]
+    public WorkspaceEdit? Edit { get; set; }
+
+    [JsonPropertyName("command")]
+    public Command? Command { get; set; }
+
+    [JsonPropertyName("isPreferred")]
+    public bool? IsPreferred { get; set; }
+}
+
+public class CodeActionOptions
+{
+    [JsonPropertyName("codeActionKinds")]
+    public string[]? CodeActionKinds { get; set; }
+
+    [JsonPropertyName("resolveProvider")]
+    public bool? ResolveProvider { get; set; }
+}
+
+public static class CodeActionKind
+{
+    public const string Empty = "";
+    public const string QuickFix = "quickfix";
+    public const string Refactor = "refactor";
+    public const string Source = "source";
+}
+
+public class Command
+{
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("command")]
+    public string CommandIdentifier { get; set; } = string.Empty;
+
+    [JsonPropertyName("arguments")]
+    public object[]? Arguments { get; set; }
 }
 
 #endregion

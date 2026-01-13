@@ -37,6 +37,7 @@ public sealed class LanguageServer : IAsyncDisposable
     private readonly FormattingService _formattingService;
     private readonly SignatureHelpService _signatureHelpService;
     private readonly SemanticTokensService _semanticTokensService;
+    private readonly CodeActionsService _codeActionsService;
 
     private ServerState _state = ServerState.NotStarted;
     private InitializeParams? _initializeParams;
@@ -130,6 +131,11 @@ public sealed class LanguageServer : IAsyncDisposable
             _documentManager,
             loggerFactory.CreateLogger<SemanticTokensService>());
 
+        _codeActionsService = new CodeActionsService(
+            _workspaceManager,
+            _documentManager,
+            loggerFactory.CreateLogger<CodeActionsService>());
+
         RegisterHandlers();
     }
 
@@ -202,6 +208,9 @@ public sealed class LanguageServer : IAsyncDisposable
         _dispatcher.RegisterRequest<SemanticTokensRangeParams, SemanticTokens>(
             "textDocument/semanticTokens/range",
             HandleSemanticTokensRangeAsync);
+        _dispatcher.RegisterRequest<CodeActionParams, CodeAction[]>(
+            "textDocument/codeAction",
+            HandleCodeActionAsync);
 
         _logger.LogDebug("All LSP handlers registered");
     }
@@ -817,6 +826,16 @@ public sealed class LanguageServer : IAsyncDisposable
         return await _semanticTokensService.GetSemanticTokensRangeAsync(@params, ct);
     }
 
+    private async Task<CodeAction[]> HandleCodeActionAsync(CodeActionParams? @params, CancellationToken ct)
+    {
+        if (@params == null)
+        {
+            return Array.Empty<CodeAction>();
+        }
+
+        return await _codeActionsService.GetCodeActionsAsync(@params, ct);
+    }
+
     #endregion
 
     /// <summary>
@@ -871,7 +890,10 @@ public sealed class LanguageServer : IAsyncDisposable
             SignatureHelpProvider = SignatureHelpService.GetDefaultOptions(),
 
             // Semantic tokens
-            SemanticTokensProvider = SemanticTokensService.GetDefaultOptions()
+            SemanticTokensProvider = SemanticTokensService.GetDefaultOptions(),
+
+            // Code actions
+            CodeActionProvider = CodeActionsService.GetDefaultOptions()
         };
     }
 
@@ -945,6 +967,11 @@ public sealed class LanguageServer : IAsyncDisposable
     /// Gets the semantic tokens service.
     /// </summary>
     public SemanticTokensService SemanticTokensService => _semanticTokensService;
+
+    /// <summary>
+    /// Gets the code actions service.
+    /// </summary>
+    public CodeActionsService CodeActionsService => _codeActionsService;
 
     internal MessageDispatcher Dispatcher => _dispatcher;
 

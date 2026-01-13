@@ -2,7 +2,7 @@
 
 **VB.NET Language Support - LSP Features and Roadmap**
 
-Version: 2.4
+Version: 2.5
 Last Updated: 2026-01-13
 
 ## Table of Contents
@@ -104,9 +104,29 @@ This document provides a comprehensive view of LSP features supported by VB.NET 
 
 | Feature | Status | Phase | Notes |
 |---------|--------|-------|-------|
-| `textDocument/signatureHelp` | ? Implemented | Phase 2 | Parameter hints |
-| Multiple overloads | ? Implemented | Phase 2 | All method overloads |
-| Active parameter highlighting | ? Implemented | Phase 2 | Current parameter |
+| `textDocument/signatureHelp` | ✅ Implemented | Phase 2 | Parameter hints |
+| Multiple overloads | ✅ Implemented | Phase 2 | All method overloads |
+| Active parameter highlighting | ✅ Implemented | Phase 2 | Current parameter |
+
+---
+
+#### Code Actions
+
+| Feature | Status | Phase | Notes |
+|---------|--------|-------|-------|
+| `textDocument/codeAction` | ✅ Implemented | Phase 2 | Source actions (Option Strict/Explicit/Infer) |
+| `codeAction/resolve` | 📋 Planned | Phase 2 | Lazy compute edit |
+| Quick fixes (diagnostics) | 📋 Planned | Phase 2 | Fix errors/warnings |
+
+---
+
+#### Semantic Tokens
+
+| Feature | Status | Phase | Notes |
+|---------|--------|-------|-------|
+| `textDocument/semanticTokens/full` | ✅ Implemented | Phase 2 | Full document tokens |
+| `textDocument/semanticTokens/range` | ✅ Implemented | Phase 2 | Range-based tokens |
+
 
 
 
