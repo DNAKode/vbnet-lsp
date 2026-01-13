@@ -56,6 +56,11 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 - [Visual Studio Code](https://code.visualstudio.com/) 1.80.0 or later
 - [Node.js](https://nodejs.org/) 18.0 or later (for extension development)
 
+### Remote + Web Notes
+
+- **Dev containers/SSH/WSL:** Supported as long as the remote environment has the .NET SDK installed.
+- **VS Code Web (vscode.dev/github.dev):** Not supported because the language server requires a .NET runtime and local project system access.
+
 ### From Source (Development)
 
 Currently, VB.NET Language Support is in early development. To build from source:

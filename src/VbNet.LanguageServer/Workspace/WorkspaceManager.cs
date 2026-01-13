@@ -190,6 +190,11 @@ public sealed class WorkspaceManager : IAsyncDisposable
             if (IsProjectLoaded(projectPath))
             {
                 _logger.LogDebug("Project already loaded, skipping: {Path}", projectPath);
+                if (changeKind == SolutionChangeKind.Reloaded)
+                {
+                    SolutionChanged?.Invoke(this, new SolutionChangedEventArgs(
+                        _workspace.CurrentSolution, changeKind));
+                }
                 return true;
             }
 

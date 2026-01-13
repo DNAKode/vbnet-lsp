@@ -479,3 +479,29 @@ Emacs eglot run:
 - Command: `_test/codex-tests/clients/emacs/run-tests.ps1 -Suite vbnet`.
 - Result: PASS (VB.NET eglot smoke).
 - Log: `_test/codex-tests/clients/emacs/logs/emacs-eglot-20260113T141735.log`.
+
+### Update 2026-01-13 (web/remote guard + full test sweep)
+
+Extension updates:
+- Added a VS Code Web guard to avoid attempting to start the server in virtual workspaces.
+- Virtual workspace capability now includes a clear unsupported description.
+- README now calls out remote container support and web limitations.
+
+Server updates:
+- Reloaded workspace now still fires SolutionChanged when projects are already loaded.
+- Restored `test/TestProjects/SmallProject/Helper.vb` to a valid single-method state.
+
+Tests:
+- `dotnet test test/VbNet.LanguageServer.Tests` (PASS, 136 tests; warning CS0219 pre-existing).
+
+VS Code headless run (logs captured):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=src/extension/vbnet-language-support.vsix`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`, `CAPTURE_DAP_TRACE=1`.
+- Result: PASS (all VB.NET smoke tests + debug harness).
+- Note: VS Code logged a `threads` request error after debug termination (existing netcoredbg behavior).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260113T143200`.
+- DAP trace: `_test/codex-tests/clients/vscode/logs/dap-trace-2026-01-13T123216937Z.log`.
+
+Emacs eglot run:
+- Command: `_test/codex-tests/clients/emacs/run-tests.ps1 -Suite vbnet`.
+- Result: PASS (VB.NET eglot smoke; jsonrpc reports exit status 9 on shutdown).
+- Log: `_test/codex-tests/clients/emacs/logs/emacs-eglot-20260113T143237.log`.

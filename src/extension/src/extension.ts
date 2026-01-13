@@ -49,6 +49,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             return;
         }
 
+        if (vscode.env.uiKind === vscode.UIKind.Web) {
+            outputChannel.appendLine('VB.NET Language Support is not available in VS Code Web or virtual workspaces.');
+            statusBar.setStatus('stopped');
+            const action = await vscode.window.showInformationMessage(
+                'VB.NET Language Support requires a local or remote VS Code workspace (not vscode.dev/github.dev).',
+                'Show Output'
+            );
+            if (action === 'Show Output') {
+                outputChannel.show();
+            }
+            return;
+        }
+
         // Get platform information
         const platformInfo = await PlatformInformation.getCurrent();
         outputChannel.appendLine(`Platform: ${platformInfo.toString()}`);

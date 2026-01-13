@@ -31,7 +31,10 @@
     "vscode": "^1.80.0"
   },
   "capabilities": {
-    "virtualWorkspaces": false,
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Requires a local or remote .NET SDK and project system; not supported in virtual workspaces (vscode.dev/github.dev)."
+    },
     "untrustedWorkspaces": {
       "supported": "limited"
     }
