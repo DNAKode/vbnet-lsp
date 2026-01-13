@@ -133,6 +133,8 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ### Debugger Settings (Extension)
 
+**Launch configuration note**: Debugging requires a `program` path to a compiled `.dll`. If you omit it, the extension will attempt to infer it when exactly one `.vbproj` exists in the workspace and a matching `bin/Debug/**/<Assembly>.dll` is found.
+
 #### `vbnet.debugger.path`
 **Type**: `string`
 **Default**: `""`

@@ -587,3 +587,14 @@ Release:
 - Command: `vsce publish --pre-release -p $env:VSCODE_PAT` from `src/extension`.
 - Result: Published `dnakode.vbnet-language-support` v0.1.1 (pre-release).
 - Marketplace listing: `https://marketplace.visualstudio.com/items?itemName=dnakode.vbnet-language-support`.
+
+### Update 2026-01-13 (debug program inference)
+
+Extension updates:
+- Debug configuration provider now attempts to infer `program` when missing and a single `.vbproj` exists with a built `bin/Debug/**/<Assembly>.dll`.
+- Debug harness adds a launch test that omits `program` to verify inference.
+
+VS Code headless run (debug workspace):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`.
+- Result: FAIL (VS Code reported another instance running: "Running extension tests from the command line is currently only supported if no other instance of Code is running.").
+- Note: Earlier run timed out before completion while VS Code was still running; rerun needed after closing other VS Code instances.

@@ -26,10 +26,10 @@ export function activateDebugging(
 class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvider {
     constructor(private readonly outputChannel: vscode.OutputChannel) {}
 
-    resolveDebugConfiguration(
+    async resolveDebugConfiguration(
         folder: vscode.WorkspaceFolder | undefined,
         config: vscode.DebugConfiguration
-    ): vscode.DebugConfiguration | undefined {
+    ): Promise<vscode.DebugConfiguration | undefined> {
         const resolved: vscode.DebugConfiguration = { ...config };
 
         if (!resolved.type && !resolved.request && !resolved.name) {
@@ -40,10 +40,19 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
 
         if (resolved.request === 'launch') {
             if (!resolved.program) {
-                vscode.window.showErrorMessage(
-                    'VB.NET debugging requires a "program" path to the compiled .dll. Update launch.json and try again.'
-                );
-                return undefined;
+                const inferredProgram = await this.tryInferProgramPath(folder, resolved);
+                if (inferredProgram) {
+                    resolved.program = inferredProgram;
+                    this.outputChannel.appendLine(`Inferred debug program: ${resolved.program}`);
+                } else {
+                    const message =
+                        'VB.NET debugging requires a "program" path to the compiled .dll. Update launch.json and try again.';
+                    const action = await vscode.window.showErrorMessage(message, 'Open launch.json');
+                    if (action === 'Open launch.json') {
+                        await vscode.commands.executeCommand('workbench.action.debug.configure');
+                    }
+                    return undefined;
+                }
             }
 
             if (typeof resolved.program === 'string' && !path.isAbsolute(resolved.program)) {
@@ -85,6 +94,103 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
         );
 
         return resolved;
+    }
+
+    private async tryInferProgramPath(
+        folder: vscode.WorkspaceFolder | undefined,
+        config: vscode.DebugConfiguration
+    ): Promise<string | undefined> {
+        const projectPath = this.getProjectPathFromConfig(config, folder) ?? (await this.findSingleProjectPath(folder));
+        if (!projectPath) {
+            return undefined;
+        }
+
+        const projectDir = path.dirname(projectPath);
+        const projectInfo = await this.readProjectInfo(projectPath);
+        const assemblyName = projectInfo.assemblyName ?? path.basename(projectPath, path.extname(projectPath));
+        const candidate = await this.findBuiltAssembly(projectDir, assemblyName);
+        if (candidate) {
+            return candidate;
+        }
+
+        const defaultParts = [projectDir, 'bin', 'Debug'];
+        if (projectInfo.targetFramework) {
+            defaultParts.push(projectInfo.targetFramework);
+        }
+        defaultParts.push(`${assemblyName}.dll`);
+        const fallback = path.join(...defaultParts);
+        if (fs.existsSync(fallback)) {
+            return fallback;
+        }
+
+        this.outputChannel.appendLine(
+            `Unable to infer debug program: no built ${assemblyName}.dll found under ${projectDir}\\bin\\Debug.`
+        );
+        return undefined;
+    }
+
+    private getProjectPathFromConfig(
+        config: vscode.DebugConfiguration,
+        folder: vscode.WorkspaceFolder | undefined
+    ): string | undefined {
+        const rawCandidate = (config.projectPath ?? config.project ?? '').toString().trim();
+        if (!rawCandidate) {
+            return undefined;
+        }
+
+        let candidate = rawCandidate;
+        const workspaceRoot = folder?.uri.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (workspaceRoot) {
+            candidate = candidate.replace('${workspaceFolder}', workspaceRoot);
+        }
+
+        return path.isAbsolute(candidate) ? candidate : path.resolve(candidate);
+    }
+
+    private async findSingleProjectPath(folder: vscode.WorkspaceFolder | undefined): Promise<string | undefined> {
+        const root = folder ?? vscode.workspace.workspaceFolders?.[0];
+        if (!root) {
+            return undefined;
+        }
+
+        const pattern = new vscode.RelativePattern(root, '**/*.vbproj');
+        const candidates = await vscode.workspace.findFiles(pattern, '**/{bin,obj,.git}/**', 2);
+        if (candidates.length !== 1) {
+            if (candidates.length > 1) {
+                this.outputChannel.appendLine(
+                    `Multiple VB projects found; unable to infer debug program automatically (${candidates.length} projects).`
+                );
+            }
+            return undefined;
+        }
+
+        return candidates[0].fsPath;
+    }
+
+    private async readProjectInfo(projectPath: string): Promise<{ assemblyName?: string; targetFramework?: string }> {
+        try {
+            const contents = await fs.promises.readFile(projectPath, 'utf8');
+            const assemblyMatch = contents.match(/<AssemblyName>([^<]+)<\/AssemblyName>/i);
+            const tfmMatch = contents.match(/<TargetFramework>([^<]+)<\/TargetFramework>/i);
+            const tfmsMatch = contents.match(/<TargetFrameworks>([^<]+)<\/TargetFrameworks>/i);
+            const targetFramework = tfmMatch?.[1]?.trim() ?? tfmsMatch?.[1]?.split(';')[0]?.trim();
+            return {
+                assemblyName: assemblyMatch?.[1]?.trim(),
+                targetFramework
+            };
+        } catch (error) {
+            this.outputChannel.appendLine(`Failed to read project file ${projectPath}: ${error}`);
+            return {};
+        }
+    }
+
+    private async findBuiltAssembly(projectDir: string, assemblyName: string): Promise<string | undefined> {
+        const pattern = new vscode.RelativePattern(projectDir, `bin/Debug/**/${assemblyName}.dll`);
+        const candidates = await vscode.workspace.findFiles(pattern, '**/obj/**', 3);
+        if (candidates.length > 0) {
+            return candidates[0].fsPath;
+        }
+        return undefined;
     }
 }
 
