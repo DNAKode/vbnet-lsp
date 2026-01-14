@@ -52,7 +52,7 @@ async function main() {
     const fixtureWorkspace = process.env.FIXTURE_WORKSPACE
         ? resolveRepoPath(process.env.FIXTURE_WORKSPACE)
         : extensionIdEnv === defaultExtensionId
-          ? path.resolve(repoRoot, "tests-exploratory", "vbnet-lsp", "fixtures", "services")
+          ? path.resolve(repoRoot, "test-explore", "vbnet-lsp", "fixtures", "services")
           : path.resolve(repoRoot, "_external", "csharp-lsp", "fixtures", "basic");
 
     const launchArgs = [
@@ -359,3 +359,4 @@ function withWslCliEnv(baseEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
         DBUS_SESSION_BUS_ADDRESS: baseEnv.DBUS_SESSION_BUS_ADDRESS ?? "unix:path=/dev/null",
     };
 }
+

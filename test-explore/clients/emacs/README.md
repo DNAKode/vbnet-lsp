@@ -19,10 +19,10 @@ This folder contains a headless Emacs-based LSP client harness. It is intended t
 
 ```powershell
 # Download emacs and run both C# and VB.NET smoke tests
-tests-exploratory\clients\emacs\run-tests.ps1
+test-explore\clients\emacs\run-tests.ps1
 
 # Run only the C# test
-tests-exploratory\clients\emacs\run-tests.ps1 -Suite csharp
+test-explore\clients\emacs\run-tests.ps1 -Suite csharp
 ```
 
 Environment variables:
@@ -37,3 +37,4 @@ Environment variables:
 - Emacs 29.4 portable is downloaded into `clients/emacs/emacs` when missing (do not commit).
 - The Roslyn LSP server responds to stdio init under Emacs, but shutdown currently times out; this is treated as non-fatal in the harness.
 - The VB.NET test uses `fundamental-mode` to avoid requiring extra VB major-mode packages.
+

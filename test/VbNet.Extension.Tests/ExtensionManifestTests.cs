@@ -46,7 +46,7 @@ public class ExtensionManifestTests
 
         var values = defaults.EnumerateArray().Select(item => item.GetString()).ToArray();
         Assert.Contains("_external", values);
-        Assert.Contains("tests-exploratory", values);
+        Assert.Contains("test-explore", values);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class ExtensionManifestTests
 
         Assert.NotNull(pattern);
         Assert.Contains("**/_external/**", pattern, StringComparison.Ordinal);
-        Assert.Contains("**/tests-exploratory/**", pattern, StringComparison.Ordinal);
+        Assert.Contains("**/test-explore/**", pattern, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -80,3 +80,4 @@ public class ExtensionManifestTests
         Assert.True(launchProps.TryGetProperty("projectPath", out _), "Expected launch configuration to include projectPath.");
     }
 }
+

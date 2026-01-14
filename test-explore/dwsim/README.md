@@ -7,7 +7,7 @@ is non-destructive (read-only).
 ## Usage
 
 ```powershell
-tests-exploratory\dwsim\run-tests.ps1
+test-explore\dwsim\run-tests.ps1
 ```
 
 ## Notes
@@ -16,6 +16,7 @@ tests-exploratory\dwsim\run-tests.ps1
   initial test file.
 - Intended to evolve into performance and functional testing at scale.
 - Captures timing events (server start, solution load, didOpen) into
-  `tests-exploratory/logs/timing.jsonl` and summarizes them in the test results.
+  `test-explore/logs/timing.jsonl` and summarizes them in the test results.
+
 
 

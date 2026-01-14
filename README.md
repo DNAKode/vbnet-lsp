@@ -81,7 +81,7 @@ export VSCODE_CLI=1
 export DONT_PROMPT_WSL_INSTALL=1
 export NO_AT_BRIDGE=1
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
-cd /mnt/c/Work/vbnet-lsp/tests-exploratory/clients/vscode
+cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode
 xvfb-run -a npm test
 ```
 
@@ -216,6 +216,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **Built with focus on the `VB.NET` community. Designed for lasting infrastructure.**
+
 
 
 

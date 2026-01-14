@@ -11,13 +11,13 @@ This folder contains a minimal smoke harness for the VB.NET language server scaf
 ## Run the smoke test
 
 ```powershell
-tests-exploratory\vbnet-lsp\run-tests.ps1
+test-explore\vbnet-lsp\run-tests.ps1
 ```
 
 Run diagnostics smoke test (loads a VB solution and expects diagnostics):
 
 ```powershell
-tests-exploratory\vbnet-lsp\run-tests.ps1 -Diagnostics
+test-explore\vbnet-lsp\run-tests.ps1 -Diagnostics
 ```
 
 Options:
@@ -31,6 +31,7 @@ Options:
 ## Notes
 
 - The server currently closes the transport on `shutdown`, so the client treats connection loss during shutdown as a graceful exit.
-- Snapshots are stored under `tests-exploratory/vbnet-lsp/snapshots` and are intended for local debugging only.
+- Snapshots are stored under `test-explore/vbnet-lsp/snapshots` and are intended for local debugging only.
 - Diagnostics tests rely on the fixture solution under `fixtures/diagnostics` and expect at least one diagnostic to be published.
+
 

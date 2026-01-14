@@ -238,14 +238,14 @@ View traces: "View > Output" > "`VB.NET` Language Support"
 
 #### `vbnet.workspace.excludePaths`
 **Type**: `string[]`
-**Default**: `["_external", "tests-exploratory", "build", "node_modules", ".git", ".vscode"]`
+**Default**: `["_external", "test-explore", "build", "node_modules", ".git", ".vscode"]`
 **Description**: Directory names to exclude when scanning for `.vbproj` files.
 
 ```json
 {
   "vbnet.workspace.excludePaths": [
     "_external",
-    "tests-exploratory",
+    "test-explore",
     "build"
   ]
 }
@@ -263,7 +263,7 @@ View traces: "View > Output" > "`VB.NET` Language Support"
 
 ```json
 {
-  "vbnet.workspace.projectFilesExcludePattern": "**/_external/**,**/tests-exploratory/**,**/node_modules/**,**/.git/**"
+  "vbnet.workspace.projectFilesExcludePattern": "**/_external/**,**/test-explore/**,**/node_modules/**,**/.git/**"
 }
 ```
 
@@ -658,4 +658,5 @@ If configuration issues persist:
 **Last Updated**: 2026-01-12
 
 **Maintained by**: `VB.NET` Language Support Contributors
+
 

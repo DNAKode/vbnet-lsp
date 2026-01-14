@@ -7,7 +7,7 @@ param(
     [string]$LogDirectory = '_external\csharp-lsp\logs',
     [string]$FixtureSolutionPath = '_external\csharp-lsp\fixtures\basic\Basic.sln',
     [string]$FixtureFilePath = '_external\csharp-lsp\fixtures\basic\Basic\Class1.cs',
-    [string]$ProtocolLogPath = 'tests-exploratory\logs\protocol-anomalies.jsonl',
+    [string]$ProtocolLogPath = 'test-explore\logs\protocol-anomalies.jsonl',
     [switch]$FeatureTests
 )
 
@@ -64,16 +64,17 @@ function Invoke-CSharpNode {
 switch ($Suite) {
     'csharp-dotnet' { Invoke-CSharpDotnet -Transport $Transport }
     'csharp-node' { Invoke-CSharpNode }
-    'vbnet-lsp' { & tests-exploratory\vbnet-lsp\run-tests.ps1 }
-    'emacs' { & tests-exploratory\clients\emacs\run-tests.ps1 }
-    'dwsim' { & tests-exploratory\dwsim\run-tests.ps1 }
+    'vbnet-lsp' { & test-explore\vbnet-lsp\run-tests.ps1 }
+    'emacs' { & test-explore\clients\emacs\run-tests.ps1 }
+    'dwsim' { & test-explore\dwsim\run-tests.ps1 }
     'all' {
         Invoke-CSharpDotnet -Transport $Transport
         Invoke-CSharpNode
-        & tests-exploratory\vbnet-lsp\run-tests.ps1
-        & tests-exploratory\clients\emacs\run-tests.ps1
+        & test-explore\vbnet-lsp\run-tests.ps1
+        & test-explore\clients\emacs\run-tests.ps1
     }
 }
 
 $runLabel = if ($Suite -eq 'all') { "Suite=all Transport=$Transport" } else { "Suite=$Suite Transport=$Transport" }
-& tests-exploratory\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -RunLabel $runLabel
+& test-explore\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -RunLabel $runLabel
+

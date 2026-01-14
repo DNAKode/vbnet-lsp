@@ -1,6 +1,6 @@
 param(
     [ValidateSet('csharp','vbnet','all')][string]$Suite = 'all',
-    [string]$EmacsRoot = 'tests-exploratory\clients\emacs\emacs',
+    [string]$EmacsRoot = 'test-explore\clients\emacs\emacs',
     [string]$RoslynLspDll = '_external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll',
     [string]$VbNetLspDll = 'src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll'
 )
@@ -75,6 +75,7 @@ if (Test-Path $VbNetLspDll) {
     $env:VBNET_LSP_DLL = ''
 }
 
-$scriptPath = Resolve-Path 'tests-exploratory\clients\emacs\eglot-smoke.el'
+$scriptPath = Resolve-Path 'test-explore\clients\emacs\eglot-smoke.el'
 
 & $emacsExe --batch -l $scriptPath
+

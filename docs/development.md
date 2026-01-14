@@ -167,22 +167,22 @@ ls _external/
 find _external/dwsim -name "*.vb" | head -20
 ```
 
-### tests-exploratory/ - Unified Verification (Use in improvement cycles)
+### test-explore/ - Unified Verification (Use in improvement cycles)
 
-**IMPORTANT**: The `tests-exploratory/` directory contains the headless harnesses for VS Code, `VB.NET` LSP, and Emacs. These are now part of the normal improvement cycle.
+**IMPORTANT**: The `test-explore/` directory contains the headless harnesses for VS Code, `VB.NET` LSP, and Emacs. These are now part of the normal improvement cycle.
 
 **Rules for this directory:**
 1. **Run tests from here** as part of iterative improvement cycles
 2. **Update harnesses when needed** to improve reliability and coverage
-3. **Record outcomes** in `tests-exploratory/TEST_RESULTS.md`
+3. **Record outcomes** in `test-explore/TEST_RESULTS.md`
 4. **Exclude incidental artifacts** (logs, downloaded runtimes) from commits
 5. **Also use test/VbNet.LanguageServer.Tests/** for unit coverage
 
 **What you SHOULD do:**
-- Run `tests-exploratory` harnesses during fixes and regressions
+- Run `test-explore` harnesses during fixes and regressions
 - Capture VS Code logs when needed (`CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`)
-- Update `tests-exploratory/TEST_RESULTS.md` with test outcomes
-- Follow `tests-exploratory/README.md` for log retention and harness conventions
+- Update `test-explore/TEST_RESULTS.md` with test outcomes
+- Follow `test-explore/README.md` for log retention and harness conventions
 
 ### Directory Structure After Setup
 
@@ -194,7 +194,7 @@ vbnet-lsp/
 |   |-- csharp-lsp/              # C# harness + fixtures (reference)
 |   |-- roslyn/                  # Roslyn source (optional)
 |   `-- dwsim/                   # Large `VB.NET` test project
-|-- tests-exploratory/           # Tracked - exploratory harnesses (logs excluded)
+|-- test-explore/           # Tracked - exploratory harnesses (logs excluded)
 |-- src/                         # Tracked - our source code
 |-- test/                        # Tracked - our test code (USE THIS!)
 `-- docs/                        # Tracked - documentation
@@ -307,7 +307,7 @@ dotnet build test/TestProjects/DebugConsole/DebugConsole.vbproj
 # Run harness (skips debug test if netcoredbg is missing)
 $env:FIXTURE_WORKSPACE = "test/TestProjects/DebugConsole"
 $env:NETCOREDBG_PATH = "C:\\tools\\netcoredbg\\netcoredbg.exe" # optional
-cd tests-exploratory/clients/vscode
+cd test-explore/clients/vscode
 npm test
 ```
 
@@ -333,7 +333,7 @@ npm run bundle-debugger
 
 ```bash
 # Requires Emacs (eglot is built-in)
-./tests-exploratory/clients/emacs/run-tests.ps1 -Suite vbnet
+./test-explore/clients/emacs/run-tests.ps1 -Suite vbnet
 ```
 
 ---
@@ -357,7 +357,7 @@ export VSCODE_CLI=1
 export DONT_PROMPT_WSL_INSTALL=1
 export NO_AT_BRIDGE=1
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
-cd /mnt/c/Work/vbnet-lsp/tests-exploratory/clients/vscode
+cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode
 xvfb-run -a npm test
 ```
 
@@ -776,6 +776,7 @@ dotnet test
 **Last Updated**: 2026-01-10
 
 **Maintained by**: `VB.NET` Language Support Contributors
+
 
 
 

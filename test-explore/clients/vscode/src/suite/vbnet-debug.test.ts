@@ -440,7 +440,7 @@ function setupDapTrace(repoRoot: string): { tracePath: string; dispose: () => vo
         return undefined;
     }
 
-    const traceRoot = path.resolve(repoRoot, "tests-exploratory", "clients", "vscode", "logs");
+    const traceRoot = path.resolve(repoRoot, "test-explore", "clients", "vscode", "logs");
     fs.mkdirSync(traceRoot, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[:.]/g, "");
     const tracePath = path.join(traceRoot, `dap-trace-${timestamp}.log`);
@@ -474,3 +474,4 @@ function setupDapTrace(repoRoot: string): { tracePath: string; dispose: () => vo
         },
     };
 }
+

@@ -12,7 +12,7 @@ This folder contains a minimal `@vscode/test-electron` harness that can run LSP-
 ## Usage (manual)
 
 ```powershell
-cd tests-exploratory\clients\vscode
+cd test-explore\clients\vscode
 npm install
 npm run compile
 
@@ -60,3 +60,4 @@ npm test
 - Use isolated `--user-data-dir` and `--extensions-dir` to keep tests hermetic.
 - Extend tests by adding more fixture workspaces and assertions.
 - If extension installation fails with an EPERM rename, delete `clients/vscode/.vscode-test/extensions` and rerun.
+

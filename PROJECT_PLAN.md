@@ -322,7 +322,7 @@ vbnet-lsp/
 |   |-- csharp-lsp/                     # C# harness + fixtures (reference)
 |   |-- roslyn/                         # Roslyn source (optional)
 |   `-- dwsim/                          # Large `VB.NET` project for testing
-|-- tests-exploratory/                  # Tracked - exploratory harnesses (logs excluded)
+|-- test-explore/                  # Tracked - exploratory harnesses (logs excluded)
 |   `-- clients/                        # VS Code / Emacs harnesses, etc.
 |-- src/
 |   |-- extension/                      # VS Code extension (TypeScript)
@@ -468,7 +468,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
      - Provision Ubuntu (WSL2 or hosted VM) with .NET SDK + Node.js.
      - Install netcoredbg for Linux (release asset or build from source).
      - Build VSIX for `linux-x64` and install into VS Code Remote - WSL.
-     - Run `tests-exploratory/clients/vscode` with `EXTENSION_VSIX` set to the Linux VSIX and verify debug harness (including inferred program path).
+     - Run `test-explore/clients/vscode` with `EXTENSION_VSIX` set to the Linux VSIX and verify debug harness (including inferred program path).
      - Capture logs and DAP traces for parity with Windows runs.
 
 ### 11.3 `VB.NET` Only
@@ -555,6 +555,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 **Status:** Phase 1 MVP Complete
 **Key Change:** Shifted from C# Dev Kit to C# extension as reference model + added netcoredbg
 **License:** MIT (fully open source)
+
 
 
 

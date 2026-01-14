@@ -1,21 +1,22 @@
-Date: 2026-01-15
+Date: 2026-01-14
 Author: Codex (GPT-5) acting as test reviewer
-Scope: CI validation + exploratory harness refresh (LSP + VS Code debug split)
+Scope: Rename to `test-explore` + CI validation + exploratory harness refresh (LSP + VS Code debug split)
 Host: Windows (C:\Work\vbnet-lsp)
 
 # Test Results
 
-## High-level status (2026-01-15)
+## High-level status (2026-01-14)
 
 - CI tests pass (`VbNet.LanguageServer.Tests`, `VbNet.Extension.Tests`).
+- `test-explore/` rename applied across docs/scripts/config.
 - `VB.NET` LSP smoke harness passes after constraining workspace search to the fixture root.
 - VS Code harness passes in two runs:
   - LSP smoke run with `SKIP_VBNET_DEBUG=1`.
-  - Debug run with `SKIP_VBNET_SMOKE=1` + `FIXTURE_WORKSPACE=test\TestProjects\DebugConsole`.
+  - Debug run with `SKIP_VBNET_SMOKE=1` + `FIXTURE_WORKSPACE=test\TestProjects\DebugConsole` (after building DebugConsole).
 - Warnings: VS Code test runner still spawns multiple extension hosts and logs intermittent `Cannot call write after a stream was destroyed` during server restarts; tests still pass.
 - Log retention applied (latest 5 DAP traces + latest VS Code log bundle retained).
 
-## Test runs and outcomes (2026-01-15)
+## Test runs and outcomes (2026-01-14)
 
 ### 1) CI tests (fast)
 
@@ -30,17 +31,17 @@ Notes:
 ### 2) `VB.NET` LSP smoke harness
 
 Command:
-- `tests-exploratory\vbnet-lsp\run-tests.ps1`
+- `test-explore\vbnet-lsp\run-tests.ps1`
 
 Outcome: PASS
 Notes:
 - Initialization options now constrain workspace search to fixture root and skip ancestor `.sln` scanning.
-- Protocol/timing logs updated under `tests-exploratory/logs/`.
+- Protocol/timing logs updated under `test-explore/logs/`.
 
 ### 3) VS Code harness - `VB.NET` LSP smoke
 
 Command:
-- `SKIP_VBNET_DEBUG=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
+- `SKIP_VBNET_DEBUG=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test` (from `test-explore/clients/vscode`)
 
 Outcome: PASS (8 passing, 4 pending)
 Warnings observed:
@@ -49,22 +50,23 @@ Warnings observed:
 
 ### 4) VS Code harness - `VB.NET` debug suite
 
-Command:
-- `SKIP_VBNET_SMOKE=1 FIXTURE_WORKSPACE=test\TestProjects\DebugConsole VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
+Commands:
+- `dotnet build test\TestProjects\DebugConsole\DebugConsole.vbproj -c Debug`
+- `SKIP_VBNET_SMOKE=1 FIXTURE_WORKSPACE=test\TestProjects\DebugConsole VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test` (from `test-explore/clients/vscode`)
 
 Outcome: PASS (5 passing, 4 pending)
 Artifacts:
 - DAP traces retained (latest 5):
-  - `tests-exploratory/clients/vscode/logs/dap-trace-2026-01-14T232154737Z.log`
-  - `tests-exploratory/clients/vscode/logs/dap-trace-2026-01-14T232155388Z.log`
-  - `tests-exploratory/clients/vscode/logs/dap-trace-2026-01-14T232503461Z.log`
-  - `tests-exploratory/clients/vscode/logs/dap-trace-2026-01-14T232503551Z.log`
-  - `tests-exploratory/clients/vscode/logs/dap-trace-2026-01-14T232503599Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T232503551Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T232503599Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721308Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721322Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721605Z.log`
 
 ### 5) VS Code log bundle (from diagnostics run during harness stabilization)
 
 Log bundle retained for analysis:
-- `tests-exploratory/clients/vscode/logs/20260115T011728`
+- `test-explore/clients/vscode/logs/20260115T011728`
 
 Notes:
 - Includes `VB.NET` extension log + trace; shows `write EOF` / stream destroyed while restarting.
@@ -88,14 +90,14 @@ Host: Windows (C:\Work\vbnet-lsp)
 - VS Code extension integration tests now cover settings/commands; document symbols still returned empty, but completion-disable now behaves as expected after suppressing word-based suggestions in the headless run.
 - Diagnostics automation still fails to receive publishDiagnostics for the diagnostics fixture.
 - VS Code automation requires elevated permissions in this environment to launch Code.exe.
-- Log retention: historical log bundles may be pruned; see `tests-exploratory/README.md`.
+- Log retention: historical log bundles may be pruned; see `test-explore/README.md`.
 
 #### Test runs and outcomes
 
 ### 1) `VB.NET` LSP service tests (standalone harness)
 
 Command pattern:
-- `dotnet tests-exploratory\vbnet-lsp\VbNetLspSmokeTest\bin\Debug\net10.0\VbNetLspSmokeTest.dll --serverPath src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll --dotnetPath dotnet --logLevel Trace --transport stdio --rootPath tests-exploratory\vbnet-lsp\fixtures\services --timeoutSeconds 60 --serviceManifest tests-exploratory\vbnet-lsp\fixtures\services\service-tests.json --serviceTestId <id> --serviceTimeoutSeconds 45 --serviceLog tests-exploratory\logs\service-tests-20260111-182639.jsonl --protocolLog tests-exploratory\logs\protocol-anomalies-20260111-182639.jsonl --timingLog tests-exploratory\logs\timing-20260111-182639.jsonl`
+- `dotnet test-explore\vbnet-lsp\VbNetLspSmokeTest\bin\Debug\net10.0\VbNetLspSmokeTest.dll --serverPath src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll --dotnetPath dotnet --logLevel Trace --transport stdio --rootPath test-explore\vbnet-lsp\fixtures\services --timeoutSeconds 60 --serviceManifest test-explore\vbnet-lsp\fixtures\services\service-tests.json --serviceTestId <id> --serviceTimeoutSeconds 45 --serviceLog test-explore\logs\service-tests-20260111-182639.jsonl --protocolLog test-explore\logs\protocol-anomalies-20260111-182639.jsonl --timingLog test-explore\logs\timing-20260111-182639.jsonl`
 
 Expanded coverage (additional tests added):
 - completion_calc (calc.Add)
@@ -105,7 +107,7 @@ Expanded coverage (additional tests added):
 - references_title
 
 Expanded test validation:
-- completion_calc: PASS (`tests-exploratory/logs/service-tests-20260111-202008.jsonl`)
+- completion_calc: PASS (`test-explore/logs/service-tests-20260111-202008.jsonl`)
 
 Baseline results (from full run before expansion):
 - completion_text: PASS (117 items returned)
@@ -123,22 +125,22 @@ Notes:
 - Additional references coverage added via `ExtraConsumer.vb` and `references_title`.
 
 Logs:
-- `tests-exploratory/logs/service-tests-20260111-182639.jsonl`
-- `tests-exploratory/logs/service-tests-20260111-202008.jsonl`
-- `tests-exploratory/logs/protocol-anomalies-20260111-182639.jsonl`
-- `tests-exploratory/logs/timing-20260111-182639.jsonl`
+- `test-explore/logs/service-tests-20260111-182639.jsonl`
+- `test-explore/logs/service-tests-20260111-202008.jsonl`
+- `test-explore/logs/protocol-anomalies-20260111-182639.jsonl`
+- `test-explore/logs/timing-20260111-182639.jsonl`
 
 ### 2) VS Code extension integration tests (headless)
 
-Harness: `tests-exploratory/clients/vscode` using `@vscode/test-electron` with the local VSIX.
+Harness: `test-explore/clients/vscode` using `@vscode/test-electron` with the local VSIX.
 
 Key configuration used:
 - Extension VSIX: `src/extension/vbnet-language-support.vsix`
 - Extension id: `dnakode.vbnet-language-support`
 - Server path via env: `VBNET_SERVER_PATH=src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll`
-- Fixture workspace: `tests-exploratory/vbnet-lsp/fixtures/services`
-- Fixture file: `tests-exploratory/vbnet-lsp/fixtures/services/ServiceSamples.vb`
-- Workspace settings: `tests-exploratory/vbnet-lsp/fixtures/services/.vscode/settings.json` (stdio + verbose trace)
+- Fixture workspace: `test-explore/vbnet-lsp/fixtures/services`
+- Fixture file: `test-explore/vbnet-lsp/fixtures/services/ServiceSamples.vb`
+- Workspace settings: `test-explore/vbnet-lsp/fixtures/services/.vscode/settings.json` (stdio + verbose trace)
 - C# harness tests skipped via `SKIP_CSHARP_TESTS=1`.
 - Log capture enabled via `CAPTURE_VSCODE_LOGS=1` and `CAPTURE_VBNET_TRACE=1`.
 
@@ -149,8 +151,8 @@ Outcome (headless run): FAIL
 - FAIL: completion.disable setting ignored (completions still returned)
 
 Log paths:
-- Copied log bundle: `tests-exploratory/clients/vscode/logs/20260111T214206`
-- Trace summary: `tests-exploratory/clients/vscode/logs/20260111T214206/vbnet-output-summary.txt`
+- Copied log bundle: `test-explore/clients/vscode/logs/20260111T214206`
+- Trace summary: `test-explore/clients/vscode/logs/20260111T214206/vbnet-output-summary.txt`
 
 Notes:
 - Trace export did not find a `VB.NET` output log file; summary reports that no trace log was found in `output_logging` folders.
@@ -170,13 +172,13 @@ Outcome (headless run): PASS with warning
 - SKIP: C# harness tests (SKIP_CSHARP_TESTS=1)
 
 Log paths:
-- Copied log bundle: `tests-exploratory/clients/vscode/logs/20260111T220738`
-- Trace summary: `tests-exploratory/clients/vscode/logs/20260111T220738/vbnet-output-summary.txt`
+- Copied log bundle: `test-explore/clients/vscode/logs/20260111T220738`
+- Trace summary: `test-explore/clients/vscode/logs/20260111T220738/vbnet-output-summary.txt`
 
 ### 3) Diagnostics automation (standalone harness)
 
 Command:
-- `tests-exploratory\vbnet-lsp\run-tests.ps1 -Diagnostics -Transport stdio`
+- `test-explore\vbnet-lsp\run-tests.ps1 -Diagnostics -Transport stdio`
 
 Outcome: FAIL
 - Diagnostics not received after retries; `publishDiagnostics` never arrived.
@@ -205,12 +207,12 @@ Outcome: FAIL
 5) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
 
 ## Protocol anomalies (latest run)
-Run: `VB.NET` smoke Transport=pipe
+Run: VB.NET smoke Transport=pipe
 
 None detected.
 ## Timing summary (latest run)
-Run: `VB.NET` smoke Transport=pipe
+Run: VB.NET smoke Transport=pipe
 
-- [n/a] server_starting (178.35 ms)
-- [n/a] initialize_response (410.69 ms)
-- [n/a] didOpen_sent (870.32 ms)
+- [n/a] server_starting (538.84 ms)
+- [n/a] initialize_response (806.33 ms)
+- [n/a] didOpen_sent (1389.02 ms)

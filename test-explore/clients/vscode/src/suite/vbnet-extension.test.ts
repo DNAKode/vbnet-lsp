@@ -66,7 +66,7 @@ if (skipVbnetSmoke) {
                   : path.resolve(repoRoot, process.env.FIXTURE_FILE))
             : path.resolve(
                   repoRoot,
-                  "tests-exploratory",
+                  "test-explore",
                   "vbnet-lsp",
                   "fixtures",
                   "services",
@@ -296,7 +296,7 @@ if (skipVbnetSmoke) {
             ? (path.isAbsolute(process.env.FIXTURE_WORKSPACE)
                   ? process.env.FIXTURE_WORKSPACE
                   : path.resolve(repoRoot, process.env.FIXTURE_WORKSPACE))
-            : path.resolve(repoRoot, "tests-exploratory", "vbnet-lsp", "fixtures", "services");
+            : path.resolve(repoRoot, "test-explore", "vbnet-lsp", "fixtures", "services");
         const tempFilePath = path.join(workspaceRoot, `TypingSample-${Date.now()}.vb`);
         const tempUri = vscode.Uri.file(tempFilePath);
         const editorConfig = vscode.workspace.getConfiguration("editor");
@@ -365,7 +365,7 @@ if (skipVbnetSmoke) {
         const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
         const filePath = path.resolve(
             repoRoot,
-            "tests-exploratory",
+            "test-explore",
             "vbnet-lsp",
             "fixtures",
             "services",
@@ -392,3 +392,4 @@ if (skipVbnetSmoke) {
     });
     });
 }
+

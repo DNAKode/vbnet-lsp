@@ -6,8 +6,8 @@ param(
     [string]$LogLevel = 'Information',
     [string]$WorkspaceRoot = '_external\dwsim',
     [string]$TestFilePath = '_external\dwsim\DWSIM\ApplicationEvents.vb',
-    [string]$ProtocolLogPath = 'tests-exploratory\logs\protocol-anomalies.jsonl',
-    [string]$TimingLogPath = 'tests-exploratory\logs\timing.jsonl',
+    [string]$ProtocolLogPath = 'test-explore\logs\protocol-anomalies.jsonl',
+    [string]$TimingLogPath = 'test-explore\logs\timing.jsonl',
     [switch]$SkipBuild
 )
 
@@ -82,10 +82,11 @@ Write-Host "Running DWSIM smoke against: $rootPath"
 Write-Host "Test file: $testFile"
 
 $duration = Measure-Command {
-    & $DotnetPath run --project tests-exploratory\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj -- @smokeArgs
+    & $DotnetPath run --project test-explore\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj -- @smokeArgs
 }
 
 Write-Host ("DWSIM smoke duration: {0:n2}s" -f $duration.TotalSeconds)
 
 $runLabel = "DWSIM smoke Transport=$Transport"
-& tests-exploratory\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel
+& test-explore\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel
+

@@ -141,9 +141,9 @@ Approach:
 - Capture timing milestones (server start, solution load, first didOpen) in the DWSIM harness and record them in `TEST_RESULTS.md`.
 
 Scaffolding:
-- `tests-exploratory/dwsim/run-tests.ps1` invokes the VB.NET LSP smoke harness with a DWSIM root.
+- `test-explore/dwsim/run-tests.ps1` invokes the VB.NET LSP smoke harness with a DWSIM root.
 - Optional VS Code headless open check using the VS Code harness with `FIXTURE_WORKSPACE=_external/dwsim`.
-- Service tests (Phase 1): drive requests from `tests-exploratory/vbnet-lsp/fixtures/services/service-tests.json` once services are implemented.
+- Service tests (Phase 1): drive requests from `test-explore/vbnet-lsp/fixtures/services/service-tests.json` once services are implemented.
 
 ## Feature coverage map
 
@@ -216,8 +216,8 @@ Alternate client strategy (Phase 1-2 planning):
   4) Open a fixture workspace, wait for activation, then use VS Code APIs to trigger hover/definition/completion and verify results.
 - Emacs batch tests with ERT + lsp-mode (headless) to validate basic LSP compliance and non-UI flows. Use a minimal Emacs config plus lsp-mode setup in CI, open a workspace, wait for diagnostics, then execute hover/definition/completion requests through `lsp-request`.
 - Keep the current LSP harness as the fast baseline (transport + protocol correctness) and treat VS Code/Emacs as integration tiers, not the primary gate.
-- A minimal VS Code harness scaffold now exists under `tests-exploratory/clients/vscode` to run smoke tests inside VS Code using `@vscode/test-electron`.
-- A minimal Emacs harness now exists under `tests-exploratory/clients/emacs` using built-in `eglot` for stdio-based tests.
+- A minimal VS Code harness scaffold now exists under `test-explore/clients/vscode` to run smoke tests inside VS Code using `@vscode/test-electron`.
+- A minimal Emacs harness now exists under `test-explore/clients/emacs` using built-in `eglot` for stdio-based tests.
 - Future Emacs expansion: evaluate `lsp-mode` for richer client coverage once a non-interactive package install path is available; retain `eglot` as the zero-dependency baseline.
 
 Data capture:
@@ -320,10 +320,10 @@ What is already implemented in `_external/csharp-lsp`:
 - Feature-level LSP requests (completion, hover, definition, references, document symbols) against a small fixture solution using a caret marker to pick the test position.
 - A README with exact command lines for building Roslyn LSP, running the harness, and executing feature tests.
 - A Node client (`node-client.ts`) that connects to the named pipe and uses JSON-RPC over the extension’s transport. It completes the `initialize` + `shutdown` cycle and sends `solution/open` using the method name parsed from `roslynProtocol.ts`.
-- A top-level test runner script (`tests-exploratory/run-tests.ps1`) to rerun the C# harnesses (node and dotnet) consistently.
+- A top-level test runner script (`test-explore/run-tests.ps1`) to rerun the C# harnesses (node and dotnet) consistently.
 - Additional fixture solutions to broaden feature coverage: LINQ extension methods and generic interface invocation.
 
-What is already implemented in `tests-exploratory/vbnet-lsp`:
+What is already implemented in `test-explore/vbnet-lsp`:
 - VB.NET LSP smoke harness (`VbNetLspSmokeTest`) that performs initialize/initialized, text document lifecycle notifications, and shutdown/exit over named pipes or stdio.
 - A VB.NET test runner (`vbnet-lsp/run-tests.ps1`) that builds the server, snapshots binaries, and runs the smoke test.
 - A basic VB.NET fixture file used for didOpen/didChange/didSave/didClose coverage.
@@ -331,7 +331,7 @@ What is already implemented in `tests-exploratory/vbnet-lsp`:
 - Diagnostics mode in the smoke harness that waits for `textDocument/publishDiagnostics` on the fixture file and retries didOpen/didChange once if none arrive.
 - Diagnostics settings injection (via `workspace/configuration` and `workspace/didChangeConfiguration`) plus expected diagnostic code checks in the smoke harness.
 - Diagnostics harness can optionally send `textDocument/didSave` for `openSave`/`saveOnly` mode validation.
-- Service fixture scaffolding for Phase 1 services: `tests-exploratory/vbnet-lsp/fixtures/services/` and `service-tests.json`.
+- Service fixture scaffolding for Phase 1 services: `test-explore/vbnet-lsp/fixtures/services/` and `service-tests.json`.
 
 Key paths and artifacts:
 - Roslyn LSP build output: `_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll`
@@ -340,13 +340,13 @@ Key paths and artifacts:
 - Node client: `_external/csharp-lsp/node-client.ts`
 - Fixture solution: `_external/csharp-lsp/fixtures/basic/`
 - Additional fixtures: `_external/csharp-lsp/fixtures/linq/`, `_external/csharp-lsp/fixtures/generics/`
-- VS Code harness scaffold: `tests-exploratory/clients/vscode/`
-- VB.NET smoke harness: `tests-exploratory/vbnet-lsp/VbNetLspSmokeTest/`
-- VB.NET fixtures: `tests-exploratory/vbnet-lsp/fixtures/basic/`
-- VB.NET diagnostics fixture: `tests-exploratory/vbnet-lsp/fixtures/diagnostics/`
-- VB.NET services fixtures: `tests-exploratory/vbnet-lsp/fixtures/services/`
-- VB.NET snapshots: `tests-exploratory/vbnet-lsp/snapshots/`
-- DWSIM harness: `tests-exploratory/dwsim/`
+- VS Code harness scaffold: `test-explore/clients/vscode/`
+- VB.NET smoke harness: `test-explore/vbnet-lsp/VbNetLspSmokeTest/`
+- VB.NET fixtures: `test-explore/vbnet-lsp/fixtures/basic/`
+- VB.NET diagnostics fixture: `test-explore/vbnet-lsp/fixtures/diagnostics/`
+- VB.NET services fixtures: `test-explore/vbnet-lsp/fixtures/services/`
+- VB.NET snapshots: `test-explore/vbnet-lsp/snapshots/`
+- DWSIM harness: `test-explore/dwsim/`
 
 Validated behavior:
 - Named pipe connection works from the C# harness and completes LSP handshake.
@@ -380,6 +380,7 @@ Research notes:
 - VS Code extension testing guidance reviewed (testing-extension docs), for the planned alternate client harness using `@vscode/test-electron`.
 - Local experiment: `code --version` succeeds (VS Code 1.107.1 installed at `C:\Programs\Microsoft VS Code\bin\code.cmd`), so a VS Code CLI-based harness is feasible on this machine.
 - Added a VS Code harness scaffold with `@vscode/test-electron` and a minimal test host extension; executed successfully against C# extension after installing into an isolated extensions directory.
+
 
 
 

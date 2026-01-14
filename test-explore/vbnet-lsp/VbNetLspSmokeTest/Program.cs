@@ -190,7 +190,7 @@ internal static class Program
             : new
             {
                 projectSearchPaths = new[] { workspaceRoot },
-                excludePaths = new[] { ".git", "bin", "obj", "_external", "tests-exploratory", "test" },
+                excludePaths = new[] { ".git", "bin", "obj", "_external", "test-explore", "test" },
                 ignoreSolutionFiles = true,
                 maxProjectResults = 25
             };
@@ -1022,7 +1022,7 @@ internal static class Program
         }
         else if (arg == "--serviceTests")
         {
-            options.ServiceTestsPath = "tests-exploratory\\vbnet-lsp\\fixtures\\services\\service-tests.json";
+            options.ServiceTestsPath = "test-explore\\vbnet-lsp\\fixtures\\services\\service-tests.json";
         }
         else if (arg == "--serviceManifest" && i + 1 < args.Length)
         {
@@ -1553,4 +1553,5 @@ internal static class Program
         public bool? ExpectedFound { get; set; }
     }
 }
+
 

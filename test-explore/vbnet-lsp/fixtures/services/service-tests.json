@@ -1,6 +1,6 @@
 {
-  "workspace": "tests-exploratory/vbnet-lsp/fixtures/services",
-  "file": "tests-exploratory/vbnet-lsp/fixtures/services/ServiceSamples.vb",
+  "workspace": "test-explore/vbnet-lsp/fixtures/services",
+  "file": "test-explore/vbnet-lsp/fixtures/services/ServiceSamples.vb",
   "tests": [
     {
       "id": "completion_text",
@@ -112,4 +112,5 @@
     }
   ]
 }
+
 

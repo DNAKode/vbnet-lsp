@@ -1,7 +1,7 @@
 param(
-    [string]$ResultsPath = 'tests-exploratory\TEST_RESULTS.md',
-    [string]$ProtocolLogPath = 'tests-exploratory\logs\protocol-anomalies.jsonl',
-    [string]$TimingLogPath = 'tests-exploratory\logs\timing.jsonl',
+    [string]$ResultsPath = 'test-explore\TEST_RESULTS.md',
+    [string]$ProtocolLogPath = 'test-explore\logs\protocol-anomalies.jsonl',
+    [string]$TimingLogPath = 'test-explore\logs\timing.jsonl',
     [string]$RunLabel = ''
 )
 
@@ -143,4 +143,5 @@ if ($content -match "## Timing summary \(latest run\)[\s\S]*?(?=`n## |\Z)") {
 }
 
 Set-Content -Path $resultsFullPath -Value $content -NoNewline
+
 

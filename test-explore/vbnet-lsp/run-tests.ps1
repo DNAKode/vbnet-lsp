@@ -4,21 +4,21 @@ param(
     [string]$DotnetPath = 'dotnet',
     [string]$Transport = 'pipe',
     [string]$LogLevel = 'Information',
-    [string]$TestFilePath = 'tests-exploratory\vbnet-lsp\fixtures\basic\Basic.vb',
-    [string]$DiagnosticsRootPath = 'tests-exploratory\vbnet-lsp\fixtures\diagnostics',
-    [string]$DiagnosticsFilePath = 'tests-exploratory\vbnet-lsp\fixtures\diagnostics\DiagnosticsSample\Class1.vb',
+    [string]$TestFilePath = 'test-explore\vbnet-lsp\fixtures\basic\Basic.vb',
+    [string]$DiagnosticsRootPath = 'test-explore\vbnet-lsp\fixtures\diagnostics',
+    [string]$DiagnosticsFilePath = 'test-explore\vbnet-lsp\fixtures\diagnostics\DiagnosticsSample\Class1.vb',
     [string]$DiagnosticsMode = 'openChange',
     [int]$DebounceMs = 300,
     [string]$ExpectedDiagnosticCode = 'BC30512',
     [switch]$SendDidSave,
     [switch]$ServiceTests,
-    [string]$ServiceManifest = 'tests-exploratory\vbnet-lsp\fixtures\services\service-tests.json',
+    [string]$ServiceManifest = 'test-explore\vbnet-lsp\fixtures\services\service-tests.json',
     [int]$ServiceTimeoutSeconds = 60,
-    [string]$ServiceLogPath = 'tests-exploratory\logs\service-tests.jsonl',
+    [string]$ServiceLogPath = 'test-explore\logs\service-tests.jsonl',
     [string]$ServiceTestId = '',
-    [string]$ProtocolLogPath = 'tests-exploratory\logs\protocol-anomalies.jsonl',
-    [string]$TimingLogPath = 'tests-exploratory\logs\timing.jsonl',
-    [string]$SnapshotRoot = 'tests-exploratory\vbnet-lsp\snapshots',
+    [string]$ProtocolLogPath = 'test-explore\logs\protocol-anomalies.jsonl',
+    [string]$TimingLogPath = 'test-explore\logs\timing.jsonl',
+    [string]$SnapshotRoot = 'test-explore\vbnet-lsp\snapshots',
     [switch]$SkipBuild,
     [switch]$SkipSnapshot,
     [switch]$Diagnostics
@@ -136,7 +136,7 @@ function Run-SmokeTest {
         }
     }
 
-    & $DotnetPath run --project tests-exploratory\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj -- @args
+    & $DotnetPath run --project test-explore\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj -- @args
 }
 
 if (-not $SkipBuild) {
@@ -174,4 +174,5 @@ $runLabel = if ($ServiceTests) {
 } else {
     "VB.NET smoke Transport=$Transport"
 }
-& tests-exploratory\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel
+& test-explore\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel
+

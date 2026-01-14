@@ -502,7 +502,8 @@ $RECYCLE.BIN/
 _external/
 
 # Exploratory harness artifacts (logs, downloaded runtimes, caches)
-tests-exploratory/clients/emacs/emacs/
-tests-exploratory/clients/vscode/.vscode-test/
-tests-exploratory/**/logs/
-tests-exploratory/vbnet-lsp/snapshots/
+test-explore/clients/emacs/emacs/
+test-explore/clients/vscode/.vscode-test/
+test-explore/**/logs/
+test-explore/vbnet-lsp/snapshots/
+

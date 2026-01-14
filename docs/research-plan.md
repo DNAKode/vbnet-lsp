@@ -447,10 +447,10 @@ Each finding should be logged with:
 
 ### Codex Exploratory Test Suite
 
-A parallel test effort is underway in `tests-exploratory/`. This is an independent validation effort that should not interfere with the main test pre-engineering work. Key components:
+A parallel test effort is underway in `test-explore/`. This is an independent validation effort that should not interfere with the main test pre-engineering work. Key components:
 
-- **Location**: `tests-exploratory/`
-- **Documentation**: `tests-exploratory/TEST_SUITE.md`
+- **Location**: `test-explore/`
+- **Documentation**: `test-explore/TEST_SUITE.md`
 - **C# LSP Smoke Harness**: `_external/csharp-lsp/CSharpLspSmokeTest/`
   - C# program that connects to Roslyn LSP via named pipes
   - Performs initialize/shutdown handshake
@@ -548,6 +548,7 @@ cat _external/netcoredbg/README.md
 ---
 
 **This is a living document. Update with findings as research progresses.**
+
 
 
 

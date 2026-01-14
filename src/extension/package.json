@@ -165,7 +165,7 @@
             },
             "default": [
               "_external",
-              "tests-exploratory",
+              "test-explore",
               "build",
               "node_modules",
               ".git",
@@ -175,7 +175,7 @@
           },
           "vbnet.workspace.projectFilesExcludePattern": {
             "type": "string",
-            "default": "**/_external/**,**/tests-exploratory/**,**/node_modules/**,**/.git/**,**/bower_components/**",
+            "default": "**/_external/**,**/test-explore/**,**/node_modules/**,**/.git/**,**/bower_components/**",
             "description": "Comma-separated glob patterns to exclude when searching for .sln/.vbproj files."
           },
           "vbnet.workspace.maxProjectResults": {
@@ -373,3 +373,4 @@
     "typescript": "^5.4.0"
   }
 }
+
