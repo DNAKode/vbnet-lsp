@@ -691,3 +691,12 @@ WSL debug run:
 - Result: PASS (debug tests).
 - Note: DBus errors remain (now pointing at `/dev/null`), and SIGPIPE still appears; warnings considered benign for headless runs.
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T084756`.
+
+### Update 2026-01-14 (WSL2 log filtering)
+
+Harness updates:
+- When capturing logs under WSL, generate `main.filtered.log` with common DBus/SIGPIPE noise removed and record it in the summary.
+
+WSL debug run:
+- Result: PASS (debug tests).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T085217`.

@@ -178,9 +178,9 @@ async function main() {
     } catch (error) {
         runError = error;
     } finally {
-        if (captureLogs) {
-            const logsDir = path.join(userDataDir, "logs");
-            if (fs.existsSync(logsDir)) {
+    if (captureLogs) {
+        const logsDir = path.join(userDataDir, "logs");
+        if (fs.existsSync(logsDir)) {
                 const runs = fs
                     .readdirSync(logsDir, { withFileTypes: true })
                     .filter((entry) => entry.isDirectory())
@@ -198,6 +198,14 @@ async function main() {
 
                         if (captureTrace) {
                             const summaryLines: string[] = [];
+                            const noisePatterns = isWsl()
+                                ? [
+                                      "failed to connect to the bus",
+                                      "dbus",
+                                      "sigpipe",
+                                      "do you want to continue anyway",
+                                  ]
+                                : [];
                             const exthostRoot = path.join(destPath, "window1", "exthost");
                             let traceFound = false;
 
@@ -246,6 +254,22 @@ async function main() {
 
                             if (!traceFound) {
                                 summaryLines.push("Trace log not found in extension or output_logging folders.");
+                            }
+
+                            const mainLogPath = path.join(destPath, "main.log");
+                            if (noisePatterns.length > 0 && fs.existsSync(mainLogPath)) {
+                                try {
+                                    const mainLines = fs.readFileSync(mainLogPath, "utf8").split(/\r?\n/);
+                                    const nonNoise = mainLines.filter((line) => {
+                                        const lowered = line.toLowerCase();
+                                        return !noisePatterns.some((pattern) => lowered.includes(pattern));
+                                    });
+                                    const filteredPath = path.join(destPath, "main.filtered.log");
+                                    fs.writeFileSync(filteredPath, nonNoise.join("\n"));
+                                    summaryLines.push(`Filtered main log: ${filteredPath}`);
+                                } catch (error) {
+                                    summaryLines.push(`Failed to filter main.log: ${error}`);
+                                }
                             }
 
                             const summaryPath = path.join(destPath, "vbnet-output-summary.txt");
