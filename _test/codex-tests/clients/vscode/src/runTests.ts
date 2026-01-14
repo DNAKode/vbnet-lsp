@@ -65,7 +65,9 @@ async function main() {
     ];
 
     const extensionId = process.env.EXTENSION_ID;
-    const extensionVsix = process.env.EXTENSION_VSIX;
+    const extensionVsix = process.env.EXTENSION_VSIX
+        ? resolveRepoPath(process.env.EXTENSION_VSIX)
+        : undefined;
     if (extensionId || extensionVsix) {
         const extensionsJsonPath = path.join(extensionsDir, "extensions.json");
         if (fs.existsSync(extensionsJsonPath)) {

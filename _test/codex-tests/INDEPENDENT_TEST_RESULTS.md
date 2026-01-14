@@ -617,3 +617,17 @@ Extension updates:
 VS Code headless run (debug workspace):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`.
 - Result: FAIL (VS Code reported another instance running: "Running extension tests from the command line is currently only supported if no other instance of Code is running.").
+
+### Update 2026-01-14 (debug inference + template resolution re-test)
+
+Extension updates:
+- Debug inference now logs discovery paths and can fall back to a lone DLL under `bin/Debug`.
+- Debugger launch schema no longer requires `program` (inference can run).
+
+Harness updates:
+- `EXTENSION_VSIX` is resolved relative to repo root when provided as a relative path.
+
+VS Code headless run (debug workspace):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`, `CAPTURE_DAP_TRACE=1`, `EXTENSION_VSIX=C:\Work\vbnet-lsp\src\extension\vbnet-language-support.vsix`.
+- Result: PASS (debug session launch, inferred program launch, template launch).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T050032`.
