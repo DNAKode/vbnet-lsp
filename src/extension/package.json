@@ -351,6 +351,10 @@
     "package": "npm run copy-changelog && npm run compile && node esbuild.js --production",
     "bundle-server": "dotnet build ../VbNet.LanguageServer/VbNet.LanguageServer.csproj -c Release && node scripts/copy-server.js",
     "bundle-debugger": "node scripts/copy-debugger.js",
+    "package:vsix:win32-x64": "npm run bundle-server && npm run bundle-debugger && npm run package && vsce package --target win32-x64 --out vbnet-language-support-win32-x64.vsix",
+    "package:vsix:linux-x64": "npm run bundle-server && npm run bundle-debugger && npm run package && vsce package --target linux-x64 --out vbnet-language-support-linux-x64.vsix",
+    "package:vsix:darwin-x64": "npm run bundle-server && npm run bundle-debugger && npm run package && vsce package --target darwin-x64 --out vbnet-language-support-darwin-x64.vsix",
+    "package:vsix:darwin-arm64": "npm run bundle-server && npm run bundle-debugger && npm run package && vsce package --target darwin-arm64 --out vbnet-language-support-darwin-arm64.vsix",
     "package:vsix": "npm run bundle-server && npm run bundle-debugger && npm run package && vsce package --out vbnet-language-support.vsix",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"

@@ -5,10 +5,11 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### Added
-- _None yet._
+- Platform-targeted VSIX packaging scripts for Windows/Linux/macOS.
+- Configurable netcoredbg bundling via `NETCOREDBG_PATH`/`NETCOREDBG_LICENSE`.
 
 ### Changed
-- _None yet._
+- Non-Windows netcoredbg bundles now ensure the debugger is marked executable.
 
 ### Fixed
 - _None yet._

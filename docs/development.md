@@ -303,6 +303,24 @@ cd _test/codex-tests/clients/vscode
 npm test
 ```
 
+### Packaging netcoredbg for different platforms
+
+The extension bundles netcoredbg via `npm run bundle-debugger`. By default, it looks under `_external/netcoredbg/bin`.
+
+To bundle a specific binary (for example, Linux/macOS from a release asset or a local build), set:
+
+```bash
+# PowerShell
+$env:NETCOREDBG_PATH = "C:\\path\\to\\netcoredbg"
+$env:NETCOREDBG_LICENSE = "C:\\path\\to\\LICENSE"
+cd src/extension
+npm run bundle-debugger
+```
+
+`NETCOREDBG_PATH` can point to either `netcoredbg.exe` (Windows) or `netcoredbg` (Linux/macOS). The file is copied into `.debugger/` with the same filename so platform-specific VSIX builds can include the correct binary.
+
+**Tip:** Build platform-specific VSIX packages on the same OS when possible so file permissions (executable bit) are preserved for `netcoredbg`.
+
 ### Multi-Editor Tests (Emacs)
 
 ```bash

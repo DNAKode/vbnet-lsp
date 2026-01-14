@@ -646,3 +646,12 @@ VS Code headless run (debug workspace):
 - Result: PASS (debug launch + inferred program + template program + projectPath inference).
 - Note: `threads` DAP request still returns 0x80004005 after termination (netcoredbg behavior).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T050421`.
+
+### Update 2026-01-14 (Linux support scaffolding)
+
+Changes:
+- netcoredbg bundling now supports `NETCOREDBG_PATH`/`NETCOREDBG_LICENSE` and sets executable bit on non-Windows.
+- Added platform-targeted VSIX packaging scripts and updated developer docs.
+
+Tests:
+- Not run (packaging/doc changes only).
