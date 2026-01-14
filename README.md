@@ -68,6 +68,25 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 - **VS Code Web (vscode.dev/github.dev):** Not supported because the language server requires a .NET runtime and local project system access.
 - **Dev container config:** See `.devcontainer/devcontainer.json` for a repeatable setup with .NET + Node.js.
 
+### WSL Quickstart (Testing)
+
+For WSL-based testing, use the Linux VSIX and a Linux-built netcoredbg:
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+export DOTNET_ROOT="$HOME/.dotnet"
+export NETCOREDBG_PATH="$HOME/netcoredbg-wsl/build-linux/src/netcoredbg"
+export CODE_DISABLE_WSL=1
+export VSCODE_CLI=1
+export DONT_PROMPT_WSL_INSTALL=1
+export NO_AT_BRIDGE=1
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
+cd /mnt/c/Work/vbnet-lsp/_test/codex-tests/clients/vscode
+xvfb-run -a npm test
+```
+
+See [docs/development.md](docs/development.md) for full setup details.
+
 ### From Source (Development)
 
 Currently, VB.NET Language Support is in early development. To build from source:
