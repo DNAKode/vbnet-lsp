@@ -207,9 +207,6 @@
         ],
         "configurationAttributes": {
           "launch": {
-            "required": [
-              "program"
-            ],
             "properties": {
               "name": {
                 "type": "string",

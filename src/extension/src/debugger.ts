@@ -111,6 +111,7 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
         const projectPath =
             this.getProjectPathFromConfig(config, folder) ?? (await this.selectProjectPath(folder));
         if (!projectPath) {
+            this.outputChannel.appendLine('Unable to infer debug program: no VB.NET project selected or found.');
             return undefined;
         }
 
@@ -120,6 +121,12 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
         const candidate = await this.findBuiltAssembly(projectDir, assemblyName);
         if (candidate) {
             return candidate;
+        }
+
+        const fallbackDll = await this.findSingleBuiltAssembly(projectDir);
+        if (fallbackDll) {
+            this.outputChannel.appendLine(`Inferred debug program from lone DLL: ${fallbackDll}`);
+            return fallbackDll;
         }
 
         const defaultParts = [projectDir, 'bin', 'Debug'];
@@ -236,9 +243,11 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
     private async selectProjectPath(folder: vscode.WorkspaceFolder | undefined): Promise<string | undefined> {
         const candidates = await this.findProjectCandidates(folder);
         if (candidates.length === 0) {
+            this.outputChannel.appendLine('No .vbproj files found for debug configuration.');
             return undefined;
         }
         if (candidates.length === 1) {
+            this.outputChannel.appendLine(`Single .vbproj found for debug configuration: ${candidates[0]}`);
             return candidates[0];
         }
 
@@ -257,12 +266,27 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
     private async findProjectCandidates(folder: vscode.WorkspaceFolder | undefined): Promise<string[]> {
         const root = folder ?? vscode.workspace.workspaceFolders?.[0];
         if (!root) {
+            this.outputChannel.appendLine('No workspace folder available for debug project discovery.');
             return [];
         }
 
         const pattern = new vscode.RelativePattern(root, '**/*.vbproj');
         const candidates = await vscode.workspace.findFiles(pattern, '**/{bin,obj,.git}/**', 5);
         return candidates.map((candidate) => candidate.fsPath);
+    }
+
+    private async findSingleBuiltAssembly(projectDir: string): Promise<string | undefined> {
+        const pattern = new vscode.RelativePattern(projectDir, 'bin/Debug/**/*.dll');
+        const candidates = await vscode.workspace.findFiles(pattern, '**/obj/**', 5);
+        if (candidates.length === 1) {
+            return candidates[0].fsPath;
+        }
+        if (candidates.length > 1) {
+            this.outputChannel.appendLine(
+                `Multiple debug binaries found under ${path.join(projectDir, 'bin', 'Debug')}; unable to infer automatically.`
+            );
+        }
+        return undefined;
     }
 }
 
