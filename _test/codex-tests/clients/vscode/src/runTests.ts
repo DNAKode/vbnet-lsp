@@ -63,6 +63,9 @@ async function main() {
         extensionsDir,
         "--disable-workspace-trust",
     ];
+    if (isWsl()) {
+        launchArgs.push("--disable-features=UseDbus");
+    }
 
     const extensionId = process.env.EXTENSION_ID;
     const extensionVsix = process.env.EXTENSION_VSIX
@@ -151,6 +154,8 @@ async function main() {
     }
     if (isWsl()) {
         extensionTestsEnv.DONT_PROMPT_WSL_INSTALL ??= "1";
+        extensionTestsEnv.NO_AT_BRIDGE ??= "1";
+        extensionTestsEnv.DBUS_SESSION_BUS_ADDRESS ??= "unix:path=/dev/null";
     }
 
     const captureLogs = process.env.CAPTURE_VSCODE_LOGS === "1";
@@ -326,5 +331,7 @@ function withWslCliEnv(baseEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     return {
         ...baseEnv,
         DONT_PROMPT_WSL_INSTALL: baseEnv.DONT_PROMPT_WSL_INSTALL ?? "1",
+        NO_AT_BRIDGE: baseEnv.NO_AT_BRIDGE ?? "1",
+        DBUS_SESSION_BUS_ADDRESS: baseEnv.DBUS_SESSION_BUS_ADDRESS ?? "unix:path=/dev/null",
     };
 }

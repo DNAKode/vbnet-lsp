@@ -681,3 +681,13 @@ WSL debug run (no prompt):
 - Result: PASS (all VB.NET debug tests).
 - Note: DBus warnings and an `Unexpected SIGPIPE` still appear but do not fail tests.
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T083146`.
+
+### Update 2026-01-14 (WSL2 dbus noise mitigation)
+
+Harness updates:
+- Set `NO_AT_BRIDGE=1`, `DBUS_SESSION_BUS_ADDRESS=unix:path=/dev/null`, and launch flag `--disable-features=UseDbus` under WSL.
+
+WSL debug run:
+- Result: PASS (debug tests).
+- Note: DBus errors remain (now pointing at `/dev/null`), and SIGPIPE still appears; warnings considered benign for headless runs.
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T084756`.
