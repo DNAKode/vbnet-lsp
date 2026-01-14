@@ -655,3 +655,18 @@ Changes:
 
 Tests:
 - Not run (packaging/doc changes only).
+
+### Update 2026-01-14 (WSL2 Linux debug harness)
+
+Server updates:
+- Disable NuGet fallback package folders on non-Windows to avoid invalid Windows paths during restore.
+
+WSL setup (logged in `_test/codex-tests/logs/wsl-linux-build-20260114.txt`):
+- Installed build deps, clang, Node.js 20, local .NET 10 SDK, and VS Code runtime libs.
+- Built netcoredbg in WSL and used `NETCOREDBG_PATH=/home/govert/netcoredbg-wsl/build-linux/src/netcoredbg`.
+
+VS Code headless run (WSL, linux-x64):
+- Command: `npm test` in `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX=/mnt/c/Work/vbnet-lsp/src/extension/vbnet-language-support-linux-x64.vsix`, debug-only env flags, and `xvfb-run`.
+- Result: PASS (debug launch + inferred program + template + projectPath inference).
+- Note: VS Code CLI prints WSL warning prompt and logs DBus errors; bootstrap reports `Unexpected SIGPIPE`, but tests still pass.
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T081916`.

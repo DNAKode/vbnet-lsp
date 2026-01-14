@@ -88,6 +88,13 @@ public sealed class WorkspaceManager : IAsyncDisposable
             ["ProvideCommandLineArgs"] = "true"
         };
 
+        if (!OperatingSystem.IsWindows())
+        {
+            Environment.SetEnvironmentVariable("NUGET_FALLBACK_PACKAGES", string.Empty);
+            properties["RestoreFallbackFolders"] = string.Empty;
+            _logger.LogInformation("Disabled NuGet fallback package folders for non-Windows hosts.");
+        }
+
         _workspace = MSBuildWorkspace.Create(properties);
         _workspace.WorkspaceFailed += OnWorkspaceFailed;
 

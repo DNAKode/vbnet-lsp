@@ -330,6 +330,28 @@ npm run bundle-debugger
 
 ---
 
+## WSL/Linux Test Notes
+
+When running the VS Code harness inside WSL:
+- Ensure Node.js 20, .NET 10 (local install under `~/.dotnet` is fine), and `xvfb` are installed.
+- Set `NETCOREDBG_PATH` to a Linux-built netcoredbg binary (not a Windows `.exe`).
+- Use `xvfb-run -a` to provide a headless display.
+- VS Code CLI may print a WSL warning prompt; it’s safe to continue in CI-style runs.
+
+Example (WSL):
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+export DOTNET_ROOT="$HOME/.dotnet"
+export NETCOREDBG_PATH="$HOME/netcoredbg-wsl/build-linux/src/netcoredbg"
+export CODE_DISABLE_WSL=1
+export VSCODE_CLI=1
+cd /mnt/c/Work/vbnet-lsp/_test/codex-tests/clients/vscode
+xvfb-run -a npm test
+```
+
+---
+
 ## 5. Debugging
 
 ### Debugging the Language Server
