@@ -474,6 +474,12 @@ See `docs/development.md` Section 2.1 for setup instructions.
    - Investigate GitHub release assets for macOS/Linux binaries; if available, download and bundle per platform.
    - If release assets are incomplete, add CI builds for macOS/Linux and publish platform-specific VSIX (`vsce package --target <platform>`).
    - Ensure `.debugger/LICENSE.netcoredbg` is included for every platform bundle.
+   - **WSL2/Linux test plan (hosted or local)**:
+     - Provision Ubuntu (WSL2 or hosted VM) with .NET SDK + Node.js.
+     - Install netcoredbg for Linux (release asset or build from source).
+     - Build VSIX for `linux-x64` and install into VS Code Remote - WSL.
+     - Run `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX` set to the Linux VSIX and verify debug harness (including inferred program path).
+     - Capture logs and DAP traces for parity with Windows runs.
 
 ### 11.3 VB.NET Only
 - Focused scope (no mixed-language complexity)
@@ -555,7 +561,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 ---
 
 **Plan Version:** 4.0 (Phase 1 MVP Complete)
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-01-14
 **Status:** Phase 1 MVP Complete
 **Key Change:** Shifted from C# Dev Kit to C# extension as reference model + added netcoredbg
 **License:** MIT (fully open source)
