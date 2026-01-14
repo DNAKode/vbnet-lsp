@@ -226,6 +226,10 @@
                 ],
                 "description": "Debug request type."
               },
+              "projectPath": {
+                "type": "string",
+                "description": "Path to the .vbproj to infer the debug program from."
+              },
               "program": {
                 "type": "string",
                 "description": "Path to the compiled .NET assembly (.dll) to launch."

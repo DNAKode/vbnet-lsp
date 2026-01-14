@@ -73,6 +73,13 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
             if (!resolved.cwd) {
                 resolved.cwd = folder?.uri.fsPath ?? path.dirname(resolved.program);
             }
+
+            if (typeof resolved.program === 'string' && !fs.existsSync(resolved.program)) {
+                const message = `VB.NET debug program not found at ${resolved.program}. Build the project or update launch.json.`;
+                this.outputChannel.appendLine(message);
+                vscode.window.showErrorMessage(message);
+                return undefined;
+            }
         } else if (resolved.request === 'attach') {
             if (!resolved.processId) {
                 vscode.window.showErrorMessage(
@@ -100,6 +107,10 @@ class VbNetDebugConfigurationProvider implements vscode.DebugConfigurationProvid
         this.outputChannel.appendLine(
             `Resolved debug configuration (${resolved.request}): ${resolved.name ?? 'Unnamed'}`
         );
+        if (resolved.request === 'launch') {
+            this.outputChannel.appendLine(`Debug program: ${resolved.program}`);
+            this.outputChannel.appendLine(`Debug cwd: ${resolved.cwd}`);
+        }
 
         return resolved;
     }

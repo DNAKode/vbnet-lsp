@@ -135,6 +135,8 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 **Launch configuration note**: Debugging requires a `program` path to a compiled `.dll`. If you omit it, the extension will attempt to infer it when a matching `bin/Debug/**/<Assembly>.dll` is found; if multiple `.vbproj` files are present, you’ll be prompted to choose. You can also use placeholders like `<target-framework>` and `<project-name>` (e.g., `${workspaceFolder}/bin/Debug/<target-framework>/<project-name>.dll`).
 
+**Project hinting**: You can set `projectPath` in your launch configuration to point at a `.vbproj` and let the extension infer the `program` path.
+
 #### `vbnet.debugger.path`
 **Type**: `string`
 **Default**: `""`
@@ -383,6 +385,27 @@ View traces: "View > Output" > "VB.NET Language Support"
 ```
 
 Check output panel for startup errors.
+
+---
+
+### Problem: Debugging says program path is missing or not found
+
+**Symptoms**: “VB.NET debugging requires a program path” or “debug program not found”.
+
+**Check**:
+1. Build the project (`dotnet build` or VS Code build task).
+2. Confirm the output DLL path under `bin/Debug/<target-framework>/`.
+3. Optionally set `projectPath` in `launch.json` so the extension can infer `program`.
+
+**Solution**:
+```json
+{
+  "type": "vbnet",
+  "request": "launch",
+  "name": "VB.NET Launch",
+  "projectPath": "${workspaceFolder}/YourProject.vbproj"
+}
+```
 
 ---
 
