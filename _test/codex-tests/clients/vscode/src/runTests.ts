@@ -153,6 +153,11 @@ async function main() {
     const captureLogs = process.env.CAPTURE_VSCODE_LOGS === "1";
     const captureTrace = process.env.CAPTURE_VBNET_TRACE === "1";
     const extensionLogId = extensionIdEnv;
+    const initialCodePids = listCodePids();
+    if (process.env.VSCODE_KILL_BEFORE_TESTS === "1" && initialCodePids.length > 0) {
+        console.log(`Killing pre-existing Code.exe processes: ${initialCodePids.join(", ")}`);
+        killCodePids(initialCodePids);
+    }
     let runError: unknown;
     try {
         await runTests({
@@ -241,10 +246,54 @@ async function main() {
                 }
             }
         }
+
+        const finalCodePids = listCodePids();
+        const newCodePids = finalCodePids.filter((pid) => !initialCodePids.includes(pid));
+        if (newCodePids.length > 0) {
+            console.log(`Code.exe processes started during test: ${newCodePids.join(", ")}`);
+        }
+
+        if (process.env.VSCODE_KILL_ON_EXIT === "1" && newCodePids.length > 0) {
+            console.log(`Killing Code.exe processes started during test.`);
+            killCodePids(newCodePids);
+        }
     }
 
     if (runError) {
         throw runError;
+    }
+}
+
+function listCodePids(): number[] {
+    if (process.platform !== "win32") {
+        return [];
+    }
+
+    try {
+        const output = cp.execSync('tasklist /FI "IMAGENAME eq Code.exe" /FO CSV /NH', {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+        return output
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0 && !line.startsWith("INFO:"))
+            .map((line) => line.replace(/^"|"$/g, ""))
+            .map((line) => line.split('","'))
+            .map((parts) => Number.parseInt(parts[1], 10))
+            .filter((pid) => !Number.isNaN(pid));
+    } catch {
+        return [];
+    }
+}
+
+function killCodePids(pids: number[]) {
+    if (process.platform !== "win32" || pids.length === 0) {
+        return;
+    }
+
+    for (const pid of pids) {
+        cp.spawnSync("taskkill", ["/F", "/PID", pid.toString()], { stdio: "ignore" });
     }
 }
 

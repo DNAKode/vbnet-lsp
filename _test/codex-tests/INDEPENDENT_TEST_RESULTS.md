@@ -631,3 +631,18 @@ VS Code headless run (debug workspace):
 - Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`, `CAPTURE_DAP_TRACE=1`, `EXTENSION_VSIX=C:\Work\vbnet-lsp\src\extension\vbnet-language-support.vsix`.
 - Result: PASS (debug session launch, inferred program launch, template launch).
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T050032`.
+
+### Update 2026-01-14 (debug projectPath inference + harness cleanup)
+
+Extension updates:
+- Debug configuration schema now exposes `projectPath` to guide inference.
+- Debug resolver logs resolved program/cwd and returns a clear error when the program DLL is missing.
+
+Harness updates:
+- VS Code harness can optionally track/kill `Code.exe` processes via `VSCODE_KILL_BEFORE_TESTS=1` and `VSCODE_KILL_ON_EXIT=1`.
+
+VS Code headless run (debug workspace):
+- Command: `npm test` from `_test/codex-tests/clients/vscode` with `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole`, `SKIP_VBNET_SMOKE=1`, `SKIP_CSHARP_TESTS=1`, `CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`, `CAPTURE_DAP_TRACE=1`, `EXTENSION_VSIX=C:\Work\vbnet-lsp\src\extension\vbnet-language-support.vsix`, `VSCODE_KILL_BEFORE_TESTS=1`, `VSCODE_KILL_ON_EXIT=1`.
+- Result: PASS (debug launch + inferred program + template program + projectPath inference).
+- Note: `threads` DAP request still returns 0x80004005 after termination (netcoredbg behavior).
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T050421`.

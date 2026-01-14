@@ -235,6 +235,80 @@ suite("VB.NET debugging (VS Code harness)", () => {
             }
         }
     });
+
+    test("launch debug session with projectPath inference", async function () {
+        this.timeout(120000);
+
+        const netcoredbgPath = resolveNetcoreDbgPath();
+        if (!netcoredbgPath) {
+            this.skip();
+            return;
+        }
+
+        const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..", "..");
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        assert.ok(workspaceRoot, "No workspace folder opened for debugging.");
+
+        const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
+        const extension = vscode.extensions.getExtension(extensionId);
+        assert.ok(extension, `Extension ${extensionId} is not installed.`);
+        await extension!.activate();
+
+        const programPath = path.resolve(
+            repoRoot,
+            "test",
+            "TestProjects",
+            "DebugConsole",
+            "bin",
+            "Debug",
+            "net8.0",
+            "DebugConsole.dll"
+        );
+        assert.ok(fs.existsSync(programPath), `Debug program not found at ${programPath}`);
+
+        const config = vscode.workspace.getConfiguration("vbnet");
+        try {
+            await config.update("debugger.path", netcoredbgPath, vscode.ConfigurationTarget.Workspace);
+        } catch (error) {
+            console.warn(`Unable to update vbnet.debugger.path in workspace settings: ${error}`);
+        }
+
+        const debugConfig: vscode.DebugConfiguration = {
+            type: "vbnet",
+            name: "VB.NET Debug Console (projectPath)",
+            request: "launch",
+            projectPath: "${workspaceFolder}/DebugConsole.vbproj",
+            cwd: "${workspaceFolder}",
+            stopAtEntry: false
+        };
+
+        const startPromise = waitForDebugStart(30000);
+        const terminatePromise = waitForDebugTerminate(60000);
+
+        let started = false;
+        try {
+            started = await vscode.debug.startDebugging(vscode.workspace.workspaceFolders?.[0], debugConfig);
+            assert.ok(started, "Debug session did not start with projectPath inference.");
+            await startPromise;
+            try {
+                await terminatePromise;
+            } catch (error) {
+                console.warn(`Debug session did not terminate cleanly: ${error}`);
+                if (started) {
+                    await vscode.debug.stopDebugging();
+                    try {
+                        await waitForDebugTerminate(10000);
+                    } catch (stopError) {
+                        console.warn(`Debug session still did not terminate after stop: ${stopError}`);
+                    }
+                }
+            }
+        } finally {
+            if (started && vscode.debug.activeDebugSession) {
+                await vscode.debug.stopDebugging();
+            }
+        }
+    });
 });
 
 function resolveNetcoreDbgPath(): string | undefined {
