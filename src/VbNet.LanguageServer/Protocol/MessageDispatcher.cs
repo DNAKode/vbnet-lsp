@@ -18,6 +18,7 @@ public sealed class MessageDispatcher
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object?>>> _requestHandlers = new();
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task>> _notificationHandlers = new();
     private readonly ConcurrentDictionary<JsonRpcId, CancellationTokenSource> _requestCancellation = new();
+    private readonly ConcurrentBag<Task> _requestTasks = new();
 
     private const string CancelRequestMethod = "$/cancelRequest";
 
@@ -188,7 +189,13 @@ public sealed class MessageDispatcher
             {
                 // This is a request
                 var id = ParseId(idElement);
-                await HandleRequestAsync(id, method, paramsElement, cancellationToken);
+                var task = HandleRequestAsync(id, method, paramsElement, cancellationToken);
+                _requestTasks.Add(task);
+                _ = task.ContinueWith(
+                    t => _logger.LogError(t.Exception, "Request handler failed for: {Method} (id: {Id})", method, id),
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted,
+                    TaskScheduler.Default);
             }
             else
             {

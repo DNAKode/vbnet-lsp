@@ -1,13 +1,13 @@
 # Feature Support Matrix
 
-**VB.NET Language Support - LSP Features and Roadmap**
+**`VB.NET` Language Support - LSP Features and Roadmap**
 
 Version: 2.6  
 Last Updated: 2026-01-13
 
 ## 1. Overview
 
-This document provides a concise view of LSP features supported by VB.NET Language Support, their implementation status, and roadmap.
+This document provides a concise view of LSP features supported by `VB.NET` Language Support, their implementation status, and roadmap.
 
 **Current Phase**: Phase 2 (Baseline complete)  
 **Test Coverage**: 136 tests passing
@@ -119,3 +119,4 @@ This document provides a concise view of LSP features supported by VB.NET Langua
 ## 5. Roadmap (Next)
 
 Phase 3 focuses on inlay hints, call/type hierarchy, code lens (if valuable), test explorer integration, and performance tuning.
+

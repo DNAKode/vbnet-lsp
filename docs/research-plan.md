@@ -1,6 +1,6 @@
 # Research and Examination Plan
 
-**VB.NET Language Support - External Repository Analysis and Test Strategy**
+**`VB.NET` Language Support - External Repository Analysis and Test Strategy**
 
 Version: 1.0
 Last Updated: 2026-01-09
@@ -36,7 +36,7 @@ This document tracks our systematic examination of reference repositories and te
 |------------|------------|---------|
 | vscode-csharp | `_external/vscode-csharp/` | Primary architecture reference |
 | netcoredbg | `_external/netcoredbg/` | Debugger integration reference |
-| DWSIM | `_test/dwsim/` | Performance validation |
+| DWSIM | `_external/dwsim/` | Performance validation |
 
 ---
 
@@ -211,7 +211,7 @@ vscode-csharp/
 ## 4. DWSIM Test Strategy
 
 **Repository**: https://github.com/DanWBR/dwsim
-**Local Path**: `_test/dwsim/`
+**Local Path**: `_external/dwsim/`
 **Purpose**: Real-world performance validation
 
 ### 4.1 Codebase Analysis
@@ -220,7 +220,7 @@ First, understand the DWSIM codebase:
 
 - [ ] **Size metrics**:
   - Total .vb file count
-  - Total lines of VB.NET code
+  - Total lines of `VB.NET` code
   - Number of projects in solution
   - Project dependency graph complexity
 
@@ -256,7 +256,7 @@ First, understand the DWSIM codebase:
 
 Identify specific DWSIM files for targeted testing:
 
-- [ ] Largest VB.NET file - stress test parsing
+- [ ] Largest `VB.NET` file - stress test parsing
 - [ ] File with most symbols - completion performance
 - [ ] File with deep inheritance - type hierarchy
 - [ ] File with many references - reference finding
@@ -295,8 +295,8 @@ Each finding should be logged with:
 - **Date**: 2026-01-09
 - **Source**: `_external/vscode-csharp/src/lsptoolshost/activate.ts:158-179`
 - **Finding**: C# extension bundles `Microsoft.CodeAnalysis.LanguageServer.exe/.dll` at `.roslyn/Microsoft.CodeAnalysis.LanguageServer`. This is a pre-built Roslyn-based language server.
-- **Impact**: We need to build our own VB.NET language server using Roslyn APIs
-- **Action**: Create VbNet.LanguageServer project using Roslyn for VB.NET
+- **Impact**: We need to build our own `VB.NET` language server using Roslyn APIs
+- **Action**: Create VbNet.LanguageServer project using Roslyn for `VB.NET`
 
 ### Finding: Solution Discovery Pattern
 - **Date**: 2026-01-09
@@ -307,7 +307,7 @@ Each finding should be logged with:
   3. If 1 found → auto-open
   4. If multiple → prompt user to choose
   5. If none → search for `**/*.csproj` files
-- **Impact**: Should follow same pattern for VB.NET but search for `.vbproj`
+- **Impact**: Should follow same pattern for `VB.NET` but search for `.vbproj`
 - **Action**: Implement same discovery logic in our extension
 
 ### Finding: Custom LSP Notifications for Solution Loading
@@ -388,9 +388,9 @@ Each finding should be logged with:
   # Result: 7 passed, 147 tests
   ```
 
-- **Impact**: We have a working reference test infrastructure to pattern our VB.NET tests after
+- **Impact**: We have a working reference test infrastructure to pattern our `VB.NET` tests after
 - **Action**:
-  - Mirror test structure for VB.NET extension
+  - Mirror test structure for `VB.NET` extension
   - Use same Jest + ts-jest + gulp stack
   - Create equivalent test helper functions
   - Note Node.js 25 localstorage requirement in dev docs
@@ -445,22 +445,22 @@ Each finding should be logged with:
 
 ## 5.1 Parallel Test Efforts
 
-### Codex Independent Test Suite
+### Codex Exploratory Test Suite
 
-A parallel test effort is underway in `_test/codex-tests/`. This is an independent validation effort that should not interfere with the main test pre-engineering work. Key components:
+A parallel test effort is underway in `tests-exploratory/`. This is an independent validation effort that should not interfere with the main test pre-engineering work. Key components:
 
-- **Location**: `_test/codex-tests/`
-- **Documentation**: `_test/codex-tests/INDEPENDENT_TEST_SUITE.md`
-- **C# LSP Smoke Harness**: `_test/codex-tests/csharp-lsp/CSharpLspSmokeTest/`
+- **Location**: `tests-exploratory/`
+- **Documentation**: `tests-exploratory/TEST_SUITE.md`
+- **C# LSP Smoke Harness**: `_external/csharp-lsp/CSharpLspSmokeTest/`
   - C# program that connects to Roslyn LSP via named pipes
   - Performs initialize/shutdown handshake
   - Tests solution/open notification
-- **Node Client (experimental)**: `_test/codex-tests/csharp-lsp/node-client.ts`
+- **Node Client (experimental)**: `_external/csharp-lsp/node-client.ts`
   - Experimental, currently has issues with JSON-RPC framing
 
-**Status**: The C# harness validates named pipe connectivity to Roslyn LSP. This provides a reference implementation for our VB.NET language server's named pipe transport.
+**Status**: The C# harness validates named pipe connectivity to Roslyn LSP. This provides a reference implementation for our `VB.NET` language server's named pipe transport.
 
-**Coordination**: This effort validates testing approaches against the known-working C# extension. Findings should inform our VB.NET test infrastructure design but implementations remain separate.
+**Coordination**: This effort validates testing approaches against the known-working C# extension. Findings should inform our `VB.NET` test infrastructure design but implementations remain separate.
 
 ---
 
@@ -509,20 +509,20 @@ grep -r "spawn\|exec\|fork" _external/vscode-csharp/src/
 ### Exploring DWSIM
 
 ```bash
-# Count VB.NET files
-find _test/dwsim -name "*.vb" | wc -l
+# Count `VB.NET` files
+find _external/dwsim -name "*.vb" | wc -l
 
-# Find largest VB.NET files
-find _test/dwsim -name "*.vb" -exec wc -l {} \; | sort -n | tail -20
+# Find largest `VB.NET` files
+find _external/dwsim -name "*.vb" -exec wc -l {} \; | sort -n | tail -20
 
 # Find solution files
-find _test/dwsim -name "*.sln"
+find _external/dwsim -name "*.sln"
 
 # Find project files
-find _test/dwsim -name "*.vbproj"
+find _external/dwsim -name "*.vbproj"
 
-# Count total lines of VB.NET
-find _test/dwsim -name "*.vb" -exec cat {} \; | wc -l
+# Count total lines of `VB.NET`
+find _external/dwsim -name "*.vb" -exec cat {} \; | wc -l
 ```
 
 ### Exploring netcoredbg
@@ -548,3 +548,6 @@ cat _external/netcoredbg/README.md
 ---
 
 **This is a living document. Update with findings as research progresses.**
+
+
+

@@ -1,12 +1,12 @@
-# VB.NET Language Support Project Plan
+# `VB.NET` Language Support Project Plan
 
 ## Project Overview
 
-**Project Name:** VB.NET Language Support
+**Project Name:** `VB.NET` Language Support
 **GitHub Organization:** DNA Kode (DNAKode)
 **Repository:** vbnet-lsp
-**Display Name:** VB.NET Language Support
-**VS Code Extension Name:** VB.NET Language Support
+**Display Name:** `VB.NET` Language Support
+**VS Code Extension Name:** `VB.NET` Language Support
 **Language Server Command:** vbnet-ls (internal component)
 **Root Namespace:** VbNet.LanguageServer
 **Target Framework:** .NET 10.0+ (latest LTS)
@@ -15,12 +15,12 @@
 
 ### Summary
 
-An open-source, Roslyn-backed extension providing first-class VB.NET language support for VS Code and compatible editors (Cursor, VSCodium, etc.). This project **directly mirrors the "C# for Visual Studio Code" extension architecture** (github.com/dotnet/vscode-csharp), which is the open-source foundation for C# language support. The implementation follows modern Roslyn LSP patterns and is designed as lasting infrastructure for VB.NET development.
+An open-source, Roslyn-backed extension providing first-class `VB.NET` language support for VS Code and compatible editors (Cursor, VSCodium, etc.). This project **directly mirrors the "C# for Visual Studio Code" extension architecture** (github.com/dotnet/vscode-csharp), which is the open-source foundation for C# language support. The implementation follows modern Roslyn LSP patterns and is designed as lasting infrastructure for `VB.NET` development.
 
 ### Key Differentiation
 
 - **100% open source** under MIT license (matching the C# extension model)
-- **VB.NET focused** (mirroring how C# extension handles C#)
+- **`VB.NET` focused** (mirroring how C# extension handles C#)
 - **Open-source debugger** using Samsung's netcoredbg instead of proprietary debugger
 - **No proprietary components** (unlike C# Dev Kit which adds closed-source features)
 
@@ -30,19 +30,19 @@ An open-source, Roslyn-backed extension providing first-class VB.NET language su
 
 ### 1.1 Primary Goal
 
-**Provide definitive VB.NET language support for VS Code and compatible editors**, achieving feature parity with the **"C# for Visual Studio Code" extension** while remaining fully open source.
+**Provide definitive `VB.NET` language support for VS Code and compatible editors**, achieving feature parity with the **"C# for Visual Studio Code" extension** while remaining fully open source.
 
 ### 1.2 Project Philosophy
 
 - **No guessing:** Always verify C# extension behavior through source code inspection (github.com/dotnet/vscode-csharp)
 - **Agentic-first development:** Designed for minimal manual intervention, with clear task sequencing
-- **Lasting infrastructure:** Build for long-term VB.NET community support
+- **Lasting infrastructure:** Build for long-term `VB.NET` community support
 - **Documentation as code:** Maintain comprehensive, LLM-friendly documentation throughout
 - **Open-source debugger:** Use Samsung netcoredbg instead of proprietary Microsoft debugger
 
 ### 1.3 Must-Haves (MVP / Phase 1)
 
-- **Correct VB.NET semantics via Roslyn** (no custom parser)
+- **Correct `VB.NET` semantics via Roslyn** (no custom parser)
 - **LSP architecture matching C# extension** (github.com/dotnet/vscode-csharp)
 - **Solution and project loading** for `.sln` and `.vbproj`
 - **Incremental text synchronization** with versioned documents
@@ -55,7 +55,7 @@ An open-source, Roslyn-backed extension providing first-class VB.NET language su
   - Rename (with prepareRename)
   - Document and Workspace Symbols
 - **Debugging integration** with netcoredbg (open-source debugger)
-- **Performance validated against DWSIM** (large real-world VB.NET codebase)
+- **Performance validated against DWSIM** (large real-world `VB.NET` codebase)
 - **VS Code extension** packaged and published to Marketplace
 
 ### 1.4 Nice-to-Haves (Post-MVP / Phases 2-4)
@@ -100,7 +100,7 @@ An open-source, Roslyn-backed extension providing first-class VB.NET language su
 - **Language Server (Roslyn-based)**
   - Roslyn workspace management
   - LSP protocol implementation
-  - Language service adapters for VB.NET/C#
+  - Language service adapters for `VB.NET`/C#
   - MSBuild project loading
 
 - **Dependencies:**
@@ -109,16 +109,16 @@ An open-source, Roslyn-backed extension providing first-class VB.NET language su
   - LSP server architecture
   - Optional: OmniSharp (legacy support, being phased out)
 
-### 2.2 Key Differences for VB.NET Language Support
+### 2.2 Key Differences for `VB.NET` Language Support
 
-| Aspect | C# Extension | VB.NET Language Support |
+| Aspect | C# Extension | `VB.NET` Language Support |
 |--------|------------|----------------|
-| Language | C# (+ some VB support) | VB.NET only (focused) |
+| Language | C# (+ some VB support) | `VB.NET` only (focused) |
 | Debugger | Proprietary Microsoft debugger | **Samsung netcoredbg (open source)** |
 | Razor support | Yes | No (not applicable) |
 | License | MIT (open source) | MIT (open source) |
 | Development | Microsoft team | Community-driven, agentic |
-| Dependencies | Standalone C# support | **Standalone VB.NET support** |
+| Dependencies | Standalone C# support | **Standalone `VB.NET` support** |
 
 ### 2.3 C# Extension Reference Repository
 
@@ -165,7 +165,7 @@ We will **fork and host the C# extension** (github.com/dotnet/vscode-csharp) as 
 
 ## 4. Architecture
 
-**Architectural Principle:** Mirror C# extension architecture (github.com/dotnet/vscode-csharp) with VB.NET language services.
+**Architectural Principle:** Mirror C# extension architecture (github.com/dotnet/vscode-csharp) with `VB.NET` language services.
 
 ### 4.1 Component Structure
 
@@ -221,7 +221,7 @@ The language server is organized into five distinct layers:
 2. Extension (TypeScript) sends request to language server via stdio
 3. Language server receives request via JSON-RPC
 4. Server Core validates state and obtains workspace solution snapshot
-5. Language Service adapter translates LSP parameters into Roslyn VB.NET API calls
+5. Language Service adapter translates LSP parameters into Roslyn `VB.NET` API calls
 6. Roslyn processes request on background thread with immutable snapshots
 7. Results translated back into LSP types
 8. Response sent via stdout to extension
@@ -254,7 +254,7 @@ The language server is organized into five distinct layers:
 ### 5.3 DWSIM (Test Project)
 - **Repository:** github.com/DanWBR/dwsim
 - **Fork for:** Performance benchmarking, real-world validation
-- **Size:** Large VB.NET codebase (100+ files)
+- **Size:** Large `VB.NET` codebase (100+ files)
 
 ---
 
@@ -316,68 +316,58 @@ The language server is organized into five distinct layers:
 
 ```
 vbnet-lsp/
-├── _external/                          # Gitignored - reference repositories
-│   ├── vscode-csharp/                  # C# extension (architecture reference)
-│   └── netcoredbg/                     # Samsung debugger (DAP reference)
-│
-├── _test/                              # Gitignored - test infrastructure
-│   └── dwsim/                          # Large VB.NET project for testing
-│
-├── src/
-│   ├── extension/                      # VS Code extension (TypeScript)
-│   │   ├── src/
-│   │   │   ├── extension.ts            # Extension activation
-│   │   │   ├── languageClient.ts       # LSP client initialization
-│   │   │   ├── commands/               # Command implementations
-│   │   │   └── features/               # VS Code UI integration
-│   │   ├── package.json                # Extension manifest
-│   │   └── tsconfig.json
-│   │
-│   ├── VbNet.LanguageServer/           # Language server (C#/.NET)
-│   │   ├── Protocol/                   # LSP protocol layer
-│   │   ├── Core/                       # Server core and routing
-│   │   ├── Workspace/                  # MSBuild and workspace management
-│   │   ├── Services/                   # Language service adapters
-│   │   └── Program.cs                  # Entry point
-│   │
-│   └── VbNet.LanguageServer.Protocol/  # Shared LSP types (optional)
-│
-├── test/
-│   ├── extension.test/                 # Extension unit tests (TypeScript)
-│   ├── VbNet.LanguageServer.Tests/     # Server unit tests (C#)
-│   ├── VbNet.IntegrationTests/         # End-to-end tests
-│   └── TestProjects/                   # Small test projects (tracked)
-│       ├── SmallProject/               # ~5-10 files
-│       └── MediumProject/              # ~50 files, multi-project
-│
-├── docs/
-│   ├── architecture.md                 # SINGLE SOURCE OF TRUTH
-│   ├── development.md                  # Dev setup and workflow
-│   ├── configuration.md                # User configuration guide
-│   ├── features.md                     # Feature support matrix
-│   └── research-plan.md                # External repo examination plans
-│
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                      # Build, test, lint
-│       ├── integration.yml             # DWSIM integration tests
-│       ├── emacs-lsp.yml               # Emacs lsp-mode validation (Linux)
-│       ├── performance.yml             # Nightly performance tests
-│       └── release.yml                 # Publish to marketplaces
-│
-├── scripts/
-│   ├── bootstrap.sh                    # Initial setup script
-│   ├── test-dwsim.sh                   # DWSIM test runner
-│   └── package-extension.sh            # Package VSIX
-│
-├── README.md
-├── LICENSE                             # MIT
-├── CONTRIBUTING.md                     # Issue-focused contribution
-├── CODE_OF_CONDUCT.md
-└── vbnet-lsp.sln                       # Main solution file
+|-- _external/                          # Gitignored - reference repos + large inputs
+|   |-- vscode-csharp/                  # C# extension (architecture reference)
+|   |-- netcoredbg/                     # Samsung debugger (DAP reference)
+|   |-- csharp-lsp/                     # C# harness + fixtures (reference)
+|   |-- roslyn/                         # Roslyn source (optional)
+|   `-- dwsim/                          # Large `VB.NET` project for testing
+|-- tests-exploratory/                  # Tracked - exploratory harnesses (logs excluded)
+|   `-- clients/                        # VS Code / Emacs harnesses, etc.
+|-- src/
+|   |-- extension/                      # VS Code extension (TypeScript)
+|   |   |-- src/
+|   |   |   |-- extension.ts            # Extension activation
+|   |   |   |-- languageClient.ts       # LSP client initialization
+|   |   |   |-- commands/               # Command implementations
+|   |   |   `-- features/               # VS Code UI integration
+|   |   |-- package.json                # Extension manifest
+|   |   `-- tsconfig.json
+|   `-- VbNet.LanguageServer/           # Language server (C#/.NET)
+|       |-- Protocol/                   # LSP protocol layer
+|       |-- Core/                       # Server core and routing
+|       |-- Workspace/                  # MSBuild and workspace management
+|       |-- Services/                   # Language service adapters
+|       `-- Program.cs                  # Entry point
+|-- test/
+|   |-- VbNet.LanguageServer.Tests/     # Server unit tests (C#)
+|   `-- TestProjects/                   # Small test projects (tracked)
+|       |-- SmallProject/               # ~5-10 files
+|       `-- MediumProject/              # ~50 files, multi-project
+|-- docs/
+|   |-- architecture.md                 # SINGLE SOURCE OF TRUTH
+|   |-- development.md                  # Dev setup and workflow
+|   |-- configuration.md                # User configuration guide
+|   |-- features.md                     # Feature support matrix
+|   `-- research-plan.md                # External repo examination plans
+|-- .github/
+|   `-- workflows/
+|       |-- ci.yml                      # Build, test, lint
+|       |-- integration.yml             # DWSIM integration tests
+|       |-- emacs-lsp.yml               # Emacs lsp-mode validation (Linux)
+|       |-- performance.yml             # Nightly performance tests
+|       `-- release.yml                 # Publish to marketplaces
+|-- scripts/
+|   |-- bootstrap.sh                    # Initial setup script
+|   |-- test-dwsim.sh                   # DWSIM test runner
+|   `-- package-extension.sh            # Package VSIX
+|-- README.md
+|-- LICENSE                             # MIT
+|-- CONTRIBUTING.md                     # Issue-focused contribution
+|-- CODE_OF_CONDUCT.md
+`-- vbnet-lsp.sln                       # Main solution file
 ```
-
-**Note**: `_external/` and `_test/` directories are gitignored and must be set up locally.
+**Note**: _external/ is gitignored and must be set up locally. 	ests-exploratory/ is tracked, but its logs and downloaded runtimes are excluded.
 See `docs/development.md` Section 2.1 for setup instructions.
 
 ---
@@ -478,13 +468,13 @@ See `docs/development.md` Section 2.1 for setup instructions.
      - Provision Ubuntu (WSL2 or hosted VM) with .NET SDK + Node.js.
      - Install netcoredbg for Linux (release asset or build from source).
      - Build VSIX for `linux-x64` and install into VS Code Remote - WSL.
-     - Run `_test/codex-tests/clients/vscode` with `EXTENSION_VSIX` set to the Linux VSIX and verify debug harness (including inferred program path).
+     - Run `tests-exploratory/clients/vscode` with `EXTENSION_VSIX` set to the Linux VSIX and verify debug harness (including inferred program path).
      - Capture logs and DAP traces for parity with Windows runs.
 
-### 11.3 VB.NET Only
+### 11.3 `VB.NET` Only
 - Focused scope (no mixed-language complexity)
 - Simpler architecture
-- Better VB.NET-specific optimizations
+- Better `VB.NET`-specific optimizations
 
 ### 11.4 Agentic Development
 - Designed for minimal manual intervention
@@ -565,3 +555,6 @@ See `docs/development.md` Section 2.1 for setup instructions.
 **Status:** Phase 1 MVP Complete
 **Key Change:** Shifted from C# Dev Kit to C# extension as reference model + added netcoredbg
 **License:** MIT (fully open source)
+
+
+

@@ -1,12 +1,12 @@
-# VB.NET Language Support
+# `VB.NET` Language Support
 
-**First-class VB.NET language support for VS Code and compatible editors**
+**First-class `VB.NET` language support for VS Code and compatible editors**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
 
-VB.NET Language Support is a fully open-source extension providing first-class VB.NET language support for Visual Studio Code and compatible editors (Cursor, VSCodium, Emacs). Built on Microsoft's Roslyn compiler platform, it delivers modern IDE features through the Language Server Protocol (LSP).
+`VB.NET` Language Support is a fully open-source extension providing first-class `VB.NET` language support for Visual Studio Code and compatible editors (Cursor, VSCodium, Emacs). Built on Microsoft's Roslyn compiler platform, it delivers modern IDE features through the Language Server Protocol (LSP).
 
 ### Key Features
 
@@ -81,7 +81,7 @@ export VSCODE_CLI=1
 export DONT_PROMPT_WSL_INSTALL=1
 export NO_AT_BRIDGE=1
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
-cd /mnt/c/Work/vbnet-lsp/_test/codex-tests/clients/vscode
+cd /mnt/c/Work/vbnet-lsp/tests-exploratory/clients/vscode
 xvfb-run -a npm test
 ```
 
@@ -89,7 +89,7 @@ See [docs/development.md](docs/development.md) for full setup details.
 
 ### From Source (Development)
 
-Currently, VB.NET Language Support is in early development. To build from source:
+Currently, `VB.NET` Language Support is in early development. To build from source:
 
 \`\`\`bash
 # Clone the repository
@@ -107,18 +107,18 @@ See [docs/development.md](docs/development.md) for detailed setup instructions.
 
 ## Quick Start
 
-Once installed, the extension automatically activates when you open a \`.vb\` file or a folder containing VB.NET projects.
+Once installed, the extension automatically activates when you open a \`.vb\` file or a folder containing `VB.NET` projects.
 
-### Opening a VB.NET Project
+### Opening a `VB.NET` Project
 
 1. Open VS Code
 2. Open a folder containing a \`.sln\` or \`.vbproj\` file
-3. The extension will automatically discover and load your VB.NET projects
+3. The extension will automatically discover and load your `VB.NET` projects
 4. Start coding with full IntelliSense support
 
 ## Architecture
 
-VB.NET Language Support follows the architecture of the "C# for Visual Studio Code" extension:
+`VB.NET` Language Support follows the architecture of the "C# for Visual Studio Code" extension:
 
 - **VS Code Extension (TypeScript)** - Extension activation, LSP client, UI integration
 - **Language Server (C#/.NET)** - Roslyn workspace, LSP protocol, language services
@@ -135,7 +135,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed architectural info
 
 ## Project Goals
 
-VB.NET Language Support aims to provide:
+`VB.NET` Language Support aims to provide:
 
 1. **Feature parity** with the "C# for Visual Studio Code" extension
 2. **Performance** validated against large real-world codebases (DWSIM)
@@ -145,7 +145,7 @@ VB.NET Language Support aims to provide:
 ### Key Differentiators
 
 - **100% open source** under MIT license
-- **VB.NET focused** - optimized specifically for VB.NET development
+- **`VB.NET` focused** - optimized specifically for `VB.NET` development
 - **Open-source debugger** - Samsung netcoredbg instead of proprietary alternatives
 - **No proprietary components** - fully transparent and community-driven
 
@@ -189,11 +189,11 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Testing
 
-VB.NET Language Support is tested against:
+`VB.NET` Language Support is tested against:
 
 - **Small projects** (~10 files) - unit test validation
 - **Medium projects** (~50 files) - integration testing
-- **DWSIM** (100+ files) - large real-world VB.NET codebase for performance validation
+- **DWSIM** (100+ files) - large real-world `VB.NET` codebase for performance validation
 - **Multiple editors** - VS Code (automated) and Emacs (eglot) smoke coverage; Cursor/VSCodium planned
 
 ## License
@@ -205,7 +205,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Microsoft Roslyn team** - for the amazing .NET compiler platform
 - **Microsoft C# extension team** - for the open-source LSP architecture reference
 - **Samsung netcoredbg team** - for the open-source .NET debugger
-- **DWSIM project** - for providing a large real-world VB.NET codebase for testing
+- **DWSIM project** - for providing a large real-world `VB.NET` codebase for testing
 
 ## Support
 
@@ -215,6 +215,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Built with focus on the VB.NET community. Designed for lasting infrastructure.**
+**Built with focus on the `VB.NET` community. Designed for lasting infrastructure.**
+
+
 
 

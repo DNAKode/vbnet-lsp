@@ -452,6 +452,10 @@ test/TestProjects/SmallProject/bin/
 test/TestProjects/SmallProject/obj/
 test/TestProjects/MediumProject/bin/
 test/TestProjects/MediumProject/obj/
+test/TestProjects/ErrorProject/bin/
+test/TestProjects/ErrorProject/obj/
+test/TestProjects/DebugConsole/bin/
+test/TestProjects/DebugConsole/obj/
 
 # Publish output
 publish/
@@ -497,5 +501,8 @@ $RECYCLE.BIN/
 # External reference repositories (C# extension, netcoredbg, roslyn)
 _external/
 
-# Test infrastructure (DWSIM, sample projects)
-_test/
+# Exploratory harness artifacts (logs, downloaded runtimes, caches)
+tests-exploratory/clients/emacs/emacs/
+tests-exploratory/clients/vscode/.vscode-test/
+tests-exploratory/**/logs/
+tests-exploratory/vbnet-lsp/snapshots/

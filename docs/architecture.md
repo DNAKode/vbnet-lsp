@@ -1,4 +1,4 @@
-# VB.NET Language Support Architecture
+# `VB.NET` Language Support Architecture
 
 **Single Source of Truth for Architectural Decisions**
 
@@ -8,7 +8,7 @@ Status: Living Document
 
 ## Document Purpose
 
-This document serves as the **single authoritative source** for all architectural decisions, patterns, and design rationale for the VB.NET Language Support project. It replaces traditional ADR (Architecture Decision Record) files by maintaining all decisions inline with full context.
+This document serves as the **single authoritative source** for all architectural decisions, patterns, and design rationale for the `VB.NET` Language Support project. It replaces traditional ADR (Architecture Decision Record) files by maintaining all decisions inline with full context.
 
 **Update Policy**: This document MUST be updated with every architectural change or decision.
 
@@ -38,7 +38,7 @@ This document serves as the **single authoritative source** for all architectura
 
 ### 1.1 High-Level Architecture
 
-VB.NET Language Support consists of two primary components:
+`VB.NET` Language Support consists of two primary components:
 
 ```
 ┌─────────────────────────────────────┐
@@ -73,7 +73,7 @@ VB.NET Language Support consists of two primary components:
 
 **Key Principles**:
 - **Never guess** - Always verify C# extension behavior through source code inspection
-- **Roslyn-first** - Use Roslyn as the single source of truth for VB.NET semantics
+- **Roslyn-first** - Use Roslyn as the single source of truth for `VB.NET` semantics
 - **LSP compliance** - Strict adherence to Language Server Protocol specification
 - **Fail gracefully** - Partial functionality is better than complete failure
 - **Performance by design** - Immutable snapshots, async-first, cancellation-aware
@@ -113,7 +113,7 @@ VB.NET Language Support consists of two primary components:
 ### 2.2 Architectural Constraints
 
 - **No OmniSharp protocol extensions** (Phase 1)
-- **VB.NET only** (mixed-language deferred to Phase 4)
+- **`VB.NET` only** (mixed-language deferred to Phase 4)
 - **Named pipes primary, stdio secondary** (no TCP or other transports)
 - **.NET 10.0+ target framework** for language server
 - **UTF-16 position encoding** (Roslyn compatibility)
@@ -146,7 +146,7 @@ VB.NET Language Support consists of two primary components:
 
 **Configuration Files**:
 - `package.json` - Extension manifest with contributions
-- `language-configuration.json` - VB.NET language settings (brackets, comments)
+- `language-configuration.json` - `VB.NET` language settings (brackets, comments)
 - `tsconfig.json` - TypeScript compiler options
 - `esbuild.js` - Production bundling script
 
@@ -157,8 +157,8 @@ VB.NET Language Support consists of two primary components:
 - `vscode-languageclient` - LSP client library (v9.0.1+)
 
 **Activation Events**:
-- `onLanguage:vb` - When a VB.NET file is opened
-- `workspaceContains:**/*.vbproj` - When workspace contains VB.NET projects
+- `onLanguage:vb` - When a `VB.NET` file is opened
+- `workspaceContains:**/*.vbproj` - When workspace contains `VB.NET` projects
 - `workspaceContains:**/*.sln` - When workspace contains solution files
 
 **Configuration Namespace**: `vbnet.*`
@@ -458,7 +458,7 @@ var solution = await workspace.OpenSolutionAsync(
     solutionPath,
     cancellationToken: ct);
 
-// Filter VB.NET projects only (Phase 1)
+// Filter `VB.NET` projects only (Phase 1)
 var vbProjects = solution.Projects
     .Where(p => p.Language == LanguageNames.VisualBasic);
 ```
@@ -819,7 +819,7 @@ This section replaces traditional ADR files. All decisions are documented here w
 The "C# for Visual Studio Code" extension (github.com/dotnet/vscode-csharp) provides open-source C# language support through LSP.
 
 **Decision**:
-Mirror the C# extension architecture for VB.NET language support.
+Mirror the C# extension architecture for `VB.NET` language support.
 
 **Rationale**:
 - C# extension is 100% open source (MIT)
@@ -836,7 +836,7 @@ Always verify behavior against C# extension source code - never guess.
 **Status**: Accepted
 
 **Context**:
-Need debugger integration for VB.NET projects. Microsoft's debugger is proprietary.
+Need debugger integration for `VB.NET` projects. Microsoft's debugger is proprietary.
 
 **Decision**:
 Use Samsung netcoredbg (github.com/Samsung/netcoredbg) as the debugger.
@@ -850,20 +850,20 @@ Use Samsung netcoredbg (github.com/Samsung/netcoredbg) as the debugger.
 
 **Implementation**: Phase 2
 
-### 14.3 Decision: VB.NET Only (Phase 1-3)
+### 14.3 Decision: `VB.NET` Only (Phase 1-3)
 
 **Date**: 2026-01-09
 **Status**: Accepted
 
 **Context**:
-Real-world solutions often mix C# and VB.NET projects.
+Real-world solutions often mix C# and `VB.NET` projects.
 
 **Decision**:
-Phase 1-3 support VB.NET only. Defer mixed-language to Phase 4.
+Phase 1-3 support `VB.NET` only. Defer mixed-language to Phase 4.
 
 **Rationale**:
 - Simpler initial implementation
-- Better VB.NET-specific optimizations
+- Better `VB.NET`-specific optimizations
 - Faster time to MVP
 - Can add C# tolerance later without breaking changes
 
@@ -1021,7 +1021,7 @@ Test against multiple editors: VS Code (primary), Cursor, and Emacs (lsp-mode).
 - **Protocol compliance validation** - Emacs lsp-mode is a different LSP client implementation
 - **Broader compatibility** - Ensures language server works beyond VS Code ecosystem
 - **Automated testing** - Emacs supports batch-mode testing on CI (Linux)
-- **Community value** - VB.NET developers use diverse editors
+- **Community value** - `VB.NET` developers use diverse editors
 
 **Implementation**:
 - GitHub Actions workflow with Ubuntu + Emacs lsp-mode
@@ -1120,7 +1120,7 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 - Regression testing
 - Edge case discovery
 
-**Size**: 100+ VB.NET files, complex domain logic
+**Size**: 100+ `VB.NET` files, complex domain logic
 
 **Fork Strategy**: Create organizational fork for automated CI testing.
 
@@ -1161,7 +1161,7 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 |----|------|----------|--------|
 | 14.1 | 2026-01-09 | Follow C# Extension Architecture | Accepted |
 | 14.2 | 2026-01-09 | Samsung netcoredbg for Debugging | Accepted |
-| 14.3 | 2026-01-09 | VB.NET Only (Phase 1-3) | Accepted |
+| 14.3 | 2026-01-09 | `VB.NET` Only (Phase 1-3) | Accepted |
 | 14.4 | 2026-01-09 | MSBuildWorkspace for Project Loading | Accepted |
 | 14.5 | 2026-01-10 | Named Pipes Primary, stdio Secondary | **Updated** |
 | 14.6 | 2026-01-09 | UTF-16 Position Encoding | Accepted |
@@ -1234,7 +1234,7 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 ### Test Fixtures
 
 Located in `test/TestProjects/`:
-- **SmallProject/** - Valid VB.NET code for positive tests
+- **SmallProject/** - Valid `VB.NET` code for positive tests
 - **ErrorProject/** - Intentional errors for diagnostics tests
 
 ### Key Commits
@@ -1272,3 +1272,4 @@ Located in `test/TestProjects/`:
 ---
 
 **This document is a living document. Update with every architectural change.**
+

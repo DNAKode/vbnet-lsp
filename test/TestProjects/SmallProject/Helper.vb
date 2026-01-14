@@ -18,7 +18,7 @@ Public Class Helper
     ''' Performs some work and increments the counter.
     ''' </summary>
     Public Sub DoWork()
-        Dim x A
+        Dim x As Integer = _counter + 1
         Console.WriteLine($"Work done. Counter: {_counter}")
     End Sub
 
@@ -48,5 +48,7 @@ Public Class Helper
         Dim result = Add(1, 2)
     End Sub
 
-End Class
+    Public Sub SignatureHelpTest()
+        Dim result = Add(1, 2)
+    End SubEnd Class
 

@@ -1,0 +1,115 @@
+{
+  "workspace": "tests-exploratory/vbnet-lsp/fixtures/services",
+  "file": "tests-exploratory/vbnet-lsp/fixtures/services/ServiceSamples.vb",
+  "tests": [
+    {
+      "id": "completion_text",
+      "method": "textDocument/completion",
+      "marker": "completion_text",
+      "expectation": "non_empty",
+      "token": "text.",
+      "tokenOffset": 5
+    },
+    {
+      "id": "completion_calc",
+      "method": "textDocument/completion",
+      "marker": "completion_calc",
+      "expectation": "contains:Add",
+      "token": "calc.",
+      "tokenOffset": 5
+    },
+    {
+      "id": "completion_extension",
+      "method": "textDocument/completion",
+      "marker": "completion_extension",
+      "expectation": "contains:DoubleIt",
+      "token": "sum.",
+      "tokenOffset": 4
+    },
+    {
+      "id": "hover_text",
+      "method": "textDocument/hover",
+      "marker": "hover_text",
+      "expectation": "non_null",
+      "token": "sum",
+      "tokenOffset": 0
+    },
+    {
+      "id": "hover_extratype",
+      "method": "textDocument/hover",
+      "marker": "hover_extratype",
+      "expectation": "non_null",
+      "token": "ExtraType",
+      "tokenOffset": 0
+    },
+    {
+      "id": "definition_add",
+      "method": "textDocument/definition",
+      "marker": "definition_add",
+      "expectation": "non_empty",
+      "token": "Add",
+      "tokenOffset": 0
+    },
+    {
+      "id": "definition_greeter",
+      "method": "textDocument/definition",
+      "marker": "definition_greeter",
+      "expectation": "non_empty",
+      "token": "Greeter",
+      "tokenOffset": 0
+    },
+    {
+      "id": "references_greet",
+      "method": "textDocument/references",
+      "marker": "references_greet",
+      "expectation": "non_empty",
+      "token": "Greet",
+      "tokenOffset": 0
+    },
+    {
+      "id": "references_greeter_class",
+      "method": "textDocument/references",
+      "marker": "references_greeter_class",
+      "expectation": "non_empty",
+      "token": "Greeter",
+      "tokenOffset": 0
+    },
+    {
+      "id": "references_title",
+      "method": "textDocument/references",
+      "marker": "references_title",
+      "expectation": "non_empty",
+      "token": "Title",
+      "tokenOffset": 0
+    },
+    {
+      "id": "rename_sum",
+      "method": "textDocument/rename",
+      "marker": "hover_text",
+      "expectation": "workspace_edit",
+      "token": "sum",
+      "tokenOffset": 0
+    },
+    {
+      "id": "rename_greeter",
+      "method": "textDocument/rename",
+      "marker": "rename_greeter",
+      "expectation": "workspace_edit_files:2",
+      "token": "New Greeter",
+      "tokenOffset": 4
+    },
+    {
+      "id": "symbols_document",
+      "method": "textDocument/documentSymbol",
+      "marker": "completion_text",
+      "expectation": "non_empty"
+    },
+    {
+      "id": "symbols_workspace",
+      "method": "workspace/symbol",
+      "marker": "completion_text",
+      "expectation": "non_empty"
+    }
+  ]
+}
+

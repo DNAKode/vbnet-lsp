@@ -1,6 +1,6 @@
 # Development Guide
 
-**VB.NET Language Support - Developer Documentation**
+**`VB.NET` Language Support - Developer Documentation**
 
 Version: 1.0
 Last Updated: 2026-01-09
@@ -122,6 +122,9 @@ git clone https://github.com/dotnet/vscode-csharp.git
 git clone https://github.com/Samsung/netcoredbg.git
 # Size: ~50MB, Clone time: <1 minute
 
+# C# LSP harness (local reference, optional)
+# Kept under _external/csharp-lsp; if missing, skip C# harness tests
+
 # (Optional) Roslyn - Deep compiler reference
 # Only clone if needed for deep Roslyn API investigation
 # git clone https://github.com/dotnet/roslyn.git
@@ -137,67 +140,69 @@ ls _external/
 # Should show: vscode-csharp/  netcoredbg/
 ```
 
-### _test/ - Test Infrastructure
+### _external/ - Test Inputs (DWSIM)
 
-Contains test projects for validation and performance testing. DWSIM is particularly important for real-world performance validation.
+Store large test inputs and reference repos under `_external/`. These are gitignored and can be re-cloned as needed.
 
 ```bash
 # Create directory (if not exists)
-mkdir -p _test
-cd _test
+mkdir -p _external
+cd _external
 
-# DWSIM - Large real-world VB.NET codebase
+# DWSIM - Large real-world `VB.NET` codebase
 # Performance benchmarking, real-world validation, edge case discovery
 git clone https://github.com/DanWBR/dwsim.git
 # Size: ~500MB, Clone time: 5-10 minutes
-# Note: Contains 100+ VB.NET files across multiple projects
+# Note: Contains 100+ `VB.NET` files across multiple projects
 
 cd ..
 ```
 
 **Verification**:
 ```bash
-ls _test/
-# Should show: dwsim/
+ls _external/
+# Should show: vscode-csharp/  netcoredbg/  dwsim/
 
-# Verify DWSIM VB.NET content
-find _test/dwsim -name "*.vb" | head -20
+# Verify DWSIM `VB.NET` content
+find _external/dwsim -name "*.vb" | head -20
 ```
 
-### _test/codex-tests/ - Unified Verification (Use in improvement cycles)
+### tests-exploratory/ - Unified Verification (Use in improvement cycles)
 
-**IMPORTANT**: The `_test/codex-tests/` directory contains the headless harnesses for VS Code, VB.NET LSP, and Emacs. These are now part of the normal improvement cycle.
+**IMPORTANT**: The `tests-exploratory/` directory contains the headless harnesses for VS Code, `VB.NET` LSP, and Emacs. These are now part of the normal improvement cycle.
 
 **Rules for this directory:**
 1. **Run tests from here** as part of iterative improvement cycles
 2. **Update harnesses when needed** to improve reliability and coverage
-3. **Record outcomes** in `_test/codex-tests/INDEPENDENT_TEST_RESULTS.md`
+3. **Record outcomes** in `tests-exploratory/TEST_RESULTS.md`
 4. **Exclude incidental artifacts** (logs, downloaded runtimes) from commits
 5. **Also use test/VbNet.LanguageServer.Tests/** for unit coverage
 
 **What you SHOULD do:**
-- Run `_test/codex-tests` harnesses during fixes and regressions
+- Run `tests-exploratory` harnesses during fixes and regressions
 - Capture VS Code logs when needed (`CAPTURE_VSCODE_LOGS=1`, `CAPTURE_VBNET_TRACE=1`)
-- Update `_test/codex-tests/INDEPENDENT_TEST_RESULTS.md` with test outcomes
+- Update `tests-exploratory/TEST_RESULTS.md` with test outcomes
+- Follow `tests-exploratory/README.md` for log retention and harness conventions
 
 ### Directory Structure After Setup
 
 ```
 vbnet-lsp/
-├── _external/                    # Gitignored - reference repos
-│   ├── vscode-csharp/           # C# extension (primary reference)
-│   └── netcoredbg/              # Samsung debugger
-├── _test/                        # Gitignored - test infrastructure
-│   ├── codex-tests/             # Independent verification (DO NOT USE)
-│   └── dwsim/                   # Large VB.NET test project
-├── src/                          # Tracked - our source code
-├── test/                         # Tracked - our test code (USE THIS!)
-└── docs/                         # Tracked - documentation
+|-- _external/                    # Gitignored - reference repos + large inputs
+|   |-- vscode-csharp/           # C# extension (primary reference)
+|   |-- netcoredbg/              # Samsung debugger
+|   |-- csharp-lsp/              # C# harness + fixtures (reference)
+|   |-- roslyn/                  # Roslyn source (optional)
+|   `-- dwsim/                   # Large `VB.NET` test project
+|-- tests-exploratory/           # Tracked - exploratory harnesses (logs excluded)
+|-- src/                         # Tracked - our source code
+|-- test/                        # Tracked - our test code (USE THIS!)
+`-- docs/                        # Tracked - documentation
 ```
 
 ### Why These Are Gitignored
 
-1. **Size**: Reference repos are large (vscode-csharp ~200MB, roslyn ~2GB)
+1. **Size**: Reference repos and inputs are large (vscode-csharp ~200MB, roslyn ~2GB, DWSIM ~500MB)
 2. **External ownership**: These repos are maintained by others
 3. **Reproducibility**: Clone commands are documented; anyone can recreate
 4. **Cleanliness**: Keeps our repo focused on our code
@@ -214,7 +219,7 @@ cd _external/vscode-csharp && git pull && cd ../..
 cd _external/netcoredbg && git pull && cd ../..
 
 # Update DWSIM test project
-cd _test/dwsim && git pull && cd ../..
+cd _external/dwsim && git pull && cd ../..
 ```
 
 ---
@@ -256,8 +261,11 @@ npm run package
 ### Unit Tests (.NET)
 
 ```bash
-# Run all language server tests
-dotnet test src/VbNet.LanguageServer.Tests
+# Run language server tests
+dotnet test test/VbNet.LanguageServer.Tests
+
+# Run extension manifest tests (CI-safe, no VS Code required)
+dotnet test test/VbNet.Extension.Tests
 
 # Run with coverage
 dotnet test src/VbNet.LanguageServer.Tests --collect:"XPlat Code Coverage"
@@ -299,7 +307,7 @@ dotnet build test/TestProjects/DebugConsole/DebugConsole.vbproj
 # Run harness (skips debug test if netcoredbg is missing)
 $env:FIXTURE_WORKSPACE = "test/TestProjects/DebugConsole"
 $env:NETCOREDBG_PATH = "C:\\tools\\netcoredbg\\netcoredbg.exe" # optional
-cd _test/codex-tests/clients/vscode
+cd tests-exploratory/clients/vscode
 npm test
 ```
 
@@ -325,7 +333,7 @@ npm run bundle-debugger
 
 ```bash
 # Requires Emacs (eglot is built-in)
-./_test/codex-tests/clients/emacs/run-tests.ps1 -Suite vbnet
+./tests-exploratory/clients/emacs/run-tests.ps1 -Suite vbnet
 ```
 
 ---
@@ -349,7 +357,7 @@ export VSCODE_CLI=1
 export DONT_PROMPT_WSL_INSTALL=1
 export NO_AT_BRIDGE=1
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
-cd /mnt/c/Work/vbnet-lsp/_test/codex-tests/clients/vscode
+cd /mnt/c/Work/vbnet-lsp/tests-exploratory/clients/vscode
 xvfb-run -a npm test
 ```
 
@@ -394,21 +402,21 @@ Logs are written to stderr.
 2. Press F5 or use "Run > Start Debugging"
 3. Select "Extension" launch configuration
 4. A new VS Code window opens (Extension Development Host)
-5. Open a VB.NET project in the Extension Development Host
+5. Open a `VB.NET` project in the Extension Development Host
 6. Set breakpoints in TypeScript code
 
 #### Extension Logs
 
 View extension logs:
 1. In Extension Development Host: "View > Output"
-2. Select "VB.NET Language Support" from dropdown
+2. Select "`VB.NET` Language Support" from dropdown
 
 ### Debugging LSP Communication
 
 Enable LSP tracing:
 
 1. VS Code Settings: `vbnet.trace.server` = `"verbose"`
-2. View LSP messages: "View > Output" > "VB.NET Language Support"
+2. View LSP messages: "View > Output" > "`VB.NET` Language Support"
 
 ---
 
@@ -560,7 +568,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const client = new LanguageClient(
         'vbnetLanguageServer',
-        'VB.NET Language Server',
+        '`VB.NET` Language Server',
         serverOptions,
         clientOptions
     );
@@ -608,63 +616,22 @@ test(integration): Add DWSIM performance benchmarks
 
 ### GitHub Actions Workflows
 
-#### ci.yml - Build and Test
+#### ci.yml - Fast Tests (Windows)
 
-Triggers: Push to main, all PRs
-
-```yaml
-- Build language server (.NET)
-- Build extension (TypeScript)
-- Run unit tests
-- Run integration tests
-- Code coverage report
-```
-
-#### emacs-lsp.yml - Multi-Editor Testing
-
-Triggers: Push to main, all PRs
+Triggers: Push to `master`/`main`, all PRs
+Current scope: Windows-only (multi-platform planned).
 
 ```yaml
-- Setup Ubuntu + Emacs + lsp-mode
-- Build language server
-- Run Emacs LSP tests in batch mode
-- Validate core LSP features
+- Run language server unit/integration tests (test/VbNet.LanguageServer.Tests)
+- Run extension manifest checks (test/VbNet.Extension.Tests)
 ```
 
-#### integration.yml - DWSIM Validation
+#### Planned (not yet in repo)
 
-Triggers: Push to main, nightly
-
-```yaml
-- Clone DWSIM project
-- Load solution with language server
-- Measure startup time
-- Validate diagnostics
-- Test navigation features
-```
-
-#### performance.yml - Performance Testing
-
-Triggers: Nightly, manual
-
-```yaml
-- Run performance benchmarks
-- Memory profiling
-- Latency measurements
-- Generate performance report
-```
-
-#### release.yml - Publish
-
-Triggers: Version tags (v*.*.*)
-
-```yaml
-- Build release artifacts
-- Package VS Code extension (.vsix)
-- Publish to VS Code Marketplace
-- Publish to Open VSX Registry
-- Create GitHub release
-```
+- **emacs-lsp.yml**: Multi-editor protocol validation (Linux)
+- **integration.yml**: DWSIM validation
+- **performance.yml**: Nightly performance checks
+- **release.yml**: Package + publish workflows
 
 ### Running CI Locally
 
@@ -673,10 +640,10 @@ Triggers: Version tags (v*.*.*)
 # https://github.com/nektos/act
 
 # Run CI workflow
-act -j build
+act -j test
 
-# Run integration tests
-act -j integration
+# Planned integration workflow (when added)
+# act -j integration
 ```
 
 ---
@@ -766,7 +733,7 @@ dotnet --version  # Verify installation
 **Solution**: Check extension logs
 
 1. "View > Output" in VS Code
-2. Select "VB.NET Language Support" from dropdown
+2. Select "`VB.NET` Language Support" from dropdown
 3. Look for error messages
 
 #### "Language server not responding"
@@ -774,7 +741,7 @@ dotnet --version  # Verify installation
 **Solution**: Restart language server
 
 1. VS Code Command Palette (Ctrl+Shift+P)
-2. "VB.NET: Restart Language Server"
+2. "`VB.NET`: Restart Language Server"
 
 Or check if server process is running:
 
@@ -808,4 +775,8 @@ dotnet test
 
 **Last Updated**: 2026-01-10
 
-**Maintained by**: VB.NET Language Support Contributors
+**Maintained by**: `VB.NET` Language Support Contributors
+
+
+
+

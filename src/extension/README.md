@@ -1,4 +1,4 @@
-# VB.NET Language Support
+# `VB.NET` Language Support
 
 First-class Visual Basic (.NET) support for Visual Studio Code, powered by a custom language server.
 
@@ -11,7 +11,7 @@ First-class Visual Basic (.NET) support for Visual Studio Code, powered by a cus
 - Debugging with netcoredbg (optional)
 
 ## Getting Started
-1) Open a VB.NET project (`.sln`, `.slnf`, or `.vbproj`).
+1) Open a `VB.NET` project (`.sln`, `.slnf`, or `.vbproj`).
 2) The language server starts automatically and scans your workspace.
 3) Configure settings under `vbnet.*` if needed.
 
@@ -22,3 +22,4 @@ This extension integrates with `netcoredbg`. Install or provide a path in:
 ## Resources
 - Repository: https://github.com/DNAKode/vbnet-lsp
 - Issues: https://github.com/DNAKode/vbnet-lsp/issues
+

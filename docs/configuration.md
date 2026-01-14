@@ -1,6 +1,6 @@
 # Configuration Guide
 
-**VB.NET Language Support - User Configuration**
+**`VB.NET` Language Support - User Configuration**
 
 Version: 1.1
 Last Updated: 2026-01-12
@@ -17,9 +17,9 @@ Last Updated: 2026-01-12
 
 ## 1. Overview
 
-VB.NET Language Support is configured primarily through VS Code settings. All settings can be modified in:
+`VB.NET` Language Support is configured primarily through VS Code settings. All settings can be modified in:
 
-- **UI**: File > Preferences > Settings > Extensions > VB.NET Language Support
+- **UI**: File > Preferences > Settings > Extensions > `VB.NET` Language Support
 - **JSON**: `.vscode/settings.json` (workspace) or User Settings (global)
 
 ---
@@ -31,7 +31,7 @@ VB.NET Language Support is configured primarily through VS Code settings. All se
 #### `vbnet.enable`
 **Type**: `boolean`
 **Default**: `true`
-**Description**: Enable/disable the VB.NET language server
+**Description**: Enable/disable the `VB.NET` language server
 
 ```json
 {
@@ -75,7 +75,7 @@ VB.NET Language Support is configured primarily through VS Code settings. All se
 - `messages`: Log LSP request/response names
 - `verbose`: Log full LSP message content
 
-View traces: "View > Output" > "VB.NET Language Support"
+View traces: "View > Output" > "`VB.NET` Language Support"
 
 ---
 
@@ -238,14 +238,14 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 #### `vbnet.workspace.excludePaths`
 **Type**: `string[]`
-**Default**: `["_external", "_test", "build", "node_modules", ".git", ".vscode"]`
+**Default**: `["_external", "tests-exploratory", "build", "node_modules", ".git", ".vscode"]`
 **Description**: Directory names to exclude when scanning for `.vbproj` files.
 
 ```json
 {
   "vbnet.workspace.excludePaths": [
     "_external",
-    "_test",
+    "tests-exploratory",
     "build"
   ]
 }
@@ -263,7 +263,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 
 ```json
 {
-  "vbnet.workspace.projectFilesExcludePattern": "**/_external/**,**/_test/**,**/node_modules/**,**/.git/**"
+  "vbnet.workspace.projectFilesExcludePattern": "**/_external/**,**/tests-exploratory/**,**/node_modules/**,**/.git/**"
 }
 ```
 
@@ -373,7 +373,7 @@ View traces: "View > Output" > "VB.NET Language Support"
 **Symptoms**: No IntelliSense, no diagnostics
 
 **Check**:
-1. "View > Output" > "VB.NET Language Support" for errors
+1. "View > Output" > "`VB.NET` Language Support" for errors
 2. Verify .NET SDK is installed: `dotnet --version`
 3. Restart VS Code
 
@@ -390,7 +390,7 @@ Check output panel for startup errors.
 
 ### Problem: Debugging says program path is missing or not found
 
-**Symptoms**: “VB.NET debugging requires a program path” or “debug program not found”.
+**Symptoms**: “`VB.NET` debugging requires a program path” or “debug program not found”.
 
 **Check**:
 1. Build the project (`dotnet build` or VS Code build task).
@@ -402,7 +402,7 @@ Check output panel for startup errors.
 {
   "type": "vbnet",
   "request": "launch",
-  "name": "VB.NET Launch",
+  "name": "`VB.NET` Launch",
   "projectPath": "${workspaceFolder}/YourProject.vbproj"
 }
 ```
@@ -500,7 +500,7 @@ Check output panel for startup errors.
 ```
 
 Or close unused files and restart language server:
-- Command Palette: "VB.NET: Restart Language Server"
+- Command Palette: "`VB.NET`: Restart Language Server"
 
 ---
 
@@ -508,7 +508,7 @@ Or close unused files and restart language server:
 
 ### EditorConfig Support
 
-VB.NET Language Support respects `.editorconfig` files for formatting:
+`VB.NET` Language Support respects `.editorconfig` files for formatting:
 
 ```ini
 # .editorconfig
@@ -563,7 +563,7 @@ For multi-root workspaces, configure per folder:
 
 ### Custom Analyzers
 
-VB.NET Language Support uses Roslyn analyzers from:
+`VB.NET` Language Support uses Roslyn analyzers from:
 1. Project `<PackageReference>` to analyzers
 2. Global `.globalconfig` file
 
@@ -583,7 +583,7 @@ dotnet_diagnostic.CA2007.severity = none
 ```json
 // .vscode/settings.json (workspace)
 {
-  // VB.NET Language Support
+  // `VB.NET` Language Support
   "vbnet.enable": true,
   "vbnet.logLevel": "info",
   "vbnet.solutionPath": "${workspaceFolder}/MySolution.sln",
@@ -638,9 +638,9 @@ $env:VBNET_LS_MAX_MEMORY_MB="4096"
 
 If configuration issues persist:
 
-1. **Check output panel**: "View > Output" > "VB.NET Language Support"
+1. **Check output panel**: "View > Output" > "`VB.NET` Language Support"
 2. **Enable debug logging**: `"vbnet.logLevel": "debug"`
-3. **Restart language server**: Command Palette > "VB.NET: Restart Language Server"
+3. **Restart language server**: Command Palette > "`VB.NET`: Restart Language Server"
 4. **Check GitHub issues**: https://github.com/DNAKode/vbnet-lsp/issues
 5. **Ask for help**: https://github.com/DNAKode/vbnet-lsp/discussions
 
@@ -657,4 +657,5 @@ If configuration issues persist:
 
 **Last Updated**: 2026-01-12
 
-**Maintained by**: VB.NET Language Support Contributors
+**Maintained by**: `VB.NET` Language Support Contributors
+
