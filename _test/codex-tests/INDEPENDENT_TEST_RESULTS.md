@@ -670,3 +670,14 @@ VS Code headless run (WSL, linux-x64):
 - Result: PASS (debug launch + inferred program + template + projectPath inference).
 - Note: VS Code CLI prints WSL warning prompt and logs DBus errors; bootstrap reports `Unexpected SIGPIPE`, but tests still pass.
 - Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T081916`.
+
+### Update 2026-01-14 (WSL2 prompt suppression)
+
+Harness updates:
+- VS Code CLI runs now set `DONT_PROMPT_WSL_INSTALL=1` when running under WSL to avoid interactive prompts during extension install/list.
+
+WSL debug run (no prompt):
+- Command: `npm test` in `_test/codex-tests/clients/vscode` with `DONT_PROMPT_WSL_INSTALL=1` and `NETCOREDBG_PATH` set to the WSL-built debugger.
+- Result: PASS (all VB.NET debug tests).
+- Note: DBus warnings and an `Unexpected SIGPIPE` still appear but do not fail tests.
+- Log bundle: `_test/codex-tests/clients/vscode/logs/20260114T083146`.

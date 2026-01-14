@@ -115,7 +115,7 @@ async function main() {
             userDataDir,
         ];
         console.log(`Installing extension via: ${cliPath} ${installArgs.join(" ")}`);
-        cp.spawnSync(cliPath, installArgs, { stdio: "inherit" });
+        cp.spawnSync(cliPath, installArgs, { stdio: "inherit", env: withWslCliEnv(process.env) });
 
         const listArgs = [
             ...filteredCliArgs,
@@ -126,7 +126,7 @@ async function main() {
             userDataDir,
         ];
         console.log(`Listing extensions via: ${cliPath} ${listArgs.join(" ")}`);
-        cp.spawnSync(cliPath, listArgs, { stdio: "inherit" });
+        cp.spawnSync(cliPath, listArgs, { stdio: "inherit", env: withWslCliEnv(process.env) });
     }
 
     const defaultServerPath = path.resolve(
@@ -148,6 +148,9 @@ async function main() {
     const skipDefaultServerPath = extensionTestsEnv.VBNET_SKIP_DEFAULT_SERVER_PATH === "1";
     if (!skipDefaultServerPath && !extensionTestsEnv.VBNET_SERVER_PATH && fs.existsSync(defaultServerPath)) {
         extensionTestsEnv.VBNET_SERVER_PATH = defaultServerPath;
+    }
+    if (isWsl()) {
+        extensionTestsEnv.DONT_PROMPT_WSL_INSTALL ??= "1";
     }
 
     const captureLogs = process.env.CAPTURE_VSCODE_LOGS === "1";
@@ -301,3 +304,27 @@ main().catch((err) => {
     console.error(err);
     process.exit(1);
 });
+
+function isWsl(): boolean {
+    if (process.platform !== "linux") {
+        return false;
+    }
+
+    try {
+        const osrelease = fs.readFileSync("/proc/sys/kernel/osrelease", "utf8");
+        return osrelease.toLowerCase().includes("microsoft");
+    } catch {
+        return false;
+    }
+}
+
+function withWslCliEnv(baseEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+    if (!isWsl()) {
+        return baseEnv;
+    }
+
+    return {
+        ...baseEnv,
+        DONT_PROMPT_WSL_INSTALL: baseEnv.DONT_PROMPT_WSL_INSTALL ?? "1",
+    };
+}

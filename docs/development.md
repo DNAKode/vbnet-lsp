@@ -346,6 +346,7 @@ export DOTNET_ROOT="$HOME/.dotnet"
 export NETCOREDBG_PATH="$HOME/netcoredbg-wsl/build-linux/src/netcoredbg"
 export CODE_DISABLE_WSL=1
 export VSCODE_CLI=1
+export DONT_PROMPT_WSL_INSTALL=1
 cd /mnt/c/Work/vbnet-lsp/_test/codex-tests/clients/vscode
 xvfb-run -a npm test
 ```
