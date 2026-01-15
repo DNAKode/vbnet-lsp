@@ -42,7 +42,7 @@ if (skipVbnetDebug) {
             "DebugConsole",
             "bin",
             "Debug",
-            "net8.0",
+            "net10.0",
             "DebugConsole.dll"
         );
         assert.ok(fs.existsSync(programPath), `Debug program not found at ${programPath}`);
@@ -121,7 +121,7 @@ if (skipVbnetDebug) {
             "DebugConsole",
             "bin",
             "Debug",
-            "net8.0",
+            "net10.0",
             "DebugConsole.dll"
         );
         assert.ok(fs.existsSync(programPath), `Debug program not found at ${programPath}`);
@@ -194,7 +194,7 @@ if (skipVbnetDebug) {
             "DebugConsole",
             "bin",
             "Debug",
-            "net8.0",
+            "net10.0",
             "DebugConsole.dll"
         );
         assert.ok(fs.existsSync(programPath), `Debug program not found at ${programPath}`);
@@ -268,7 +268,7 @@ if (skipVbnetDebug) {
             "DebugConsole",
             "bin",
             "Debug",
-            "net8.0",
+            "net10.0",
             "DebugConsole.dll"
         );
         assert.ok(fs.existsSync(programPath), `Debug program not found at ${programPath}`);
@@ -474,4 +474,5 @@ function setupDapTrace(repoRoot: string): { tracePath: string; dispose: () => vo
         },
     };
 }
+
 

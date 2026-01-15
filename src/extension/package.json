@@ -310,7 +310,7 @@
               "name": "VB.NET Launch",
               "type": "vbnet",
               "request": "launch",
-              "program": "${workspaceFolder}/bin/Debug/net8.0/YourApp.dll",
+              "program": "${workspaceFolder}/bin/Debug/net10.0/YourApp.dll",
               "args": [],
               "cwd": "${workspaceFolder}",
               "console": "internalConsole",
@@ -333,7 +333,7 @@
             "name": "VB.NET Launch",
             "type": "vbnet",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/Debug/net8.0/YourApp.dll",
+            "program": "${workspaceFolder}/bin/Debug/net10.0/YourApp.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
@@ -373,4 +373,5 @@
     "typescript": "^5.4.0"
   }
 }
+
 

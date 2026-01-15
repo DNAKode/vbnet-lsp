@@ -1,14 +1,15 @@
-Date: 2026-01-14
+Date: 2026-01-15
 Author: Codex (GPT-5) acting as test reviewer
-Scope: Rename to `test-explore` + CI validation + exploratory harness refresh (LSP + VS Code debug split)
+Scope: Rename to `test-explore` + retarget test fixtures to net10 + CI validation + exploratory harness refresh (LSP + VS Code debug split)
 Host: Windows (C:\Work\vbnet-lsp)
 
 # Test Results
 
-## High-level status (2026-01-14)
+## High-level status (2026-01-15)
 
 - CI tests pass (`VbNet.LanguageServer.Tests`, `VbNet.Extension.Tests`).
 - `test-explore/` rename applied across docs/scripts/config.
+- Test projects now target `net10.0` to align with CI.
 - `VB.NET` LSP smoke harness passes after constraining workspace search to the fixture root.
 - VS Code harness passes in two runs:
   - LSP smoke run with `SKIP_VBNET_DEBUG=1`.
@@ -16,7 +17,7 @@ Host: Windows (C:\Work\vbnet-lsp)
 - Warnings: VS Code test runner still spawns multiple extension hosts and logs intermittent `Cannot call write after a stream was destroyed` during server restarts; tests still pass.
 - Log retention applied (latest 5 DAP traces + latest VS Code log bundle retained).
 
-## Test runs and outcomes (2026-01-14)
+## Test runs and outcomes (2026-01-15)
 
 ### 1) CI tests (fast)
 
@@ -57,11 +58,11 @@ Commands:
 Outcome: PASS (5 passing, 4 pending)
 Artifacts:
 - DAP traces retained (latest 5):
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T232503551Z.log`
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T232503599Z.log`
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721308Z.log`
   - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721322Z.log`
   - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721605Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051432905Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051433228Z.log`
+  - `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051433254Z.log`
 
 ### 5) VS Code log bundle (from diagnostics run during harness stabilization)
 
@@ -213,6 +214,6 @@ None detected.
 ## Timing summary (latest run)
 Run: VB.NET smoke Transport=pipe
 
-- [n/a] server_starting (538.84 ms)
-- [n/a] initialize_response (806.33 ms)
-- [n/a] didOpen_sent (1389.02 ms)
+- [n/a] server_starting (430.23 ms)
+- [n/a] initialize_response (677.36 ms)
+- [n/a] didOpen_sent (1182.58 ms)
