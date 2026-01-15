@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - Developer Documentation**
 
 Version: 1.0
-Last Updated: 2026-01-09
+Last Updated: 2026-01-15
 
 ## Table of Contents
 
@@ -41,6 +41,14 @@ Last Updated: 2026-01-09
 
 - **Git**
   - Download: https://git-scm.com/
+
+### Line Endings (Repo Policy)
+
+This repo defines line endings in `.gitattributes` to avoid local Git warnings and keep checkouts consistent:
+- Default text files use LF.
+- Windows scripts (`.bat`, `.cmd`) use CRLF.
+
+This policy is local to this repository and does not change machine-wide Git settings.
 
 ### Optional Tools
 
@@ -633,6 +641,15 @@ Current scope: Windows-only (multi-platform planned).
 - **performance.yml**: Nightly performance checks
 - **release.yml**: Package + publish workflows
 
+#### Manual VSIX Workflows (on-demand only)
+
+Two workflows are available via `workflow_dispatch` (manual trigger):
+- **package-vsix.yml**: Build a VSIX artifact for a selected target.
+- **publish-vsix.yml**: Build and publish a VSIX to the Marketplace.
+
+Both workflows require a netcoredbg download URL to bundle the debugger (and optional license URL).
+Publishing also requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
+
 ### Running CI Locally
 
 ```bash
@@ -773,7 +790,7 @@ dotnet test
 
 ---
 
-**Last Updated**: 2026-01-10
+**Last Updated**: 2026-01-15
 
 **Maintained by**: `VB.NET` Language Support Contributors
 

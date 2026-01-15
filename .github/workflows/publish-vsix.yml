@@ -1,0 +1,109 @@
+name: publish-vsix
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "VSIX target (defaults to win32-x64)"
+        type: choice
+        required: true
+        default: win32-x64
+        options:
+          - win32-x64
+          - linux-x64
+          - darwin-x64
+          - darwin-arm64
+      pre_release:
+        description: "Publish as pre-release"
+        type: boolean
+        required: true
+        default: true
+      netcoredbg_url:
+        description: "Direct download URL for netcoredbg binary (.exe or archive)"
+        type: string
+        required: true
+      netcoredbg_license_url:
+        description: "Optional download URL for netcoredbg LICENSE"
+        type: string
+        required: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    environment: marketplace
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: src/extension/package-lock.json
+
+      - name: Install extension dependencies
+        working-directory: src/extension
+        run: npm ci
+
+      - name: Download netcoredbg
+        id: netcoredbg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $downloadDir = Join-Path $env:RUNNER_TEMP 'netcoredbg'
+          New-Item -ItemType Directory -Force -Path $downloadDir | Out-Null
+          $asset = Join-Path $downloadDir 'netcoredbg-asset'
+          Invoke-WebRequest -Uri '${{ inputs.netcoredbg_url }}' -OutFile $asset
+
+          $extractDir = Join-Path $downloadDir 'extract'
+          if ($asset -like '*.zip') {
+            Expand-Archive -Path $asset -DestinationPath $extractDir -Force
+          } elseif ($asset -like '*.tar.gz' -or $asset -like '*.tgz') {
+            New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+            tar -xf $asset -C $extractDir
+          } else {
+            $extractDir = $downloadDir
+          }
+
+          $candidates = Get-ChildItem -Path $extractDir -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -eq 'netcoredbg.exe' -or $_.Name -eq 'netcoredbg' }
+          $exe = $candidates | Select-Object -First 1
+          if (-not $exe) {
+            throw "netcoredbg executable not found in downloaded asset."
+          }
+
+          "NETCOREDBG_PATH=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+          if ('${{ inputs.netcoredbg_license_url }}') {
+            $licensePath = Join-Path $downloadDir 'LICENSE'
+            Invoke-WebRequest -Uri '${{ inputs.netcoredbg_license_url }}' -OutFile $licensePath
+            "NETCOREDBG_LICENSE=$licensePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
+      - name: Package VSIX
+        working-directory: src/extension
+        env:
+          NETCOREDBG_PATH: ${{ steps.netcoredbg.outputs.NETCOREDBG_PATH }}
+          NETCOREDBG_LICENSE: ${{ steps.netcoredbg.outputs.NETCOREDBG_LICENSE }}
+        run: npm run package:vsix:${{ inputs.target }}
+
+      - name: Publish VSIX
+        working-directory: src/extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          $vsix = "vbnet-language-support-${{ inputs.target }}.vsix"
+          if (-not (Test-Path $vsix)) {
+            throw "VSIX not found at $vsix"
+          }
+          if ('${{ inputs.pre_release }}' -eq 'true') {
+            npx vsce publish --pre-release --packagePath $vsix --pat $env:VSCE_PAT
+          } else {
+            npx vsce publish --packagePath $vsix --pat $env:VSCE_PAT
+          }
