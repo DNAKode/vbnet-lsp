@@ -5,6 +5,11 @@ Host: Windows (C:\Work\vbnet-lsp)
 
 # Test Results
 
+## Follow-up status (2026-01-15)
+
+- Fixed `test/TestProjects/SmallProject/Helper.vb` (duplicate `SignatureHelpTest` + missing newline between `End Sub` / `End Class`) after CI diagnostics failure.
+- CI tests re-run after fix: `VbNet.LanguageServer.Tests` and `VbNet.Extension.Tests` pass.
+
 ## High-level status (2026-01-15)
 
 - CI tests pass (`VbNet.LanguageServer.Tests`, `VbNet.Extension.Tests`).
@@ -28,6 +33,7 @@ Commands:
 Outcome: PASS (137/137 + 3/3)
 Notes:
 - Warning still present: `WorkspaceManagerTests.cs` unused variable (`diagnosticReceived`).
+- Follow-up re-run after fixing `Helper.vb` duplicate method/end-line issue: PASS (same commands).
 
 ### 2) `VB.NET` LSP smoke harness
 
