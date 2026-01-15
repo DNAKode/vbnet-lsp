@@ -650,6 +650,24 @@ Two workflows are available via `workflow_dispatch` (manual trigger):
 Both workflows require a netcoredbg download URL to bundle the debugger (and optional license URL).
 Publishing also requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
 
+##### Running the workflows
+
+1. Open the GitHub Actions tab.
+2. Select either **package-vsix** or **publish-vsix**.
+3. Click **Run workflow** and set:
+   - `target`: `win32-x64` (default) or one of the listed targets.
+   - `netcoredbg_url`: direct download URL (binary or archive).
+   - `netcoredbg_license_url`: optional license URL.
+4. For **publish-vsix**, ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
+
+Example inputs (use your own URLs):
+
+```text
+target: win32-x64
+netcoredbg_url: <direct-download-url>
+netcoredbg_license_url: <optional-license-url>
+```
+
 ### Running CI Locally
 
 ```bash
