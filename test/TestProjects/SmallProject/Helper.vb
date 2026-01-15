@@ -47,7 +47,4 @@ Public Class Helper
     Public Sub SignatureHelpTest()
         Dim result = Add(1, 2)
     End Sub
-
-    Public Sub SignatureHelpTest()
-        Dim result = Add(1, 2)
-    End SubEnd Class
+End Class
