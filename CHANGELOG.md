@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Platform-targeted VSIX packaging scripts for Windows/Linux/macOS.
 - Configurable netcoredbg bundling via `NETCOREDBG_PATH`/`NETCOREDBG_LICENSE`.
 - GitHub Actions publishing now supports pre-release VSIX packaging and netcoredbg asset URLs.
+- Preview tag `v0.1.1-preview.20260116` published via GitHub Actions.
 
 ### Changed
 - Non-Windows netcoredbg bundles now ensure the debugger is marked executable.
