@@ -12,14 +12,14 @@ Host: Windows (C:\Work\vbnet-lsp)
 - VB.NET LSP smoke harness run (pipe transport) completed; server logs still note no solution or project in the basic fixture workspace.
 - VS Code harness (VB.NET LSP smoke) passes with warnings: multiple extension hosts, transient `Sending notification failed`, and `ERR_STREAM_DESTROYED` after restart.
 - VS Code harness (VB.NET debug) reports a failure in `workspace folder is available` for extra extension host windows; debug scenarios pass but run still reports `1 failing`.
-- Emacs harness updated to run C# + VB.NET in separate Emacs invocations, add hover/definition probes, and increase jsonrpc timeout.
+- Emacs harness updated to run C# + VB.NET in separate Emacs invocations, add hover/definition probes, set `eglot-language-id` for VB.NET, send `solution/open` for C#, and increase jsonrpc timeout.
 - DAP traces pruned to the most recent 5 per retention policy.
 
 ## High-level status (2026-01-16)
 
 - CI tests pass (137/137 + 3/3).
 - Exploratory harnesses: VB.NET LSP smoke PASS; VS Code LSP smoke PASS with warnings; VS Code debug suite reports a harness failure on extra extension hosts (see details).
-- Emacs eglot smoke: FAIL (C# Roslyn LSP server exits; VB.NET hover/definition requests time out).
+- Emacs eglot smoke: FAIL (C# Roslyn LSP server exits with status 82 even after `solution/open`; VB.NET hover/definition requests time out even with project-backed fixture).
 - WSL/Linux: PASS (WSL now using .NET SDK 10.0.102).
 - DAP and log retention aligned with policy (latest 5 DAP traces retained).
 
@@ -80,16 +80,16 @@ Commands:
 
 Outcome: FAIL
 Details:
-- C# run: Roslyn LSP server exits during hover/definition probes (status 82). Hover/definition requests fail after reconnect.
-- VB.NET run: server connects but hover/definition requests time out (10s timeout); shutdown still reports exit status 9.
+- C# run: Roslyn LSP server exits during hover/definition probes (status 82) even after `solution/open`; hover/definition requests fail after reconnect.
+- VB.NET run: server connects to `SmallProject` (Helper.vb) but hover/definition requests time out (10s timeout); shutdown still reports exit status 9.
 Notes:
-- Harness now logs env paths and runs with an increased `jsonrpc-request-timeout`.
+- Harness now logs env paths, uses project-backed VB.NET fixture, sends `solution/open` for C#, and runs with an increased `jsonrpc-request-timeout`.
 - Hover/definition probes are logged; missing responses do not abort VB.NET run but are recorded.
 Logs:
-- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163549.log` (C#)
-- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163556.log` (VB.NET)
-- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163801.log` (C#)
-- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163808.log` (VB.NET)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T165034.log` (C# with solution/open)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T165042.log` (VB.NET project-backed fixture)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T165143.log` (VB.NET retry, extended delay)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T165247.log` (VB.NET retry, Add(1, 2) token)
 
 ### 6) WSL/Linux (Ubuntu WSL2)
 
@@ -311,11 +311,11 @@ Outcome: FAIL
 5) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
 
 ## Protocol anomalies (latest run)
-Run: VB.NET smoke Transport=pipe
+Run: Suite=csharp-dotnet Transport=stdio
 
 None detected.
 ## Timing summary (latest run)
-Run: VB.NET smoke Transport=pipe
+Run: Suite=csharp-dotnet Transport=stdio
 
 - [n/a] server_starting (481.34 ms)
 - [n/a] initialize_response (875.04 ms)

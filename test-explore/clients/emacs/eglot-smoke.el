@@ -5,6 +5,7 @@
 (require 'jsonrpc)
 
 (setq jsonrpc-request-timeout 10)
+(setq process-connection-type nil)
 
 (defvar codex--log-file nil)
 
@@ -54,7 +55,7 @@
                           name status (process-exit-status proc)))))))
   nil)
 
-(defun codex--run-eglot-test (name mode server-command file-path request-hover strict)
+(defun codex--run-eglot-test (name mode server-command file-path request-hover strict solution-path)
   (let ((buffer (find-file-noselect file-path)))
     (unwind-protect
         (with-current-buffer buffer
@@ -63,15 +64,22 @@
             (condition-case err
                 (progn
                   (funcall mode)
+                  (when (string= name "vbnet")
+                    (setq-local eglot-language-id "vb"))
                   (setq eglot-server-programs `((,mode . ,server-command)))
                   (codex--log "eglot server programs: %s" eglot-server-programs)
                   (codex--log "major-mode: %s" major-mode)
                   (let ((server (apply #'eglot--connect (eglot--guess-contact))))
-                    (sleep-for 2)
+                    (sleep-for 3)
                     (unless server
                       (error "No eglot server for %s (mode=%s)" name major-mode))
+                    (when (and solution-path (string= name "csharp"))
+                      (let ((solution-uri (codex--file-uri solution-path)))
+                        (codex--log "Sending solution/open for %s" solution-uri)
+                        (jsonrpc-notify server "solution/open" `(:solution ,solution-uri))
+                        (sleep-for 2)))
                     (when request-hover
-                      (let* ((pos (codex--position-at buffer "Add("))
+                      (let* ((pos (codex--position-at buffer "Add(1, 2)"))
                              (params `(:textDocument (:uri ,(codex--file-uri file-path))
                                        :position ,pos))
                              (hover (codex--request server "textDocument/hover" params))
@@ -109,7 +117,8 @@
                     (format "emacs-eglot-%s.log" (format-time-string "%Y%m%dT%H%M%S"))
                     log-dir))
          (fixture-basic (expand-file-name "../../../_external/csharp-lsp/fixtures/basic/Basic/Class1.cs" root))
-         (vb-fixture (expand-file-name "../../vbnet-lsp/fixtures/basic/Basic.vb" root)))
+         (csharp-sln (expand-file-name "../../../_external/csharp-lsp/fixtures/basic/Basic.sln" root))
+         (vb-fixture (expand-file-name "../../../test/TestProjects/SmallProject/Helper.vb" root)))
     (make-directory log-dir t)
     (setq codex--log-file log-file)
     (codex--log "Env ROSLYN_LSP_DLL=%s" (or roslyn-lsp ""))
@@ -120,13 +129,14 @@
         (codex--log "Running csharp eglot test")
         (setq overall-success
               (and overall-success
-                   (codex--run-eglot-test
+       (codex--run-eglot-test
         "csharp"
         'csharp-mode
         (list "dotnet" roslyn-lsp "--stdio" "--logLevel" "Information" "--extensionLogDirectory" (expand-file-name "logs" root))
         fixture-basic
         t
-        nil))))
+        nil
+        csharp-sln))))
       (codex--log "VB.NET enabled=%s" (and (or (string= suite "vbnet") (string= suite "all")) vbnet-lsp))
       (when (and (or (string= suite "vbnet") (string= suite "all")) vbnet-lsp)
         (codex--log "Running vbnet eglot test")
@@ -138,6 +148,7 @@
         (list "dotnet" vbnet-lsp "--stdio" "--logLevel" "Information")
         vb-fixture
         t
+        nil
         nil))))
       (codex--log "Emacs eglot smoke tests complete. Log: %s" log-file)
       (kill-emacs (if overall-success 0 1)))))
