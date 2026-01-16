@@ -266,7 +266,7 @@ public class WorkspaceManagerTests : IAsyncLifetime
 
         await _workspaceManager.LoadProjectAsync(projectPath);
 
-        // Note: We can't reliably assert diagnosticReceived here since
-        // it depends on the project state and MSBuild configuration
+        // For a valid project load we expect no diagnostics.
+        Assert.False(diagnosticReceived);
     }
 }

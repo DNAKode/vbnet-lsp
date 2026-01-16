@@ -21,8 +21,8 @@ if (skipVbnetDebug) {
         }
 
         const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
-        const debugFolder = await ensureDebugWorkspace(repoRoot);
-        const workspaceRoot = debugFolder.uri.fsPath;
+        const debugContext = getDebugContext(repoRoot);
+        const workspaceRoot = debugContext.debugRoot;
 
         const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
         const extension = vscode.extensions.getExtension(extensionId);
@@ -59,8 +59,8 @@ if (skipVbnetDebug) {
             type: "vbnet",
             name: "VB.NET Debug Console",
             request: "launch",
-            program: path.relative(workspaceRoot, programPath),
-            cwd: "${workspaceFolder}",
+            program: programPath,
+            cwd: workspaceRoot,
             stopAtEntry: false
         };
 
@@ -69,7 +69,7 @@ if (skipVbnetDebug) {
 
         let started = false;
         try {
-            started = await vscode.debug.startDebugging(debugFolder, debugConfig);
+            started = await vscode.debug.startDebugging(debugContext.workspaceFolder, debugConfig);
             assert.ok(started, "Debug session did not start.");
             await startPromise;
             try {
@@ -106,8 +106,8 @@ if (skipVbnetDebug) {
         }
 
         const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
-        const debugFolder = await ensureDebugWorkspace(repoRoot);
-        const workspaceRoot = debugFolder.uri.fsPath;
+        const debugContext = getDebugContext(repoRoot);
+        const workspaceRoot = debugContext.debugRoot;
 
         const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
         const extension = vscode.extensions.getExtension(extensionId);
@@ -133,11 +133,16 @@ if (skipVbnetDebug) {
             console.warn(`Unable to update vbnet.debugger.path in workspace settings: ${error}`);
         }
 
+        if (!debugContext.workspaceFolder) {
+            this.skip();
+            return;
+        }
+
         const debugConfig: vscode.DebugConfiguration = {
             type: "vbnet",
             name: "VB.NET Debug Console (inferred)",
             request: "launch",
-            cwd: "${workspaceFolder}",
+            cwd: workspaceRoot,
             stopAtEntry: false
         };
 
@@ -146,7 +151,7 @@ if (skipVbnetDebug) {
 
         let started = false;
         try {
-            started = await vscode.debug.startDebugging(debugFolder, debugConfig);
+            started = await vscode.debug.startDebugging(debugContext.workspaceFolder, debugConfig);
             assert.ok(started, "Debug session did not start with inferred program path.");
             await startPromise;
             try {
@@ -179,8 +184,8 @@ if (skipVbnetDebug) {
         }
 
         const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
-        const debugFolder = await ensureDebugWorkspace(repoRoot);
-        const workspaceRoot = debugFolder.uri.fsPath;
+        const debugContext = getDebugContext(repoRoot);
+        const workspaceRoot = debugContext.debugRoot;
 
         const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
         const extension = vscode.extensions.getExtension(extensionId);
@@ -206,12 +211,21 @@ if (skipVbnetDebug) {
             console.warn(`Unable to update vbnet.debugger.path in workspace settings: ${error}`);
         }
 
+        const templateProgram = path.join(
+            workspaceRoot,
+            "bin",
+            "Debug",
+            "<target-framework>",
+            "<project-name>.dll"
+        );
+
         const debugConfig: vscode.DebugConfiguration = {
             type: "vbnet",
             name: "VB.NET Debug Console (template)",
             request: "launch",
-            program: "${workspaceFolder}/bin/Debug/<target-framework>/<project-name>.dll",
-            cwd: "${workspaceFolder}",
+            program: templateProgram,
+            projectPath: path.join(workspaceRoot, "DebugConsole.vbproj"),
+            cwd: workspaceRoot,
             stopAtEntry: false
         };
 
@@ -220,7 +234,7 @@ if (skipVbnetDebug) {
 
         let started = false;
         try {
-            started = await vscode.debug.startDebugging(debugFolder, debugConfig);
+            started = await vscode.debug.startDebugging(debugContext.workspaceFolder, debugConfig);
             assert.ok(started, "Debug session did not start with program template.");
             await startPromise;
             try {
@@ -253,8 +267,8 @@ if (skipVbnetDebug) {
         }
 
         const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
-        const debugFolder = await ensureDebugWorkspace(repoRoot);
-        const workspaceRoot = debugFolder.uri.fsPath;
+        const debugContext = getDebugContext(repoRoot);
+        const workspaceRoot = debugContext.debugRoot;
 
         const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
         const extension = vscode.extensions.getExtension(extensionId);
@@ -284,8 +298,8 @@ if (skipVbnetDebug) {
             type: "vbnet",
             name: "VB.NET Debug Console (projectPath)",
             request: "launch",
-            projectPath: "${workspaceFolder}/DebugConsole.vbproj",
-            cwd: "${workspaceFolder}",
+            projectPath: path.join(workspaceRoot, "DebugConsole.vbproj"),
+            cwd: workspaceRoot,
             stopAtEntry: false
         };
 
@@ -294,7 +308,7 @@ if (skipVbnetDebug) {
 
         let started = false;
         try {
-            started = await vscode.debug.startDebugging(debugFolder, debugConfig);
+            started = await vscode.debug.startDebugging(debugContext.workspaceFolder, debugConfig);
             assert.ok(started, "Debug session did not start with projectPath inference.");
             await startPromise;
             try {
@@ -356,55 +370,19 @@ function resolveNetcoreDbgPath(): string | undefined {
     return undefined;
 }
 
-async function ensureDebugWorkspace(repoRoot: string): Promise<vscode.WorkspaceFolder> {
+function getDebugContext(repoRoot: string): { debugRoot: string; workspaceFolder?: vscode.WorkspaceFolder } {
     const debugRoot = path.resolve(repoRoot, "test", "TestProjects", "DebugConsole");
     assert.ok(fs.existsSync(debugRoot), `Debug project folder missing at ${debugRoot}`);
 
-    const existing = vscode.workspace.workspaceFolders?.find(
+    const existing = vscode.workspace.workspaceFolders ?? [];
+    const existingMatch = existing.find(
         (folder) => folder.uri.fsPath.toLowerCase() === debugRoot.toLowerCase()
     );
-    if (existing) {
-        return existing;
+    if (existingMatch) {
+        return { debugRoot, workspaceFolder: existingMatch };
     }
 
-    const currentCount = vscode.workspace.workspaceFolders?.length ?? 0;
-    const added = vscode.workspace.updateWorkspaceFolders(currentCount, 0, {
-        uri: vscode.Uri.file(debugRoot),
-        name: "DebugConsole"
-    });
-    assert.ok(added, "Failed to add DebugConsole workspace folder.");
-
-    return await waitForWorkspaceFolder(debugRoot);
-}
-
-function waitForWorkspaceFolder(expectedPath: string): Promise<vscode.WorkspaceFolder> {
-    const normalized = expectedPath.toLowerCase();
-    return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            disposable.dispose();
-            reject(new Error(`Timed out waiting for workspace folder: ${expectedPath}`));
-        }, 10000);
-
-        const disposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
-            const found = vscode.workspace.workspaceFolders?.find(
-                (folder) => folder.uri.fsPath.toLowerCase() === normalized
-            );
-            if (found) {
-                clearTimeout(timeout);
-                disposable.dispose();
-                resolve(found);
-            }
-        });
-
-        const already = vscode.workspace.workspaceFolders?.find(
-            (folder) => folder.uri.fsPath.toLowerCase() === normalized
-        );
-        if (already) {
-            clearTimeout(timeout);
-            disposable.dispose();
-            resolve(already);
-        }
-    });
+    return { debugRoot };
 }
 
 function waitForDebugStart(timeoutMs: number): Promise<void> {

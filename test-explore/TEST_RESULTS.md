@@ -10,7 +10,7 @@ Host: Windows (C:\Work\vbnet-lsp)
 - CI tests pass on Windows and WSL (after restoring `test/TestProjects/SmallProject/Helper.vb` to a valid class).
 - Emacs eglot smoke PASS (C# + VB.NET hover/definition succeed; shutdown still times out after server exit).
 - VS Code harness LSP smoke PASS when `SKIP_VBNET_DEBUG=1` (8 passing, 4 pending).
-- VS Code debug suite still aborts the harness with exit code 1; no Mocha summary emitted. Log bundle captured at `test-explore/clients/vscode/logs/20260116T212425`.
+- VS Code debug suite now runs to completion; 3 debug tests pass and the inferred-program test is skipped when `DebugConsole` is not part of the workspace. See logs below.
 
 ## Test runs and outcomes (2026-01-16 late evening)
 
@@ -63,11 +63,13 @@ Notes:
 Commands (from `test-explore/clients/vscode`):
 - `CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
 
-Outcome: FAIL (VS Code exits with code 1; no Mocha summary emitted)
+Outcome: PASS (11 passing, 5 pending)
 Notes:
-- Debug suite currently aborts the harness; need follow-up to determine why VS Code exits with code 1 when debug tests are enabled.
+- `launch debug session with inferred program path` is skipped when `DebugConsole` is not already in the workspace.
+- Occasional `Failed command 'threads'` DAP warnings appear but do not fail the tests.
 Artifacts:
-- `test-explore/clients/vscode/logs/20260116T212425` (VB.NET log + trace)
+- `test-explore/clients/vscode/logs/20260116T232846` (VB.NET log + trace)
+- `test-explore/clients/vscode/logs/dap-trace-2026-01-16T212905314Z.log`
 
 ## Follow-up status (2026-01-16)
 
