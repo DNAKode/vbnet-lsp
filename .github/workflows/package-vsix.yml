@@ -52,7 +52,11 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $downloadDir = Join-Path $env:RUNNER_TEMP 'netcoredbg'
           New-Item -ItemType Directory -Force -Path $downloadDir | Out-Null
-          $asset = Join-Path $downloadDir 'netcoredbg-asset'
+          $assetName = Split-Path -Leaf '${{ inputs.netcoredbg_url }}'
+          if (-not $assetName) {
+            $assetName = 'netcoredbg-asset'
+          }
+          $asset = Join-Path $downloadDir $assetName
           Invoke-WebRequest -Uri '${{ inputs.netcoredbg_url }}' -OutFile $asset
 
           $extractDir = Join-Path $downloadDir 'extract'
