@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - Developer Documentation**
 
 Version: 1.0
-Last Updated: 2026-01-15
+Last Updated: 2026-01-16
 
 ## Table of Contents
 
@@ -650,6 +650,10 @@ Two workflows are available via `workflow_dispatch` (manual trigger):
 Both workflows require a netcoredbg download URL to bundle the debugger (and optional license URL).
 Publishing also requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
 
+### CI Duration Note (Tracking)
+
+CI runs on GitHub Actions have been longer than expected in some recent runs. Track this and investigate if a single test or project dominates runtime (or if the overall duration is acceptable for the coverage). If needed, profile test durations and split the workflow or add test filters.
+
 ##### Running the workflows
 
 1. Open the GitHub Actions tab.
@@ -691,6 +695,14 @@ Follow Semantic Versioning (SemVer 2.0):
 - **MAJOR**: Breaking changes
 - **MINOR**: New features (backward compatible)
 - **PATCH**: Bug fixes
+
+#### Development Preview Policy
+
+- Every Marketplace publish must use a new version (no reusing a version number).
+- During active development, bump the PATCH version for each preview publish (e.g., 0.1.2, 0.1.3, ...).
+- Keep `"preview": true` in `src/extension/package.json` for pre-release channels.
+- Tag preview publishes with a date-stamped Git tag (example: `v0.1.2-preview.YYYYMMDD`).
+- When a feature set is stable, bump MINOR and keep the same workflow; drop `"preview": true` only when ready for a non-preview release.
 
 ### Pre-Release Checklist
 
