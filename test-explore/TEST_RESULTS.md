@@ -1,9 +1,108 @@
-Date: 2026-01-15
+Date: 2026-01-16
 Author: Codex (GPT-5) acting as test reviewer
-Scope: Rename to `test-explore` + retarget test fixtures to net10 + CI validation + exploratory harness refresh (LSP + VS Code debug split)
+Scope: Baseline test pass (CI + exploratory harnesses) after recent refactors and harness cleanup
 Host: Windows (C:\Work\vbnet-lsp)
 
 # Test Results
+
+## Follow-up status (2026-01-16)
+
+- CI tests re-run: `VbNet.LanguageServer.Tests` and `VbNet.Extension.Tests` pass.
+- Local file corruption detected in `test/TestProjects/SmallProject/Helper.vb` (duplicate method + `End SubEnd Class`); restored to repo state before completing tests.
+- VB.NET LSP smoke harness run (pipe transport) completed; server logs still note no solution or project in the basic fixture workspace.
+- VS Code harness (VB.NET LSP smoke) passes with warnings: multiple extension hosts, transient `Sending notification failed`, and `ERR_STREAM_DESTROYED` after restart.
+- VS Code harness (VB.NET debug) reports a failure in `workspace folder is available` for extra extension host windows; debug scenarios pass but run still reports `1 failing`.
+- DAP traces pruned to the most recent 5 per retention policy.
+
+## High-level status (2026-01-16)
+
+- CI tests pass (137/137 + 3/3).
+- Exploratory harnesses: VB.NET LSP smoke PASS; VS Code LSP smoke PASS with warnings; VS Code debug suite reports a harness failure on extra extension hosts (see details).
+- Emacs eglot smoke: FAIL (jsonrpc-process undefined after server shutdown).
+- WSL/Linux: FAIL (WSL only has .NET SDK 6.0; net10.0 targets cannot run).
+- DAP and log retention aligned with policy (latest 5 DAP traces retained).
+
+## Test runs and outcomes (2026-01-16)
+
+### 1) CI tests (fast)
+
+Commands:
+- `dotnet test test\VbNet.LanguageServer.Tests\VbNet.LanguageServer.Tests.csproj -c Release`
+- `dotnet test test\VbNet.Extension.Tests\VbNet.Extension.Tests.csproj -c Release`
+
+Outcome: PASS (137/137 + 3/3)
+Notes:
+- No new warnings observed in this run.
+
+### 2) `VB.NET` LSP smoke harness
+
+Command:
+- `test-explore\vbnet-lsp\run-tests.ps1`
+
+Outcome: PASS
+Notes:
+- Build warnings from `VbNetLspSmokeTest` (nullable + VSTHRD analyzers) still emitted.
+- Server log still reports: “No solution or VB.NET projects found in workspace” for `fixtures/basic`.
+
+### 3) VS Code harness - `VB.NET` LSP smoke
+
+Command:
+- `SKIP_VBNET_DEBUG=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test` (from `test-explore/clients/vscode`)
+
+Outcome: PASS (8 passing, 4 pending)
+Warnings observed:
+- Multiple extension hosts spawned; some runs log transient `Sending notification failed` and `ERR_STREAM_DESTROYED` after server restarts.
+- One intermediate failure logged for “completion respects configuration toggle” before the final pass result (likely due to extra host teardown timing).
+
+### 4) VS Code harness - `VB.NET` debug suite
+
+Commands:
+- `dotnet build test\TestProjects\DebugConsole\DebugConsole.vbproj -c Debug`
+- `SKIP_VBNET_SMOKE=1 FIXTURE_WORKSPACE=test\TestProjects\DebugConsole VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test` (from `test-explore/clients/vscode`)
+
+Outcome: FAIL (reports `1 failing` despite exit code 0)
+Failure:
+- `workspace folder is available` fails in extra extension host windows (multi-window run). Main debug tests still pass.
+Warnings observed:
+- Debug adapter logs intermittent `Failed command 'threads' : 0x80004005` during session teardown.
+Artifacts (latest 5 DAP traces retained):
+- `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051433228Z.log`
+- `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051433254Z.log`
+- `test-explore/clients/vscode/logs/dap-trace-2026-01-16T130326957Z.log`
+- `test-explore/clients/vscode/logs/dap-trace-2026-01-16T130327168Z.log`
+- `test-explore/clients/vscode/logs/dap-trace-2026-01-16T130327355Z.log`
+
+### 5) Emacs eglot smoke
+
+Commands:
+- `test-explore\clients\emacs\run-tests.ps1` (suite=all)
+- `test-explore\clients\emacs\run-tests.ps1 -Suite vbnet`
+
+Outcome: FAIL
+Details:
+- C# run: Emacs reports `Server died` (status 9) during shutdown.
+- VB.NET run: server connects but Emacs fails with `void-function jsonrpc-process` during shutdown handling.
+Notes:
+- The Emacs batch run exits with the `jsonrpc-process` void-function error, likely due to Emacs/eglot/jsonrpc version mismatch in this bundled setup.
+Logs:
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T153940.log`
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T154058.log`
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T154120.log`
+
+### 6) WSL/Linux (Ubuntu WSL2)
+
+Commands:
+- `wsl -e bash -lc "dotnet --list-sdks"`
+- `wsl -e bash -lc "dotnet test /mnt/c/Work/vbnet-lsp/test/VbNet.LanguageServer.Tests/VbNet.LanguageServer.Tests.csproj -c Release"`
+
+Outcome: PASS (after fixing .NET PATH)
+Details:
+- After running `scripts/wsl/ensure-dotnet10.sh` with sudo, WSL picks up `/home/govert/.dotnet` and lists SDK `10.0.102`.
+- `VbNet.LanguageServer.Tests` passed under WSL with the standard warning about `diagnosticReceived` unused.
+- `VbNet.Extension.Tests` passed under WSL.
+Notes:
+- The system-wide profile was added at `/etc/profile.d/dotnet-user.sh`.
+- Confirmed by running `dotnet --list-sdks` in WSL (shows `10.0.102`).
 
 ## Follow-up status (2026-01-15)
 
@@ -63,12 +162,7 @@ Commands:
 
 Outcome: PASS (5 passing, 4 pending)
 Artifacts:
-- DAP traces retained (latest 5):
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721322Z.log`
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-14T234721605Z.log`
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051432905Z.log`
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051433228Z.log`
-  - `test-explore/clients/vscode/logs/dap-trace-2026-01-15T051433254Z.log`
+- DAP traces from 2026-01-15 were pruned per retention policy; see the 2026-01-16 entry for retained traces.
 
 ### 5) VS Code log bundle (from diagnostics run during harness stabilization)
 
@@ -220,6 +314,6 @@ None detected.
 ## Timing summary (latest run)
 Run: VB.NET smoke Transport=pipe
 
-- [n/a] server_starting (430.23 ms)
-- [n/a] initialize_response (677.36 ms)
-- [n/a] didOpen_sent (1182.58 ms)
+- [n/a] server_starting (481.34 ms)
+- [n/a] initialize_response (875.04 ms)
+- [n/a] didOpen_sent (1431.97 ms)
