@@ -62,7 +62,6 @@ if ($Suite -eq 'vbnet' -or $Suite -eq 'all') {
     }
 }
 
-$env:CODEX_SUITE = $Suite
 if (Test-Path $RoslynLspDll) {
     $env:ROSLYN_LSP_DLL = (Resolve-Path $RoslynLspDll).Path
 } else {
@@ -77,5 +76,16 @@ if (Test-Path $VbNetLspDll) {
 
 $scriptPath = Resolve-Path 'test-explore\clients\emacs\eglot-smoke.el'
 
-& $emacsExe --batch -l $scriptPath
+function Invoke-EmacsSuite {
+    param([string]$RunSuite)
+    $env:CODEX_SUITE = $RunSuite
+    & $emacsExe --batch -l $scriptPath
+}
+
+if ($Suite -eq 'all') {
+    Invoke-EmacsSuite -RunSuite 'csharp'
+    Invoke-EmacsSuite -RunSuite 'vbnet'
+} else {
+    Invoke-EmacsSuite -RunSuite $Suite
+}
 

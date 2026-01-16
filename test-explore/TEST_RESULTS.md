@@ -12,14 +12,15 @@ Host: Windows (C:\Work\vbnet-lsp)
 - VB.NET LSP smoke harness run (pipe transport) completed; server logs still note no solution or project in the basic fixture workspace.
 - VS Code harness (VB.NET LSP smoke) passes with warnings: multiple extension hosts, transient `Sending notification failed`, and `ERR_STREAM_DESTROYED` after restart.
 - VS Code harness (VB.NET debug) reports a failure in `workspace folder is available` for extra extension host windows; debug scenarios pass but run still reports `1 failing`.
+- Emacs harness updated to run C# + VB.NET in separate Emacs invocations, add hover/definition probes, and increase jsonrpc timeout.
 - DAP traces pruned to the most recent 5 per retention policy.
 
 ## High-level status (2026-01-16)
 
 - CI tests pass (137/137 + 3/3).
 - Exploratory harnesses: VB.NET LSP smoke PASS; VS Code LSP smoke PASS with warnings; VS Code debug suite reports a harness failure on extra extension hosts (see details).
-- Emacs eglot smoke: FAIL (jsonrpc-process undefined after server shutdown).
-- WSL/Linux: FAIL (WSL only has .NET SDK 6.0; net10.0 targets cannot run).
+- Emacs eglot smoke: FAIL (C# Roslyn LSP server exits; VB.NET hover/definition requests time out).
+- WSL/Linux: PASS (WSL now using .NET SDK 10.0.102).
 - DAP and log retention aligned with policy (latest 5 DAP traces retained).
 
 ## Test runs and outcomes (2026-01-16)
@@ -75,25 +76,27 @@ Artifacts (latest 5 DAP traces retained):
 ### 5) Emacs eglot smoke
 
 Commands:
-- `test-explore\clients\emacs\run-tests.ps1` (suite=all)
-- `test-explore\clients\emacs\run-tests.ps1 -Suite vbnet`
+- `test-explore\clients\emacs\run-tests.ps1` (suite=all now runs C# and VB.NET in separate Emacs sessions)
 
 Outcome: FAIL
 Details:
-- C# run: Emacs reports `Server died` (status 9) during shutdown.
-- VB.NET run: server connects but Emacs fails with `void-function jsonrpc-process` during shutdown handling.
+- C# run: Roslyn LSP server exits during hover/definition probes (status 82). Hover/definition requests fail after reconnect.
+- VB.NET run: server connects but hover/definition requests time out (10s timeout); shutdown still reports exit status 9.
 Notes:
-- The Emacs batch run exits with the `jsonrpc-process` void-function error, likely due to Emacs/eglot/jsonrpc version mismatch in this bundled setup.
+- Harness now logs env paths and runs with an increased `jsonrpc-request-timeout`.
+- Hover/definition probes are logged; missing responses do not abort VB.NET run but are recorded.
 Logs:
-- `test-explore/clients/emacs/logs/emacs-eglot-20260116T153940.log`
-- `test-explore/clients/emacs/logs/emacs-eglot-20260116T154058.log`
-- `test-explore/clients/emacs/logs/emacs-eglot-20260116T154120.log`
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163549.log` (C#)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163556.log` (VB.NET)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163801.log` (C#)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T163808.log` (VB.NET)
 
 ### 6) WSL/Linux (Ubuntu WSL2)
 
 Commands:
 - `wsl -e bash -lc "dotnet --list-sdks"`
 - `wsl -e bash -lc "dotnet test /mnt/c/Work/vbnet-lsp/test/VbNet.LanguageServer.Tests/VbNet.LanguageServer.Tests.csproj -c Release"`
+- `wsl -e bash -lc "dotnet test /mnt/c/Work/vbnet-lsp/test/VbNet.Extension.Tests/VbNet.Extension.Tests.csproj -c Release"`
 
 Outcome: PASS (after fixing .NET PATH)
 Details:
