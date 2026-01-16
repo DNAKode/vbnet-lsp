@@ -200,7 +200,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
         this.traceConfigDisposable?.dispose();
         this.traceConfigDisposable = undefined;
 
-        this.serverLauncher.stopServer();
+        await this.serverLauncher.stopServer();
     }
 
     /**

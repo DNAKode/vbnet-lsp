@@ -5,8 +5,73 @@ Host: Windows (C:\Work\vbnet-lsp)
 
 # Test Results
 
+## Latest status (2026-01-16 late evening)
+
+- CI tests pass on Windows and WSL (after restoring `test/TestProjects/SmallProject/Helper.vb` to a valid class).
+- Emacs eglot smoke PASS (C# + VB.NET hover/definition succeed; shutdown still times out after server exit).
+- VS Code harness LSP smoke PASS when `SKIP_VBNET_DEBUG=1` (8 passing, 4 pending).
+- VS Code debug suite still aborts the harness with exit code 1; no Mocha summary emitted. Log bundle captured at `test-explore/clients/vscode/logs/20260116T212425`.
+
+## Test runs and outcomes (2026-01-16 late evening)
+
+### 1) CI tests (fast, Windows)
+
+Commands:
+- `dotnet test test\VbNet.LanguageServer.Tests\VbNet.LanguageServer.Tests.csproj -c Release`
+- `dotnet test test\VbNet.Extension.Tests\VbNet.Extension.Tests.csproj -c Release`
+
+Outcome: PASS (137/137 + 3/3)
+Notes:
+- Fixing `Helper.vb` removed duplicate `SignatureHelpTest` and malformed `End SubEnd Class` line.
+
+### 2) WSL/Linux CI tests (Ubuntu WSL2)
+
+Commands:
+- `wsl -e bash -lc "dotnet --list-sdks"` (shows 10.0.102)
+- `wsl -e bash -lc "dotnet test /mnt/c/Work/vbnet-lsp/test/VbNet.LanguageServer.Tests/VbNet.LanguageServer.Tests.csproj -c Release"`
+- `wsl -e bash -lc "dotnet test /mnt/c/Work/vbnet-lsp/test/VbNet.Extension.Tests/VbNet.Extension.Tests.csproj -c Release"`
+
+Outcome: PASS (137/137 + 3/3)
+
+### 3) Emacs eglot smoke (C# + VB.NET)
+
+Command:
+- `test-explore\clients\emacs\run-tests.ps1 -Suite all`
+
+Outcome: PASS
+Notes:
+- VB.NET now uses `initializationOptions` to constrain workspace to `SmallProject.vbproj`, avoiding repo-wide scan.
+- Hover + definition succeed for VB.NET and C# fixtures.
+- Shutdown still times out after server exit (non-fatal).
+
+Logs:
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T212316.log` (C#)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260116T212325.log` (VB.NET)
+
+### 4) VS Code harness - VB.NET LSP smoke (debug skipped)
+
+Command:
+- `SKIP_VBNET_DEBUG=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test` (from `test-explore/clients/vscode`)
+
+Outcome: PASS (8 passing, 4 pending)
+Notes:
+- Per-run user-data dir now avoids multi-window restores.
+- Completion toggle test now treats non-text completion items as LSP results.
+
+### 5) VS Code harness - VB.NET debug suite (attempted)
+
+Commands (from `test-explore/clients/vscode`):
+- `CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
+
+Outcome: FAIL (VS Code exits with code 1; no Mocha summary emitted)
+Notes:
+- Debug suite currently aborts the harness; need follow-up to determine why VS Code exits with code 1 when debug tests are enabled.
+Artifacts:
+- `test-explore/clients/vscode/logs/20260116T212425` (VB.NET log + trace)
+
 ## Follow-up status (2026-01-16)
 
+- Superseded by the "Latest status (2026-01-16 evening)" section above.
 - CI tests re-run: `VbNet.LanguageServer.Tests` and `VbNet.Extension.Tests` pass.
 - Local file corruption detected in `test/TestProjects/SmallProject/Helper.vb` (duplicate method + `End SubEnd Class`); restored to repo state before completing tests.
 - VB.NET LSP smoke harness run (pipe transport) completed; server logs still note no solution or project in the basic fixture workspace.
@@ -17,6 +82,7 @@ Host: Windows (C:\Work\vbnet-lsp)
 
 ## High-level status (2026-01-16)
 
+- Superseded by the "Latest status (2026-01-16 evening)" section above.
 - CI tests pass (137/137 + 3/3).
 - Exploratory harnesses: VB.NET LSP smoke PASS; VS Code LSP smoke PASS with warnings; VS Code debug suite reports a harness failure on extra extension hosts (see details).
 - Emacs eglot smoke: FAIL (C# Roslyn LSP server exits with status 82 even after `solution/open`; VB.NET hover/definition requests time out even with project-backed fixture).

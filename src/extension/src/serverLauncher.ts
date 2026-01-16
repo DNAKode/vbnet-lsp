@@ -303,11 +303,40 @@ export class ServerLauncher {
     /**
      * Stops the language server if running.
      */
-    public stopServer(): void {
-        if (this.serverProcess) {
-            this.channel.appendLine('Stopping language server...');
-            this.serverProcess.kill();
-            this.serverProcess = undefined;
+    public async stopServer(): Promise<void> {
+        if (!this.serverProcess) {
+            return;
+        }
+
+        const processToStop = this.serverProcess;
+        this.serverProcess = undefined;
+
+        this.channel.appendLine('Stopping language server...');
+
+        if (processToStop.exitCode !== null || processToStop.killed) {
+            return;
+        }
+
+        let exited = false;
+        const exitPromise = new Promise<void>((resolve) => {
+            processToStop.once('exit', () => {
+                exited = true;
+                resolve();
+            });
+        });
+        const timeoutPromise = new Promise<void>((resolve) => {
+            setTimeout(resolve, 15000);
+        });
+
+        await Promise.race([exitPromise, timeoutPromise]);
+
+        if (!exited && processToStop.exitCode === null && !processToStop.killed) {
+            this.channel.appendLine('Force-killing language server after timeout...');
+            try {
+                processToStop.kill();
+            } catch (error) {
+                this.channel.appendLine(`Failed to kill language server: ${error}`);
+            }
         }
     }
 

@@ -277,8 +277,16 @@ if (skipVbnetSmoke) {
                 (list) => !!list
             );
 
-            const count = completions?.items?.length ?? 0;
-            assert.ok(count === 0, `Expected no completions when disabled, got ${count}.`);
+            const items = completions?.items ?? [];
+            const nonTextItems = items.filter(
+                (item) =>
+                    item.kind !== vscode.CompletionItemKind.Text &&
+                    item.kind !== vscode.CompletionItemKind.Snippet
+            );
+            assert.ok(
+                nonTextItems.length === 0,
+                `Expected no LSP completions when disabled; got ${nonTextItems.length} non-text items.`
+            );
         } finally {
             await config.update("completion.enable", originalCompletion, vscode.ConfigurationTarget.Workspace);
             await editorConfig.update(

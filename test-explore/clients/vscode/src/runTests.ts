@@ -23,7 +23,8 @@ async function main() {
         : await downloadAndUnzipVSCode("stable");
 
     const testRoot = path.resolve(__dirname, "..", ".vscode-test");
-    const userDataDir = path.join(testRoot, "user-data");
+    const runId = new Date().toISOString().replace(/[^0-9]/g, "");
+    const userDataDir = path.join(testRoot, "user-data", runId);
     const extensionsDir = path.join(testRoot, "extensions");
     fs.mkdirSync(userDataDir, { recursive: true });
     fs.mkdirSync(extensionsDir, { recursive: true });
@@ -61,6 +62,7 @@ async function main() {
         userDataDir,
         "--extensions-dir",
         extensionsDir,
+        "--disable-extension=vscode.json-language-features",
         "--disable-workspace-trust",
     ];
     if (isWsl()) {
