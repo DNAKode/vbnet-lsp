@@ -92,10 +92,20 @@ jobs:
 
       - name: Package VSIX
         working-directory: src/extension
+        shell: pwsh
         env:
           NETCOREDBG_PATH: ${{ steps.netcoredbg.outputs.NETCOREDBG_PATH }}
           NETCOREDBG_LICENSE: ${{ steps.netcoredbg.outputs.NETCOREDBG_LICENSE }}
-        run: npm run package:vsix:${{ inputs.target }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm run bundle-server
+          npm run bundle-debugger
+          npm run package
+          $vsceArgs = @("package", "--target", "${{ inputs.target }}", "--out", "vbnet-language-support-${{ inputs.target }}.vsix")
+          if ('${{ inputs.pre_release }}' -eq 'true') {
+            $vsceArgs += "--pre-release"
+          }
+          npx vsce @vsceArgs
 
       - name: Publish VSIX
         working-directory: src/extension
