@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Configurable netcoredbg bundling via `NETCOREDBG_PATH`/`NETCOREDBG_LICENSE`.
 - GitHub Actions publishing now supports pre-release VSIX packaging and netcoredbg asset URLs.
 - Preview tag `v0.1.1-preview.20260116` published via GitHub Actions.
+- 0.1.3 preview published after Marketplace verification retry.
 
 ### Changed
 - Non-Windows netcoredbg bundles now ensure the debugger is marked executable.
