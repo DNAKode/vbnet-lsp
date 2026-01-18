@@ -134,6 +134,59 @@ Notes:
 Log paths:
 - Copied log bundle: `test-explore/clients/vscode/logs/20260118T160543`
 
+### 12) CI tests (Release, core + extension)
+
+Commands:
+- `dotnet test test\VbNet.LanguageServer.Tests\VbNet.LanguageServer.Tests.csproj -c Release --no-build --no-restore`
+- `dotnet test test\VbNet.LanguageServer.Tests.Vb\VbNet.LanguageServer.Tests.Vb.vbproj -c Release --no-build --no-restore`
+- `dotnet test test\VbNet.Extension.Tests\VbNet.Extension.Tests.csproj -c Release --no-build --no-restore`
+- `dotnet test test\VbNet.Extension.Tests.Vb\VbNet.Extension.Tests.Vb.vbproj -c Release --no-build --no-restore`
+
+Outcome: PASS (135/135, 123/123, 3/3, 3/3)
+
+### 13) 4-way matrix (ServerImpl=cs/vb)
+
+Commands:
+- `dotnet test test\VbNet.LanguageServer.Tests\VbNet.LanguageServer.Tests.csproj -c Release --no-build --no-restore -p:ServerImpl=cs`
+- `dotnet test test\VbNet.LanguageServer.Tests\VbNet.LanguageServer.Tests.csproj -c Release --no-build --no-restore -p:ServerImpl=vb`
+- `dotnet test test\VbNet.LanguageServer.Tests.Vb\VbNet.LanguageServer.Tests.Vb.vbproj -c Release --no-build --no-restore -p:ServerImpl=cs`
+- `dotnet test test\VbNet.LanguageServer.Tests.Vb\VbNet.LanguageServer.Tests.Vb.vbproj -c Release --no-build --no-restore -p:ServerImpl=vb`
+
+Outcome: PASS (135/135, 135/135, 123/123, 123/123)
+Notes:
+- `test/TestProjects/SmallProject/Helper.vb` picks up duplicate `SignatureHelpTest` definitions during these runs; restored afterward.
+
+### 14) VS Code harness - `VB.NET` LSP smoke (debug skipped, rerun)
+
+Command:
+- `SKIP_VBNET_DEBUG=1 CAPTURE_VSCODE_LOGS=1 npm test` (from `test-explore/clients/vscode`)
+
+Outcome: PASS (9 passing, 4 pending)
+Log paths:
+- Copied log bundle: `test-explore/clients/vscode/logs/20260118T185946`
+
+### 15) Emacs eglot smoke (Windows, rerun)
+
+Command:
+- `test-explore\clients\emacs\run-tests.ps1 -Suite all`
+
+Outcome: PASS (Windows)
+Notes:
+- Shutdown still times out after server exit (non-fatal).
+
+Logs:
+- `test-explore/clients/emacs/logs/emacs-eglot-20260118T190034.log` (C#)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260118T190046.log` (`VB.NET`)
+
+### 16) test-explore top-level suite (all, rerun)
+
+Command:
+- `test-explore\run-tests.ps1` (defaults to `Suite=all`, `Transport=pipe`)
+
+Outcome: PARTIAL
+Notes:
+- `csharp-node` step failed with missing `roslynProtocol` module from `_external/vscode-csharp` (non-fatal to other suites).
+
 ---
 
 Date: 2026-01-16
@@ -517,53 +570,12 @@ Outcome: FAIL
 5) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
 
 ## Protocol anomalies (latest run)
-Run: VB.NET services Transport=pipe Server=vb Harness=vb
+Run: Suite=all Transport=pipe
 
-- [warn] [vbnet-smoke] Service readiness check timed out; proceeding with service tests. (2026-01-18T07:56:48.5456832+02:00)
-- [error] [vbnet-smoke] Service test completion_text returned empty completion. (2026-01-18T07:56:48.5779968+02:00)
-- [warn] [vbnet-smoke] Service test completion_text failed on attempt 1; retrying. (2026-01-18T07:56:48.5865133+02:00)
-- [error] [vbnet-smoke] Service test completion_text returned empty completion. (2026-01-18T07:56:49.0902145+02:00)
-- [error] [vbnet-smoke] Service test completion_calc returned empty completion. (2026-01-18T07:56:49.0923273+02:00)
-- [warn] [vbnet-smoke] Service test completion_calc failed on attempt 1; retrying. (2026-01-18T07:56:49.0932950+02:00)
-- [error] [vbnet-smoke] Service test completion_calc returned empty completion. (2026-01-18T07:56:49.5988661+02:00)
-- [error] [vbnet-smoke] Service test completion_extension returned empty completion. (2026-01-18T07:56:49.6019599+02:00)
-- [warn] [vbnet-smoke] Service test completion_extension failed on attempt 1; retrying. (2026-01-18T07:56:49.6029534+02:00)
-- [error] [vbnet-smoke] Service test completion_extension returned empty completion. (2026-01-18T07:56:50.1071465+02:00)
-- [error] [vbnet-smoke] Service test hover_text returned null hover. (2026-01-18T07:56:50.1131588+02:00)
-- [warn] [vbnet-smoke] Service test hover_text failed on attempt 1; retrying. (2026-01-18T07:56:50.1141146+02:00)
-- [error] [vbnet-smoke] Service test hover_text returned null hover. (2026-01-18T07:56:50.6166092+02:00)
-- [error] [vbnet-smoke] Service test hover_extratype returned null hover. (2026-01-18T07:56:50.6189862+02:00)
-- [warn] [vbnet-smoke] Service test hover_extratype failed on attempt 1; retrying. (2026-01-18T07:56:50.6201821+02:00)
-- [error] [vbnet-smoke] Service test hover_extratype returned null hover. (2026-01-18T07:56:51.1262245+02:00)
-- [error] [vbnet-smoke] Service test definition_add returned empty definition. (2026-01-18T07:56:51.1322889+02:00)
-- [warn] [vbnet-smoke] Service test definition_add failed on attempt 1; retrying. (2026-01-18T07:56:51.1338027+02:00)
-- [error] [vbnet-smoke] Service test definition_add returned empty definition. (2026-01-18T07:56:51.6352244+02:00)
-- [error] [vbnet-smoke] Service test definition_greeter returned empty definition. (2026-01-18T07:56:51.6382829+02:00)
-- [warn] [vbnet-smoke] Service test definition_greeter failed on attempt 1; retrying. (2026-01-18T07:56:51.6392552+02:00)
-- [error] [vbnet-smoke] Service test definition_greeter returned empty definition. (2026-01-18T07:56:52.1468559+02:00)
-- [error] [vbnet-smoke] Service test references_greet returned empty references. (2026-01-18T07:56:52.1577095+02:00)
-- [warn] [vbnet-smoke] Service test references_greet failed on attempt 1; retrying. (2026-01-18T07:56:52.1585699+02:00)
-- [error] [vbnet-smoke] Service test references_greet returned empty references. (2026-01-18T07:56:52.6568231+02:00)
-- [error] [vbnet-smoke] Service test references_greeter_class returned empty references. (2026-01-18T07:56:52.6590944+02:00)
-- [warn] [vbnet-smoke] Service test references_greeter_class failed on attempt 1; retrying. (2026-01-18T07:56:52.6601003+02:00)
-- [error] [vbnet-smoke] Service test references_greeter_class returned empty references. (2026-01-18T07:56:53.1683642+02:00)
-- [error] [vbnet-smoke] Service test references_title returned empty references. (2026-01-18T07:56:53.1702874+02:00)
-- [warn] [vbnet-smoke] Service test references_title failed on attempt 1; retrying. (2026-01-18T07:56:53.1711524+02:00)
-- [error] [vbnet-smoke] Service test references_title returned empty references. (2026-01-18T07:56:53.6782626+02:00)
-- [error] [vbnet-smoke] Service test rename_sum returned invalid workspace edit. (2026-01-18T07:56:53.6863350+02:00)
-- [warn] [vbnet-smoke] Service test rename_sum failed on attempt 1; retrying. (2026-01-18T07:56:53.6872681+02:00)
-- [error] [vbnet-smoke] Service test rename_sum returned invalid workspace edit. (2026-01-18T07:56:54.1904569+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned workspace edit with 0 file(s), expected at least 2. (2026-01-18T07:56:54.1926006+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned invalid workspace edit. (2026-01-18T07:56:54.1930854+02:00)
-- [warn] [vbnet-smoke] Service test rename_greeter failed on attempt 1; retrying. (2026-01-18T07:56:54.1941086+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned workspace edit with 0 file(s), expected at least 2. (2026-01-18T07:56:54.7011552+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned invalid workspace edit. (2026-01-18T07:56:54.7016486+02:00)
-- [error] [vbnet-smoke] Service test symbols_workspace returned empty workspace symbols. (2026-01-18T07:56:54.7443622+02:00)
-- [warn] [vbnet-smoke] Service test symbols_workspace failed on attempt 1; retrying. (2026-01-18T07:56:54.7453247+02:00)
-- [error] [vbnet-smoke] Service test symbols_workspace returned empty workspace symbols. (2026-01-18T07:56:55.2535620+02:00)
-- [error] [vbnet-smoke] One or more service tests failed. (2026-01-18T07:56:55.2566798+02:00)
+None detected.
 ## Timing summary (latest run)
-Run: VB.NET services Transport=pipe Server=vb Harness=vb
+Run: Suite=all Transport=pipe
 
-- [n/a] server_starting (387.42 ms)
-- [n/a] initialize_response (633.64 ms)
+- [n/a] server_starting (215.76 ms)
+- [n/a] initialize_response (481.33 ms)
+- [n/a] didOpen_sent (1120.3 ms)

@@ -16,7 +16,8 @@ All notable changes to this project will be documented in this file.
 - VSIX publish workflows now preserve netcoredbg asset filenames and use Node 20.
 
 ### Fixed
-- _None yet._
+- Signature help now returns multiple overloads after `(` in completion scenarios.
+- Breakpoint toggling now works via `F9`/Run → Toggle Breakpoint in the extension.
 
 ### Known issues
 - _None yet._

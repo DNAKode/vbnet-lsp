@@ -1,4 +1,4 @@
-''' <summary>
+﻿''' <summary>
 ''' A helper class for testing language features.
 ''' </summary>
 Public Class Helper
