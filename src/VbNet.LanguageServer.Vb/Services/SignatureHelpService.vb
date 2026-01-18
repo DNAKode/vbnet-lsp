@@ -92,6 +92,17 @@ Namespace Services
 
                 Dim lspHelp = TryTranslateSignatureHelp(signatureHelp, cancellationToken)
                 If lspHelp IsNot Nothing Then
+                    If lspHelp.Signatures.Length > 1 Then
+                        _logger.LogDebug("Returning {Count} signature help items for: {Uri}", lspHelp.Signatures.Length, uri)
+                        Return lspHelp
+                    End If
+
+                    Dim fallback = Await GetFallbackSignatureHelpAsync(document, offset, cancellationToken).ConfigureAwait(False)
+                    If fallback IsNot Nothing AndAlso fallback.Signatures.Length > lspHelp.Signatures.Length Then
+                        _logger.LogDebug("Signature help fallback expanded results for: {Uri} ({Original} -> {Expanded})", uri, lspHelp.Signatures.Length, fallback.Signatures.Length)
+                        Return fallback
+                    End If
+
                     _logger.LogDebug("Returning {Count} signature help items for: {Uri}", lspHelp.Signatures.Length, uri)
                     Return lspHelp
                 End If
@@ -200,6 +211,31 @@ Namespace Services
             End If
 
             methods.AddRange(symbolInfo.CandidateSymbols.OfType(Of IMethodSymbol)())
+            If invocation IsNot Nothing Then
+                Dim memberGroup = semanticModel.GetMemberGroup(invocation.Expression, cancellationToken)
+                If memberGroup.Length > 0 Then
+                    methods.AddRange(memberGroup.OfType(Of IMethodSymbol)())
+                End If
+
+                If TypeOf invocation.Expression Is MemberAccessExpressionSyntax Then
+                    Dim memberAccess = DirectCast(invocation.Expression, MemberAccessExpressionSyntax)
+                    Dim memberName = memberAccess.Name.Identifier.ValueText
+                    Dim receiverType = TryCast(semanticModel.GetTypeInfo(memberAccess.Expression, cancellationToken).Type, INamedTypeSymbol)
+                    If receiverType IsNot Nothing Then
+                        methods.AddRange(receiverType.GetMembers(memberName).OfType(Of IMethodSymbol)())
+                    End If
+                    methods.AddRange(semanticModel.LookupSymbols(offset, name:=memberName).OfType(Of IMethodSymbol)())
+                ElseIf TypeOf invocation.Expression Is IdentifierNameSyntax Then
+                    Dim memberName = DirectCast(invocation.Expression, IdentifierNameSyntax).Identifier.ValueText
+                    methods.AddRange(semanticModel.LookupSymbols(offset, name:=memberName).OfType(Of IMethodSymbol)())
+                End If
+            ElseIf objectCreation IsNot Nothing Then
+                Dim typeInfo = semanticModel.GetTypeInfo(objectCreation.Type, cancellationToken)
+                Dim namedType = TryCast(typeInfo.Type, INamedTypeSymbol)
+                If namedType IsNot Nothing Then
+                    methods.AddRange(namedType.Constructors)
+                End If
+            End If
             methods = methods.Distinct(New MethodSymbolComparer()).ToList()
 
             If methods.Count = 0 Then

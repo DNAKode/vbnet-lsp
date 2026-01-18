@@ -154,6 +154,10 @@ if (skipVbnetSmoke) {
             (help) => !!help && help.signatures.length > 0
         );
         assert.ok(signatureHelp && signatureHelp.signatures.length > 0, "Signature help was empty.");
+        assert.ok(
+            signatureHelp.signatures.length > 1,
+            `Expected multiple overloads in signature help, got ${signatureHelp.signatures.length}.`
+        );
 
         const codeActions = await retryUntil(
             () =>
@@ -222,6 +226,45 @@ if (skipVbnetSmoke) {
             (result) => !!result && result.size > 0
         );
         assert.ok(edit && edit.size > 0, "Rename workspace edit was empty.");
+    });
+
+    test("toggle breakpoint adds a source breakpoint", async () => {
+        assert.ok(doc, "Fixture document was not opened.");
+        const editor = await vscode.window.showTextDocument(doc);
+        const breakpointPosition = getMarkerPosition(doc, "MARKER: breakpoint_toggle", "sum4");
+        editor.selection = new vscode.Selection(breakpointPosition, breakpointPosition);
+
+        if (vscode.debug.breakpoints.length > 0) {
+            vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
+        }
+
+        const availableCommands = await vscode.commands.getCommands(true);
+        const toggleCommand =
+            availableCommands.find((cmd) => cmd === "editor.debug.action.toggleBreakpoint") ??
+            availableCommands.find((cmd) => cmd === "editor.action.debug.toggleBreakpoint") ??
+            availableCommands.find((cmd) => cmd === "editor.action.toggleBreakpoint");
+
+        assert.ok(toggleCommand, "Toggle breakpoint command not available in this VS Code build.");
+        await vscode.commands.executeCommand(toggleCommand!);
+
+        const breakpoint = await retryUntil(
+            () => Promise.resolve(vscode.debug.breakpoints),
+            (items) => items.length > 0
+        );
+
+        const sourceBreakpoint = breakpoint.find(
+            (item): item is vscode.SourceBreakpoint => item instanceof vscode.SourceBreakpoint
+        );
+        assert.ok(sourceBreakpoint, "No source breakpoint was created.");
+
+        const breakpointLine = sourceBreakpoint.location.range.start.line;
+        assert.strictEqual(
+            breakpointLine,
+            breakpointPosition.line,
+            `Expected breakpoint at line ${breakpointPosition.line}, got ${breakpointLine}.`
+        );
+
+        vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
     });
 
     test("commands are registered and restart applies config changes", async () => {

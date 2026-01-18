@@ -198,6 +198,11 @@
         "category": "VB.NET"
       }
     ],
+    "breakpoints": [
+      {
+        "language": "vb"
+      }
+    ],
     "debuggers": [
       {
         "type": "vbnet",

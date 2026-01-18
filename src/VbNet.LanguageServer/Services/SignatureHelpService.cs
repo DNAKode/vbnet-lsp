@@ -104,6 +104,23 @@ public sealed class SignatureHelpService
             var lspHelp = TryTranslateSignatureHelp(signatureHelp, cancellationToken);
             if (lspHelp != null)
             {
+                if (lspHelp.Signatures.Length > 1)
+                {
+                    _logger.LogDebug("Returning {Count} signature help items for: {Uri}", lspHelp.Signatures.Length, uri);
+                    return lspHelp;
+                }
+
+                var fallback = await GetFallbackSignatureHelpAsync(document, offset, cancellationToken);
+                if (fallback != null && fallback.Signatures.Length > lspHelp.Signatures.Length)
+                {
+                    _logger.LogDebug(
+                        "Signature help fallback expanded results for: {Uri} ({Original} -> {Expanded})",
+                        uri,
+                        lspHelp.Signatures.Length,
+                        fallback.Signatures.Length);
+                    return fallback;
+                }
+
                 _logger.LogDebug("Returning {Count} signature help items for: {Uri}", lspHelp.Signatures.Length, uri);
                 return lspHelp;
             }
@@ -244,6 +261,40 @@ public sealed class SignatureHelpService
         }
 
         methods.AddRange(symbolInfo.CandidateSymbols.OfType<IMethodSymbol>());
+
+        if (invocation != null)
+        {
+            var memberGroup = semanticModel.GetMemberGroup(invocation.Expression, cancellationToken);
+            if (memberGroup.Length > 0)
+            {
+                methods.AddRange(memberGroup.OfType<IMethodSymbol>());
+            }
+
+            if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
+            {
+                var memberName = memberAccess.Name.Identifier.ValueText;
+                var receiverType = semanticModel.GetTypeInfo(memberAccess.Expression, cancellationToken).Type as INamedTypeSymbol;
+                if (receiverType != null)
+                {
+                    methods.AddRange(receiverType.GetMembers(memberName).OfType<IMethodSymbol>());
+                }
+                methods.AddRange(semanticModel.LookupSymbols(offset, name: memberName).OfType<IMethodSymbol>());
+            }
+            else if (invocation.Expression is IdentifierNameSyntax identifierName)
+            {
+                var memberName = identifierName.Identifier.ValueText;
+                methods.AddRange(semanticModel.LookupSymbols(offset, name: memberName).OfType<IMethodSymbol>());
+            }
+        }
+        else if (objectCreation != null)
+        {
+            var typeInfo = semanticModel.GetTypeInfo(objectCreation.Type, cancellationToken);
+            if (typeInfo.Type is INamedTypeSymbol namedType)
+            {
+                methods.AddRange(namedType.Constructors);
+            }
+        }
+
         methods = methods.Distinct(new MethodSymbolComparer()).ToList();
 
         if (methods.Count == 0)

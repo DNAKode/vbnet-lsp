@@ -122,6 +122,18 @@ Outcome: PARTIAL
 Notes:
 - `csharp-node` step failed with missing `roslynProtocol` module from `_external/vscode-csharp` (non-fatal to other suites).
 
+### 11) VS Code harness - `VB.NET` LSP smoke (breakpoints + overloads, debug skipped)
+
+Command:
+- `SKIP_VBNET_DEBUG=1 CAPTURE_VSCODE_LOGS=1 npm test` (from `test-explore/clients/vscode`)
+
+Outcome: PASS (9 passing, 4 pending)
+Notes:
+- Signature help now reports multiple overloads; breakpoint toggle creates a source breakpoint.
+
+Log paths:
+- Copied log bundle: `test-explore/clients/vscode/logs/20260118T160543`
+
 ---
 
 Date: 2026-01-16

@@ -18,6 +18,14 @@ Namespace ServicesSample
         Public Function Add(a As Integer, b As Integer) As Integer
             Return a + b
         End Function
+
+        Public Function Add(a As Integer, b As Integer, c As Integer) As Integer
+            Return a + b + c
+        End Function
+
+        Public Function Add(a As Double, b As Double) As Double
+            Return a + b
+        End Function
     End Class
 
     Public Module Extensions
@@ -33,6 +41,7 @@ Namespace ServicesSample
             Dim sum = calc.Add(1, 2) ' MARKER: definition_add
             Dim sum2 = calc.Add(3, 4) ' MARKER: completion_calc
             Dim sum3 = calc.Add(5, 6) ' MARKER: signature_help
+            Dim sum4 = calc.Add(7, 8) ' MARKER: breakpoint_toggle
             Dim text As String = sum.ToString() ' MARKER: hover_text
             Dim length = text.Length ' MARKER: completion_text
 
