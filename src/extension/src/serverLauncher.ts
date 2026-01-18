@@ -72,10 +72,7 @@ export class ServerLauncher {
      */
     private resolveTransport(transportType: TransportType): 'namedPipe' | 'stdio' {
         if (transportType === 'auto') {
-            // Prefer named pipes on Windows; use stdio on macOS to avoid socket quirks.
-            if (this.platformInfo.isMacOS()) {
-                return 'stdio';
-            }
+            // Follow C# extension: named pipes on all platforms (Unix domain sockets on macOS/Linux).
             return 'namedPipe';
         }
         return transportType;
