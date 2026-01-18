@@ -1,4 +1,6 @@
 param(
+    [ValidateSet('cs','vb')][string]$ServerImpl = 'cs',
+    [ValidateSet('cs','vb')][string]$HarnessImpl = 'cs',
     [string]$ServerProject = 'src\VbNet.LanguageServer\VbNet.LanguageServer.csproj',
     [string]$BuildConfiguration = 'Debug',
     [string]$DotnetPath = 'dotnet',
@@ -25,6 +27,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$serverProjectProvided = $PSBoundParameters.ContainsKey('ServerProject')
+if (-not $serverProjectProvided) {
+    if ($ServerImpl -eq 'vb') {
+        $ServerProject = 'src\VbNet.LanguageServer.Vb\VbNet.LanguageServer.Vb.vbproj'
+    } else {
+        $ServerProject = 'src\VbNet.LanguageServer\VbNet.LanguageServer.csproj'
+    }
+}
+$smokeProject = if ($HarnessImpl -eq 'vb') {
+    'test-explore\vbnet-lsp\VbNetLspSmokeTest.Vb\VbNetLspSmokeTest.Vb.vbproj'
+} else {
+    'test-explore\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj'
+}
 if ([System.IO.Path]::IsPathRooted($ProtocolLogPath)) {
     $protocolLogFullPath = $ProtocolLogPath
 } else {
@@ -136,7 +151,7 @@ function Run-SmokeTest {
         }
     }
 
-    & $DotnetPath run --project test-explore\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj -- @args
+    & $DotnetPath run --project $smokeProject -- @args
 }
 
 if (-not $SkipBuild) {
@@ -168,11 +183,11 @@ if ($ServiceTests) {
 }
 
 $runLabel = if ($ServiceTests) {
-    "VB.NET services Transport=$Transport"
+    "VB.NET services Transport=$Transport Server=$ServerImpl Harness=$HarnessImpl"
 } elseif ($Diagnostics) {
-    "VB.NET diagnostics Transport=$Transport"
+    "VB.NET diagnostics Transport=$Transport Server=$ServerImpl Harness=$HarnessImpl"
 } else {
-    "VB.NET smoke Transport=$Transport"
+    "VB.NET smoke Transport=$Transport Server=$ServerImpl Harness=$HarnessImpl"
 }
 & test-explore\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -TimingLogPath $timingLogFullPath -RunLabel $runLabel
 

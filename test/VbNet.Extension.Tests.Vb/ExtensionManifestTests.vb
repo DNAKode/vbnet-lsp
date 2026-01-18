@@ -1,0 +1,63 @@
+Imports System
+Imports System.IO
+Imports System.Linq
+Imports System.Text.Json
+Imports Xunit
+
+Namespace VbNet.Extension.Tests
+
+    Public Class ExtensionManifestTests
+        Private Shared Function FindRepoRoot() As String
+            Dim directory As DirectoryInfo = New DirectoryInfo(AppContext.BaseDirectory)
+            While directory IsNot Nothing AndAlso Not File.Exists(Path.Combine(directory.FullName, "VbNet.LanguageServer.sln"))
+                directory = directory.Parent
+            End While
+
+            If directory Is Nothing Then
+                Throw New InvalidOperationException("Unable to locate repository root from test output directory.")
+            End If
+
+            Return directory.FullName
+        End Function
+
+        Private Shared Function LoadPackageJson() As JsonElement
+            Dim repoRoot = FindRepoRoot()
+            Dim packageJsonPath = Path.Combine(repoRoot, "src", "extension", "package.json")
+            Assert.True(File.Exists(packageJsonPath), $"Expected extension manifest at {packageJsonPath}.")
+
+            Dim json = File.ReadAllText(packageJsonPath)
+            Using document = JsonDocument.Parse(json)
+                Return document.RootElement.Clone()
+            End Using
+        End Function
+
+        <Fact>
+        Public Sub ExcludePathsIncludeExternalAndExploratory()
+            Dim root = LoadPackageJson()
+            Dim defaults = root.GetProperty("contributes").GetProperty("configuration")(0).GetProperty("properties").GetProperty("vbnet.workspace.excludePaths").GetProperty("default")
+
+            Dim values = defaults.EnumerateArray().Select(Function(item) item.GetString()).ToArray()
+            Assert.Contains("_external", values)
+            Assert.Contains("test-explore", values)
+        End Sub
+
+        <Fact>
+        Public Sub ProjectFilesExcludePatternCoversExternalAndExploratory()
+            Dim root = LoadPackageJson()
+            Dim pattern = root.GetProperty("contributes").GetProperty("configuration")(0).GetProperty("properties").GetProperty("vbnet.workspace.projectFilesExcludePattern").GetProperty("default").GetString()
+
+            Assert.NotNull(pattern)
+            Assert.Contains("**/_external/**", pattern, StringComparison.Ordinal)
+            Assert.Contains("**/test-explore/**", pattern, StringComparison.Ordinal)
+        End Sub
+
+        <Fact>
+        Public Sub DebuggerLaunchSchemaExposesProjectPath()
+            Dim root = LoadPackageJson()
+            Dim launchProps = root.GetProperty("contributes").GetProperty("debuggers")(0).GetProperty("configurationAttributes").GetProperty("launch").GetProperty("properties")
+
+            Assert.True(launchProps.TryGetProperty("projectPath", Nothing), "Expected launch configuration to include projectPath.")
+        End Sub
+    End Class
+
+End Namespace

@@ -21,7 +21,7 @@ public abstract class JsonRpcMessage
 public class JsonRpcRequest : JsonRpcMessage
 {
     [JsonPropertyName("id")]
-    public JsonRpcId Id { get; set; }
+    public object? Id { get; set; }
 
     [JsonPropertyName("method")]
     public string Method { get; set; } = string.Empty;
@@ -50,7 +50,7 @@ public class JsonRpcNotification : JsonRpcMessage
 public class JsonRpcResponse : JsonRpcMessage
 {
     [JsonPropertyName("id")]
-    public JsonRpcId Id { get; set; }
+    public object? Id { get; set; }
 
     [JsonPropertyName("result")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -64,7 +64,7 @@ public class JsonRpcResponse : JsonRpcMessage
     {
         return new JsonRpcResponse
         {
-            Id = id,
+            Id = id.ToRawValue(),
             // Always serialize result, even if null - JSON-RPC requires "result" property for success
             Result = JsonSerializer.SerializeToElement(result, JsonSerializerOptionsProvider.Options)
         };
@@ -74,7 +74,7 @@ public class JsonRpcResponse : JsonRpcMessage
     {
         return new JsonRpcResponse
         {
-            Id = id,
+            Id = id.ToRawValue(),
             Error = new JsonRpcError
             {
                 Code = code,
@@ -153,6 +153,8 @@ public readonly struct JsonRpcId : IEquatable<JsonRpcId>
     public bool Equals(JsonRpcId other) => Equals(_value, other._value);
     public override bool Equals(object? obj) => obj is JsonRpcId other && Equals(other);
     public override int GetHashCode() => _value?.GetHashCode() ?? 0;
+
+    public object? ToRawValue() => _value;
 
     public static bool operator ==(JsonRpcId left, JsonRpcId right) => left.Equals(right);
     public static bool operator !=(JsonRpcId left, JsonRpcId right) => !left.Equals(right);

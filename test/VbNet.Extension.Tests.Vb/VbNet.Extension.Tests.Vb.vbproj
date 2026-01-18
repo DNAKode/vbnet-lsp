@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <ServerImpl Condition="'$(ServerImpl)' == ''">cs</ServerImpl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,17 +15,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="6.0.2">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(ServerImpl)' == 'cs'">
-    <ProjectReference Include="..\..\src\VbNet.LanguageServer\VbNet.LanguageServer.csproj" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(ServerImpl)' == 'vb'">
-    <ProjectReference Include="..\..\src\VbNet.LanguageServer.Vb\VbNet.LanguageServer.Vb.vbproj" />
   </ItemGroup>
 
 </Project>

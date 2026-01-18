@@ -7,37 +7,21 @@ namespace VbNet.LanguageServer.Tests.Protocol;
 public class JsonRpcTypesTests
 {
     [Fact]
-    public void JsonRpcId_StringValue_SerializesCorrectly()
+    public void JsonRpcId_StringValue_ExposesStringValue()
     {
         var id = new JsonRpcId("test-123");
-        var json = JsonSerializer.Serialize(id, JsonSerializerOptionsProvider.Options);
-        Assert.Equal("\"test-123\"", json);
+        Assert.True(id.IsString);
+        Assert.False(id.IsNumber);
+        Assert.Equal("test-123", id.StringValue);
     }
 
     [Fact]
-    public void JsonRpcId_NumberValue_SerializesCorrectly()
+    public void JsonRpcId_NumberValue_ExposesNumberValue()
     {
         var id = new JsonRpcId(42);
-        var json = JsonSerializer.Serialize(id, JsonSerializerOptionsProvider.Options);
-        Assert.Equal("42", json);
-    }
-
-    [Fact]
-    public void JsonRpcId_StringValue_DeserializesCorrectly()
-    {
-        var json = "\"test-456\"";
-        var id = JsonSerializer.Deserialize<JsonRpcId>(json, JsonSerializerOptionsProvider.Options);
-        Assert.True(id.IsString);
-        Assert.Equal("test-456", id.StringValue);
-    }
-
-    [Fact]
-    public void JsonRpcId_NumberValue_DeserializesCorrectly()
-    {
-        var json = "99";
-        var id = JsonSerializer.Deserialize<JsonRpcId>(json, JsonSerializerOptionsProvider.Options);
         Assert.True(id.IsNumber);
-        Assert.Equal(99L, id.NumberValue);
+        Assert.False(id.IsString);
+        Assert.Equal(42L, id.NumberValue);
     }
 
     [Fact]
@@ -45,7 +29,7 @@ public class JsonRpcTypesTests
     {
         var request = new JsonRpcRequest
         {
-            Id = new JsonRpcId(1),
+            Id = 1,
             Method = "initialize"
         };
 
