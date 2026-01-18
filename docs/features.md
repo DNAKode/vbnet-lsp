@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - LSP Features and Roadmap**
 
 Version: 2.6  
-Last Updated: 2026-01-13
+Last Updated: 2026-01-18
 
 ## 1. Overview
 
@@ -114,7 +114,7 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| netcoredbg integration | Implemented | Requires netcoredbg installed or provided |
+| netcoredbg integration | Implemented | Bundled netcoredbg (override via settings) |
 
 ## 5. Roadmap (Next)
 

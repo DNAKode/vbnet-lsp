@@ -8,7 +8,7 @@ First-class Visual Basic (.NET) support for Visual Studio Code, powered by a cus
 - Formatting and rename
 - Symbol search and document symbols
 - Semantic tokens and folding
-- Debugging with netcoredbg (optional)
+- Debugging with bundled netcoredbg
 
 ## Getting Started
 1) Open a `VB.NET` project (`.sln`, `.slnf`, or `.vbproj`).
@@ -16,8 +16,10 @@ First-class Visual Basic (.NET) support for Visual Studio Code, powered by a cus
 3) Configure settings under `vbnet.*` if needed.
 
 ## Debugging
-This extension integrates with `netcoredbg`. Install or provide a path in:
+This extension bundles `netcoredbg` for supported platforms. To override with a custom debugger binary, set:
 `vbnet.debugger.path`
+
+Note: On macOS arm64 the bundled debugger is the x64 netcoredbg binary and requires Rosetta.
 
 ## Resources
 - Repository: https://github.com/DNAKode/vbnet-lsp

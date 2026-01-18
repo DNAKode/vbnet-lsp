@@ -442,6 +442,7 @@ dist/
 *.vsix
 src/extension/.server/
 src/extension/.debugger/
+src/extension/.debugger-cache/
 
 # Webpack cache
 .webpack/

@@ -203,7 +203,7 @@ Required infrastructure:
 External dependencies:
 - .NET SDK (targeted version).
 - VS Code for extension tests.
-- netcoredbg binary for debugger tests (Phase 2).
+- bundled netcoredbg (or `NETCOREDBG_PATH` override) for debugger tests (Phase 2).
 - Emacs and lsp-mode for multi-editor tests (Phase 1 or Phase 2).
 - Roslyn repo (optional, for local baseline builds of Microsoft.CodeAnalysis.LanguageServer).
 

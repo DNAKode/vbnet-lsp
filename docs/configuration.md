@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - User Configuration**
 
 Version: 1.1
-Last Updated: 2026-01-12
+Last Updated: 2026-01-18
 
 ## Table of Contents
 
@@ -140,7 +140,7 @@ View traces: "View > Output" > "`VB.NET` Language Support"
 #### `vbnet.debugger.path`
 **Type**: `string`
 **Default**: `""`
-**Description**: Path to the `netcoredbg` executable. Leave empty to search the extension bundle or PATH.
+**Description**: Path to the `netcoredbg` executable. Leave empty to use the bundled debugger (or PATH when running from source).
 
 ```json
 {
@@ -655,7 +655,7 @@ If configuration issues persist:
 
 ---
 
-**Last Updated**: 2026-01-12
+**Last Updated**: 2026-01-18
 
 **Maintained by**: `VB.NET` Language Support Contributors
 

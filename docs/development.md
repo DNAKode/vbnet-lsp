@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - Developer Documentation**
 
 Version: 1.0
-Last Updated: 2026-01-16
+Last Updated: 2026-01-18
 
 ## Table of Contents
 
@@ -52,9 +52,10 @@ This policy is local to this repository and does not change machine-wide Git set
 
 ### Optional Tools
 
-- **Samsung netcoredbg** (for debugging testing)
-  - Repository: https://github.com/Samsung/netcoredbg
-  - Installation: Follow platform-specific instructions
+- **netcoredbg** (bundled for debugging)
+  - Curated binaries are referenced in `src/extension/scripts/netcoredbg-assets.json`.
+  - Override with `NETCOREDBG_PATH` if you need a custom build.
+  - Fork for macOS arm64 investigation: https://github.com/DNAKode/netcoredbg
 
 - **Emacs** with eglot (current harness); lsp-mode optional for future coverage
   - Emacs: https://www.gnu.org/software/emacs/
@@ -125,9 +126,9 @@ cd _external
 git clone https://github.com/dotnet/vscode-csharp.git
 # Size: ~200MB, Clone time: 2-5 minutes
 
-# Samsung netcoredbg - Open-source .NET debugger
-# DAP protocol reference, debugger integration patterns
-git clone https://github.com/Samsung/netcoredbg.git
+# netcoredbg (DNAKode fork) - Open-source .NET debugger
+# DAP protocol reference, debugger integration patterns, macOS arm64 investigation
+git clone https://github.com/DNAKode/netcoredbg.git
 # Size: ~50MB, Clone time: <1 minute
 
 # C# LSP harness (local reference, optional)
@@ -198,7 +199,7 @@ find _external/dwsim -name "*.vb" | head -20
 vbnet-lsp/
 |-- _external/                    # Gitignored - reference repos + large inputs
 |   |-- vscode-csharp/           # C# extension (primary reference)
-|   |-- netcoredbg/              # Samsung debugger
+|   |-- netcoredbg/              # netcoredbg fork (macOS arm64 builds)
 |   |-- csharp-lsp/              # C# harness + fixtures (reference)
 |   |-- roslyn/                  # Roslyn source (optional)
 |   `-- dwsim/                   # Large `VB.NET` test project
@@ -223,7 +224,7 @@ Periodically update to get latest changes:
 # Update C# extension reference
 cd _external/vscode-csharp && git pull && cd ../..
 
-# Update netcoredbg reference
+# Update netcoredbg reference (DNAKode fork)
 cd _external/netcoredbg && git pull && cd ../..
 
 # Update DWSIM test project
@@ -306,24 +307,34 @@ npm run test:watch
 
 ### Debugging Harness (VS Code)
 
-The VS Code harness can exercise netcoredbg-based debug sessions when the debugger binary is available.
+The VS Code harness can exercise netcoredbg-based debug sessions using the bundled debugger (or an override).
 
 ```powershell
 # Build debug fixture
 dotnet build test/TestProjects/DebugConsole/DebugConsole.vbproj
 
+# Prepare bundled debugger (or set NETCOREDBG_PATH to override)
+cd src/extension
+npm run bundle-debugger -- --target win32-x64
+cd ../../test-explore/clients/vscode
+
 # Run harness (skips debug test if netcoredbg is missing)
 $env:FIXTURE_WORKSPACE = "test/TestProjects/DebugConsole"
-$env:NETCOREDBG_PATH = "C:\\tools\\netcoredbg\\netcoredbg.exe" # optional
-cd test-explore/clients/vscode
+$env:NETCOREDBG_PATH = "C:\\tools\\netcoredbg\\netcoredbg.exe" # optional override
 npm test
 ```
 
 ### Packaging netcoredbg for different platforms
 
-The extension bundles netcoredbg via `npm run bundle-debugger`. By default, it looks under `_external/netcoredbg/bin`.
+The extension bundles netcoredbg via `npm run bundle-debugger`. If `NETCOREDBG_PATH` is not set, the script downloads a curated binary listed in `src/extension/scripts/netcoredbg-assets.json` and copies it into `.debugger/` alongside `LICENSE.netcoredbg`. macOS arm64 currently uses the x64 netcoredbg binary under Rosetta; native arm64 builds are blocked by coreclr Darwin support.
 
-To bundle a specific binary (for example, Linux/macOS from a release asset or a local build), set:
+```bash
+# PowerShell
+cd src/extension
+npm run bundle-debugger -- --target linux-x64
+```
+
+To override the curated binary (for example, a local build), set:
 
 ```bash
 # PowerShell
@@ -350,7 +361,7 @@ npm run bundle-debugger
 
 When running the VS Code harness inside WSL:
 - Ensure Node.js 20, .NET 10 (local install under `~/.dotnet` is fine), and `xvfb` are installed.
-- Set `NETCOREDBG_PATH` to a Linux-built netcoredbg binary (not a Windows `.exe`).
+- Prepare the bundled Linux debugger with `npm run bundle-debugger -- --target linux-x64` (or set `NETCOREDBG_PATH` to a Linux-built netcoredbg binary).
 - Use `xvfb-run -a` to provide a headless display.
 - VS Code CLI may print a WSL warning prompt; it’s safe to continue in CI-style runs.
 
@@ -359,13 +370,14 @@ Example (WSL):
 ```bash
 export PATH="$HOME/.dotnet:$PATH"
 export DOTNET_ROOT="$HOME/.dotnet"
-export NETCOREDBG_PATH="$HOME/netcoredbg-wsl/build-linux/src/netcoredbg"
+cd /mnt/c/Work/vbnet-lsp/src/extension
+npm run bundle-debugger -- --target linux-x64
+cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode
 export CODE_DISABLE_WSL=1
 export VSCODE_CLI=1
 export DONT_PROMPT_WSL_INSTALL=1
 export NO_AT_BRIDGE=1
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
-cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode
 xvfb-run -a npm test
 ```
 
@@ -647,7 +659,7 @@ Two workflows are available via `workflow_dispatch` (manual trigger):
 - **package-vsix.yml**: Build a VSIX artifact for a selected target.
 - **publish-vsix.yml**: Build and publish a VSIX to the Marketplace.
 
-Both workflows require a netcoredbg download URL to bundle the debugger (and optional license URL).
+Both workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`.
 Publishing also requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
 
 ### CI Duration Note (Tracking)
@@ -660,17 +672,7 @@ CI runs on GitHub Actions have been longer than expected in some recent runs. Tr
 2. Select either **package-vsix** or **publish-vsix**.
 3. Click **Run workflow** and set:
    - `target`: `win32-x64` (default) or one of the listed targets.
-   - `netcoredbg_url`: direct download URL (binary or archive).
-   - `netcoredbg_license_url`: optional license URL.
 4. For **publish-vsix**, ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
-
-Example inputs (use your own URLs):
-
-```text
-target: win32-x64
-netcoredbg_url: <direct-download-url>
-netcoredbg_license_url: <optional-license-url>
-```
 
 ### Running CI Locally
 

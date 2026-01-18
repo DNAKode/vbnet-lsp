@@ -341,6 +341,10 @@ function resolveNetcoreDbgPath(): string | undefined {
 
     const exeName = process.platform === "win32" ? "netcoredbg.exe" : "netcoredbg";
     const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
+    const bundledCandidate = path.resolve(repoRoot, "src", "extension", ".debugger", exeName);
+    if (fs.existsSync(bundledCandidate)) {
+        return bundledCandidate;
+    }
     const candidate = path.resolve(repoRoot, "_external", "netcoredbg", "bin", exeName);
     if (fs.existsSync(candidate)) {
         return candidate;

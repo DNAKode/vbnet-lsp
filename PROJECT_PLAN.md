@@ -38,7 +38,7 @@ An open-source, Roslyn-backed extension providing first-class `VB.NET` language 
 - **Agentic-first development:** Designed for minimal manual intervention, with clear task sequencing
 - **Lasting infrastructure:** Build for long-term `VB.NET` community support
 - **Documentation as code:** Maintain comprehensive, LLM-friendly documentation throughout
-- **Open-source debugger:** Use Samsung netcoredbg instead of proprietary Microsoft debugger
+- **Open-source debugger:** Use netcoredbg (DNAKode fork tracking Samsung) instead of proprietary Microsoft debugger
 
 ### 1.3 Must-Haves (MVP / Phase 1)
 
@@ -114,7 +114,7 @@ An open-source, Roslyn-backed extension providing first-class `VB.NET` language 
 | Aspect | C# Extension | `VB.NET` Language Support |
 |--------|------------|----------------|
 | Language | C# (+ some VB support) | `VB.NET` only (focused) |
-| Debugger | Proprietary Microsoft debugger | **Samsung netcoredbg (open source)** |
+| Debugger | Proprietary Microsoft debugger | **netcoredbg (open source)** |
 | Razor support | Yes | No (not applicable) |
 | License | MIT (open source) | MIT (open source) |
 | Development | Microsoft team | Community-driven, agentic |
@@ -132,7 +132,7 @@ We will **fork and host the C# extension** (github.com/dotnet/vscode-csharp) as 
 
 ### 2.4 Debugger Strategy
 
-**Samsung netcoredbg** (github.com/Samsung/netcoredbg):
+**netcoredbg** (github.com/DNAKode/netcoredbg, tracks Samsung):
 - Open-source .NET debugger
 - Implements Debug Adapter Protocol (DAP)
 - Supports .NET Core / .NET 5+
@@ -246,8 +246,8 @@ The language server is organized into five distinct layers:
 - **Fork for:** Architecture patterns, LSP/DAP integration, TypeScript structure
 - **Verify:** Solution loading, diagnostics, completion, debugger integration
 
-### 5.2 Samsung netcoredbg (Debugger)
-- **Repository:** github.com/Samsung/netcoredbg
+### 5.2 netcoredbg (Debugger)
+- **Repository:** github.com/DNAKode/netcoredbg (tracks Samsung/netcoredbg)
 - **Purpose:** Open-source .NET debugger (DAP-compliant)
 - **Integration:** Replace Microsoft's proprietary debugger
 
@@ -284,9 +284,9 @@ The language server is organized into five distinct layers:
 
 **Status (2026-01-13):** Formatting, code actions, semantic tokens, signature help, folding ranges, and netcoredbg debug harness coverage are implemented.
 
-**Follow-ups (2026-01-13):**
-- Bundle netcoredbg into the Windows VSIX (done locally; ship with `package:vsix`).
-- Plan cross-platform netcoredbg bundling (macOS/Linux) via prebuilt artifacts or CI builds; require platform-targeted VSIX outputs.
+**Follow-ups (2026-01-18):**
+- Bundle netcoredbg into all platform VSIX outputs using curated assets (done; see `src/extension/scripts/netcoredbg-assets.json`).
+- macOS arm64 currently ships the x64 netcoredbg binary under Rosetta; native arm64 builds are blocked by coreclr Darwin support and remain an open investigation.
 
 ### Phase 3
 **Goal:** Advanced navigation and productivity
@@ -387,7 +387,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 - `vscode-debugadapter` (DAP integration)
 
 **Debugger:**
-- Samsung netcoredbg (bundled with extension in Phase 2)
+- netcoredbg (bundled with extension in Phase 2)
 - Implements Debug Adapter Protocol (DAP)
 
 ---
@@ -458,18 +458,14 @@ See `docs/development.md` Section 2.1 for setup instructions.
 - Replaces proprietary Microsoft debugger
 - Implements Debug Adapter Protocol (DAP)
 - Bundled with extension for better UX
- - **Windows bundling implemented**: `package:vsix` now includes `.debugger/netcoredbg.exe` and LICENSE.
- - **Cross-platform plan**:
-   - netcoredbg docs indicate Linux packages (Arch/Gentoo/NixOS/etc.), Scoop on Windows, and GitHub releases for Linux; build from source on Linux/macOS/Windows.
-   - Investigate GitHub release assets for macOS/Linux binaries; if available, download and bundle per platform.
-   - If release assets are incomplete, add CI builds for macOS/Linux and publish platform-specific VSIX (`vsce package --target <platform>`).
-   - Ensure `.debugger/LICENSE.netcoredbg` is included for every platform bundle.
-   - **WSL2/Linux test plan (hosted or local)**:
-     - Provision Ubuntu (WSL2 or hosted VM) with .NET SDK + Node.js.
-     - Install netcoredbg for Linux (release asset or build from source).
-     - Build VSIX for `linux-x64` and install into VS Code Remote - WSL.
-     - Run `test-explore/clients/vscode` with `EXTENSION_VSIX` set to the Linux VSIX and verify debug harness (including inferred program path).
-     - Capture logs and DAP traces for parity with Windows runs.
+ - **Cross-platform bundling implemented**: platform VSIX packages include `.debugger/netcoredbg` and `LICENSE.netcoredbg`.
+ - **Curated assets**: `src/extension/scripts/netcoredbg-assets.json` maps each VSIX target to a vetted binary.
+ - **WSL2/Linux test plan (hosted or local)**:
+   - Provision Ubuntu (WSL2 or hosted VM) with .NET SDK + Node.js.
+   - Run `npm run bundle-debugger -- --target linux-x64` before the VS Code harness.
+   - Build VSIX for `linux-x64` and install into VS Code Remote - WSL.
+   - Run `test-explore/clients/vscode` with `EXTENSION_VSIX` set to the Linux VSIX and verify debug harness (including inferred program path).
+   - Capture logs and DAP traces for parity with Windows runs.
 
 ### 11.3 `VB.NET` Only
 - Focused scope (no mixed-language complexity)
@@ -543,7 +539,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 **Never guess - always verify:**
 
 - **C# extension source code** (github.com/dotnet/vscode-csharp) - primary reference
-- **netcoredbg source and docs** (github.com/Samsung/netcoredbg) - debugger integration
+- **netcoredbg source and docs** (github.com/DNAKode/netcoredbg) - debugger integration
 - Official Microsoft Roslyn and LSP documentation
 - Empirical testing and behavioral comparison
 - Document all findings in docs/architecture.md

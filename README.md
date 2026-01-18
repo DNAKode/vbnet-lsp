@@ -20,7 +20,7 @@
   - Symbol navigation and search
   - Code rename refactoring
   - Hover information
-- **Open-source debugging** with Samsung netcoredbg (Phase 2)
+- **Open-source debugging** with bundled Samsung netcoredbg (Phase 2)
 - **100% MIT licensed** - no proprietary components
 
 ## Status
@@ -48,7 +48,7 @@
 | Semantic Tokens (full + range) | Implemented |
 | Signature Help | Implemented |
 | Folding Ranges | Implemented |
-| Debugging (netcoredbg integration) | Implemented (requires netcoredbg) |
+| Debugging (netcoredbg integration) | Implemented (bundled netcoredbg) |
 
 **Test Coverage:** 136 tests passing
 
@@ -60,7 +60,7 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download) or later
 - [Visual Studio Code](https://code.visualstudio.com/) 1.80.0 or later
 - [Node.js](https://nodejs.org/) 18.0 or later (for extension development)
-- Optional: [netcoredbg](https://github.com/Samsung/netcoredbg) for debugging (set `vbnet.debugger.path`)
+- macOS arm64 debugging uses the x64 netcoredbg binary under Rosetta
 
 ### Remote + Web Notes
 
@@ -70,18 +70,19 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 
 ### WSL Quickstart (Testing)
 
-For WSL-based testing, use the Linux VSIX and a Linux-built netcoredbg:
+For WSL-based testing, use the Linux VSIX and ensure the bundled debugger is available for the harness:
 
 ```bash
 export PATH="$HOME/.dotnet:$PATH"
 export DOTNET_ROOT="$HOME/.dotnet"
-export NETCOREDBG_PATH="$HOME/netcoredbg-wsl/build-linux/src/netcoredbg"
+cd /mnt/c/Work/vbnet-lsp/src/extension
+npm run bundle-debugger -- --target linux-x64
+cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode
 export CODE_DISABLE_WSL=1
 export VSCODE_CLI=1
 export DONT_PROMPT_WSL_INSTALL=1
 export NO_AT_BRIDGE=1
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
-cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode
 xvfb-run -a npm test
 ```
 
@@ -122,7 +123,7 @@ Once installed, the extension automatically activates when you open a \`.vb\` fi
 
 - **VS Code Extension (TypeScript)** - Extension activation, LSP client, UI integration
 - **Language Server (C#/.NET)** - Roslyn workspace, LSP protocol, language services
-- **Samsung netcoredbg** - Open-source .NET debugger (DAP-compliant)
+- **Samsung netcoredbg** - Open-source .NET debugger (bundled in platform-specific VSIX packages)
 
 See [docs/architecture.md](docs/architecture.md) for detailed architectural information.
 
@@ -146,7 +147,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed architectural info
 
 - **100% open source** under MIT license
 - **`VB.NET` focused** - optimized specifically for `VB.NET` development
-- **Open-source debugger** - Samsung netcoredbg instead of proprietary alternatives
+- **Open-source debugger** - Samsung netcoredbg bundled for all supported platforms
 - **No proprietary components** - fully transparent and community-driven
 
 ## Roadmap
@@ -163,7 +164,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed architectural info
 - Semantic tokens (enhanced syntax highlighting)
 - Signature help
 - Folding ranges
-- Debugging integration with netcoredbg
+- Debugging integration with bundled netcoredbg
 
 ### Phase 3 (Next)
 - Advanced navigation (call hierarchy, type hierarchy)

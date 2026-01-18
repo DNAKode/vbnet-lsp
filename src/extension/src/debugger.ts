@@ -319,7 +319,7 @@ class NetCoreDbgAdapterFactory implements vscode.DebugAdapterDescriptorFactory {
         const debuggerPath = this.resolveDebuggerPath();
         if (!debuggerPath) {
             throw new Error(
-                'netcoredbg executable not found. Set vbnet.debugger.path or install netcoredbg on PATH.'
+                'netcoredbg executable not found. Ensure the bundled debugger is present or set vbnet.debugger.path to a custom netcoredbg.'
             );
         }
 

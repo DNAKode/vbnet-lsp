@@ -3,7 +3,7 @@
 **Single Source of Truth for Architectural Decisions**
 
 Version: 2.6
-Last Updated: 2026-01-12
+Last Updated: 2026-01-18
 Status: Living Document
 
 ## Document Purpose
@@ -642,9 +642,10 @@ var result = await Task.Run(async () =>
 
 ## 11. Debugging Integration
 
-### 11.1 Debugger: Samsung netcoredbg
+### 11.1 Debugger: netcoredbg (DNAKode fork)
 
-**Repository**: https://github.com/Samsung/netcoredbg
+**Repository**: https://github.com/DNAKode/netcoredbg (tracks Samsung/netcoredbg)
+**macOS arm64**: Bundles currently ship the x64 netcoredbg binary and require Rosetta; native arm64 build is blocked by coreclr Darwin support.
 
 **Integration Point**: Debug Adapter Protocol (DAP)
 
@@ -678,6 +679,7 @@ Extension Debug Adapter
 - Debugger type: `vbnet`
 - Adapter: `netcoredbg --interpreter=vscode` (stdio)
 - Registration: `DebugAdapterDescriptorFactory` + `DebugConfigurationProvider`
+- Bundled binaries: `.debugger/` populated during packaging from `src/extension/scripts/netcoredbg-assets.json`
 - Discovery order: `vbnet.debugger.path` > bundled `.debugger` > local dev `_external/netcoredbg/bin` > PATH
 - Extra adapter args: `vbnet.debugger.args`
 
@@ -830,7 +832,7 @@ Mirror the C# extension architecture for `VB.NET` language support.
 **Verification Strategy**:
 Always verify behavior against C# extension source code - never guess.
 
-### 14.2 Decision: Samsung netcoredbg for Debugging
+### 14.2 Decision: netcoredbg for Debugging
 
 **Date**: 2026-01-09
 **Status**: Accepted
@@ -839,7 +841,7 @@ Always verify behavior against C# extension source code - never guess.
 Need debugger integration for `VB.NET` projects. Microsoft's debugger is proprietary.
 
 **Decision**:
-Use Samsung netcoredbg (github.com/Samsung/netcoredbg) as the debugger.
+Use netcoredbg (DNAKode fork tracking Samsung/netcoredbg) as the debugger.
 
 **Rationale**:
 - Open source (MIT license)
@@ -1126,7 +1128,7 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 
 ### 15.3 Debugger Reference: netcoredbg
 
-**Repository**: https://github.com/Samsung/netcoredbg
+**Repository**: https://github.com/DNAKode/netcoredbg
 **License**: MIT
 
 **Use Cases**:
@@ -1160,7 +1162,7 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 | ID | Date | Decision | Status |
 |----|------|----------|--------|
 | 14.1 | 2026-01-09 | Follow C# Extension Architecture | Accepted |
-| 14.2 | 2026-01-09 | Samsung netcoredbg for Debugging | Accepted |
+| 14.2 | 2026-01-09 | netcoredbg for Debugging | Accepted |
 | 14.3 | 2026-01-09 | `VB.NET` Only (Phase 1-3) | Accepted |
 | 14.4 | 2026-01-09 | MSBuildWorkspace for Project Loading | Accepted |
 | 14.5 | 2026-01-10 | Named Pipes Primary, stdio Secondary | **Updated** |
