@@ -142,8 +142,21 @@ public sealed class DiagnosticsService : IDisposable
                 Diagnostics = diagnostics
             };
 
-            await _publishDiagnostics("textDocument/publishDiagnostics", @params, cts.Token);
-            _logger.LogDebug("Published {Count} diagnostics for: {Uri}", diagnostics.Length, uri);
+            try
+            {
+                await _publishDiagnostics("textDocument/publishDiagnostics", @params, cts.Token);
+                _logger.LogDebug("Published {Count} diagnostics for: {Uri}", diagnostics.Length, uri);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogDebug(ex, "Diagnostics publish skipped because transport closed for: {Uri}", uri);
+                return;
+            }
+            catch (ObjectDisposedException ex)
+            {
+                _logger.LogDebug(ex, "Diagnostics publish skipped because transport disposed for: {Uri}", uri);
+                return;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -359,8 +372,19 @@ public sealed class DiagnosticsService : IDisposable
             Diagnostics = Array.Empty<Protocol.Diagnostic>()
         };
 
-        await _publishDiagnostics("textDocument/publishDiagnostics", @params, cancellationToken);
-        _logger.LogDebug("Cleared diagnostics for: {Uri}", uri);
+        try
+        {
+            await _publishDiagnostics("textDocument/publishDiagnostics", @params, cancellationToken);
+            _logger.LogDebug("Cleared diagnostics for: {Uri}", uri);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogDebug(ex, "Diagnostics clear skipped because transport closed for: {Uri}", uri);
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.LogDebug(ex, "Diagnostics clear skipped because transport disposed for: {Uri}", uri);
+        }
     }
 
     /// <summary>

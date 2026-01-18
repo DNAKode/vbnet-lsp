@@ -141,8 +141,16 @@ Namespace Services
                     .Diagnostics = diagnostics
                 }
 
-                Await _publishDiagnostics("textDocument/publishDiagnostics", params, cts.Token).ConfigureAwait(False)
-                _logger.LogDebug("Published {Count} diagnostics for: {Uri}", diagnostics.Length, uri)
+                Try
+                    Await _publishDiagnostics("textDocument/publishDiagnostics", params, cts.Token).ConfigureAwait(False)
+                    _logger.LogDebug("Published {Count} diagnostics for: {Uri}", diagnostics.Length, uri)
+                Catch ex As IOException
+                    _logger.LogDebug(ex, "Diagnostics publish skipped because transport closed for: {Uri}", uri)
+                    Return
+                Catch ex As ObjectDisposedException
+                    _logger.LogDebug(ex, "Diagnostics publish skipped because transport disposed for: {Uri}", uri)
+                    Return
+                End Try
             Catch ex As OperationCanceledException
                 _logger.LogTrace("Diagnostics computation cancelled for: {Uri}", uri)
             Catch ex As Exception
@@ -314,8 +322,14 @@ Namespace Services
                 .Diagnostics = Array.Empty(Of Protocol.Diagnostic)()
             }
 
-            Await _publishDiagnostics("textDocument/publishDiagnostics", params, cancellationToken).ConfigureAwait(False)
-            _logger.LogDebug("Cleared diagnostics for: {Uri}", uri)
+            Try
+                Await _publishDiagnostics("textDocument/publishDiagnostics", params, cancellationToken).ConfigureAwait(False)
+                _logger.LogDebug("Cleared diagnostics for: {Uri}", uri)
+            Catch ex As IOException
+                _logger.LogDebug(ex, "Diagnostics clear skipped because transport closed for: {Uri}", uri)
+            Catch ex As ObjectDisposedException
+                _logger.LogDebug(ex, "Diagnostics clear skipped because transport disposed for: {Uri}", uri)
+            End Try
         End Function
 
         ''' <summary>

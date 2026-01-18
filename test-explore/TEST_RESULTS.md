@@ -11,7 +11,8 @@ Host: Windows (C:\Work\vbnet-lsp)
 - Extension manifest tests pass for both C# and `VB.NET` test projects.
 - LSP smoke + diagnostics + services harnesses pass for C# + `VB.NET` servers (named pipe transport).
 - VS Code harness LSP smoke pass with debug suite skipped.
-- Emacs harness not run (Emacs not installed on this host).
+- Emacs eglot smoke pass on Windows (C# + `VB.NET`); shutdown still times out after server exit (non-fatal).
+- WSL Emacs attempt blocked: Emacs 27.1 lacks `eglot`; ELPA download failed and `external-completion` dependency unavailable without extra setup.
 
 ## Test runs and outcomes (2026-01-18)
 
@@ -73,9 +74,35 @@ Outcome: PASS (8 passing, 4 pending)
 
 ### 7) Emacs eglot smoke
 
-Outcome: NOT RUN
+Commands:
+- `test-explore\clients\emacs\run-tests.ps1 -Suite all`
+
+Outcome: PASS (Windows)
 Notes:
-- `emacs` binary not available on this host.
+- Shutdown still times out after server exit (non-fatal).
+- WSL attempt failed: Emacs 27.1 lacks `eglot` and ELPA downloads failed; `external-completion` dependency not available without extra setup.
+
+Logs:
+- `test-explore/clients/emacs/logs/emacs-eglot-20260118T075507.log` (C#)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260118T075516.log` (`VB.NET`)
+
+### 8) `VB.NET` services harness (post diagnostics publish guard)
+
+Command:
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl vb -HarnessImpl vb -ServiceTests`
+
+Outcome: PASS
+Notes:
+- No `Pipe is broken` warnings after guarding diagnostics publish on closed/disposed transports.
+
+### 9) test-explore top-level suite (all)
+
+Command:
+- `test-explore\run-tests.ps1` (defaults to `Suite=all`, `Transport=pipe`)
+
+Outcome: PARTIAL
+Notes:
+- `csharp-node` step failed with missing `roslynProtocol` module from `_external/vscode-csharp` (non-fatal to other suites).
 
 ---
 
@@ -462,51 +489,51 @@ Outcome: FAIL
 ## Protocol anomalies (latest run)
 Run: VB.NET services Transport=pipe Server=vb Harness=vb
 
-- [warn] [vbnet-smoke] Service readiness check timed out; proceeding with service tests. (2026-01-18T07:20:10.6059824+02:00)
-- [error] [vbnet-smoke] Service test completion_text returned empty completion. (2026-01-18T07:20:10.6367028+02:00)
-- [warn] [vbnet-smoke] Service test completion_text failed on attempt 1; retrying. (2026-01-18T07:20:10.6455019+02:00)
-- [error] [vbnet-smoke] Service test completion_text returned empty completion. (2026-01-18T07:20:11.1500834+02:00)
-- [error] [vbnet-smoke] Service test completion_calc returned empty completion. (2026-01-18T07:20:11.1524157+02:00)
-- [warn] [vbnet-smoke] Service test completion_calc failed on attempt 1; retrying. (2026-01-18T07:20:11.1538311+02:00)
-- [error] [vbnet-smoke] Service test completion_calc returned empty completion. (2026-01-18T07:20:11.6589392+02:00)
-- [error] [vbnet-smoke] Service test completion_extension returned empty completion. (2026-01-18T07:20:11.6616409+02:00)
-- [warn] [vbnet-smoke] Service test completion_extension failed on attempt 1; retrying. (2026-01-18T07:20:11.6627055+02:00)
-- [error] [vbnet-smoke] Service test completion_extension returned empty completion. (2026-01-18T07:20:12.1666464+02:00)
-- [error] [vbnet-smoke] Service test hover_text returned null hover. (2026-01-18T07:20:12.1723085+02:00)
-- [warn] [vbnet-smoke] Service test hover_text failed on attempt 1; retrying. (2026-01-18T07:20:12.1732170+02:00)
-- [error] [vbnet-smoke] Service test hover_text returned null hover. (2026-01-18T07:20:12.6759929+02:00)
-- [error] [vbnet-smoke] Service test hover_extratype returned null hover. (2026-01-18T07:20:12.6781717+02:00)
-- [warn] [vbnet-smoke] Service test hover_extratype failed on attempt 1; retrying. (2026-01-18T07:20:12.6791665+02:00)
-- [error] [vbnet-smoke] Service test hover_extratype returned null hover. (2026-01-18T07:20:13.1921512+02:00)
-- [error] [vbnet-smoke] Service test definition_add returned empty definition. (2026-01-18T07:20:13.1985630+02:00)
-- [warn] [vbnet-smoke] Service test definition_add failed on attempt 1; retrying. (2026-01-18T07:20:13.1994988+02:00)
-- [error] [vbnet-smoke] Service test definition_add returned empty definition. (2026-01-18T07:20:13.7015466+02:00)
-- [error] [vbnet-smoke] Service test definition_greeter returned empty definition. (2026-01-18T07:20:13.7038913+02:00)
-- [warn] [vbnet-smoke] Service test definition_greeter failed on attempt 1; retrying. (2026-01-18T07:20:13.7054571+02:00)
-- [error] [vbnet-smoke] Service test definition_greeter returned empty definition. (2026-01-18T07:20:14.2102629+02:00)
-- [error] [vbnet-smoke] Service test references_greet returned empty references. (2026-01-18T07:20:14.2224798+02:00)
-- [warn] [vbnet-smoke] Service test references_greet failed on attempt 1; retrying. (2026-01-18T07:20:14.2234374+02:00)
-- [error] [vbnet-smoke] Service test references_greet returned empty references. (2026-01-18T07:20:14.7204613+02:00)
-- [error] [vbnet-smoke] Service test references_greeter_class returned empty references. (2026-01-18T07:20:14.7232589+02:00)
-- [warn] [vbnet-smoke] Service test references_greeter_class failed on attempt 1; retrying. (2026-01-18T07:20:14.7244681+02:00)
-- [error] [vbnet-smoke] Service test references_greeter_class returned empty references. (2026-01-18T07:20:15.2316724+02:00)
-- [error] [vbnet-smoke] Service test references_title returned empty references. (2026-01-18T07:20:15.2349584+02:00)
-- [warn] [vbnet-smoke] Service test references_title failed on attempt 1; retrying. (2026-01-18T07:20:15.2365753+02:00)
-- [error] [vbnet-smoke] Service test references_title returned empty references. (2026-01-18T07:20:15.7399010+02:00)
-- [error] [vbnet-smoke] Service test rename_sum returned invalid workspace edit. (2026-01-18T07:20:15.7472354+02:00)
-- [warn] [vbnet-smoke] Service test rename_sum failed on attempt 1; retrying. (2026-01-18T07:20:15.7483256+02:00)
-- [error] [vbnet-smoke] Service test rename_sum returned invalid workspace edit. (2026-01-18T07:20:16.2525606+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned workspace edit with 0 file(s), expected at least 2. (2026-01-18T07:20:16.2554037+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned invalid workspace edit. (2026-01-18T07:20:16.2558866+02:00)
-- [warn] [vbnet-smoke] Service test rename_greeter failed on attempt 1; retrying. (2026-01-18T07:20:16.2569718+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned workspace edit with 0 file(s), expected at least 2. (2026-01-18T07:20:16.7626460+02:00)
-- [error] [vbnet-smoke] Service test rename_greeter returned invalid workspace edit. (2026-01-18T07:20:16.7632336+02:00)
-- [error] [vbnet-smoke] Service test symbols_workspace returned empty workspace symbols. (2026-01-18T07:20:16.7904347+02:00)
-- [warn] [vbnet-smoke] Service test symbols_workspace failed on attempt 1; retrying. (2026-01-18T07:20:16.7916394+02:00)
-- [error] [vbnet-smoke] Service test symbols_workspace returned empty workspace symbols. (2026-01-18T07:20:17.2913368+02:00)
-- [error] [vbnet-smoke] One or more service tests failed. (2026-01-18T07:20:17.2945381+02:00)
+- [warn] [vbnet-smoke] Service readiness check timed out; proceeding with service tests. (2026-01-18T07:56:48.5456832+02:00)
+- [error] [vbnet-smoke] Service test completion_text returned empty completion. (2026-01-18T07:56:48.5779968+02:00)
+- [warn] [vbnet-smoke] Service test completion_text failed on attempt 1; retrying. (2026-01-18T07:56:48.5865133+02:00)
+- [error] [vbnet-smoke] Service test completion_text returned empty completion. (2026-01-18T07:56:49.0902145+02:00)
+- [error] [vbnet-smoke] Service test completion_calc returned empty completion. (2026-01-18T07:56:49.0923273+02:00)
+- [warn] [vbnet-smoke] Service test completion_calc failed on attempt 1; retrying. (2026-01-18T07:56:49.0932950+02:00)
+- [error] [vbnet-smoke] Service test completion_calc returned empty completion. (2026-01-18T07:56:49.5988661+02:00)
+- [error] [vbnet-smoke] Service test completion_extension returned empty completion. (2026-01-18T07:56:49.6019599+02:00)
+- [warn] [vbnet-smoke] Service test completion_extension failed on attempt 1; retrying. (2026-01-18T07:56:49.6029534+02:00)
+- [error] [vbnet-smoke] Service test completion_extension returned empty completion. (2026-01-18T07:56:50.1071465+02:00)
+- [error] [vbnet-smoke] Service test hover_text returned null hover. (2026-01-18T07:56:50.1131588+02:00)
+- [warn] [vbnet-smoke] Service test hover_text failed on attempt 1; retrying. (2026-01-18T07:56:50.1141146+02:00)
+- [error] [vbnet-smoke] Service test hover_text returned null hover. (2026-01-18T07:56:50.6166092+02:00)
+- [error] [vbnet-smoke] Service test hover_extratype returned null hover. (2026-01-18T07:56:50.6189862+02:00)
+- [warn] [vbnet-smoke] Service test hover_extratype failed on attempt 1; retrying. (2026-01-18T07:56:50.6201821+02:00)
+- [error] [vbnet-smoke] Service test hover_extratype returned null hover. (2026-01-18T07:56:51.1262245+02:00)
+- [error] [vbnet-smoke] Service test definition_add returned empty definition. (2026-01-18T07:56:51.1322889+02:00)
+- [warn] [vbnet-smoke] Service test definition_add failed on attempt 1; retrying. (2026-01-18T07:56:51.1338027+02:00)
+- [error] [vbnet-smoke] Service test definition_add returned empty definition. (2026-01-18T07:56:51.6352244+02:00)
+- [error] [vbnet-smoke] Service test definition_greeter returned empty definition. (2026-01-18T07:56:51.6382829+02:00)
+- [warn] [vbnet-smoke] Service test definition_greeter failed on attempt 1; retrying. (2026-01-18T07:56:51.6392552+02:00)
+- [error] [vbnet-smoke] Service test definition_greeter returned empty definition. (2026-01-18T07:56:52.1468559+02:00)
+- [error] [vbnet-smoke] Service test references_greet returned empty references. (2026-01-18T07:56:52.1577095+02:00)
+- [warn] [vbnet-smoke] Service test references_greet failed on attempt 1; retrying. (2026-01-18T07:56:52.1585699+02:00)
+- [error] [vbnet-smoke] Service test references_greet returned empty references. (2026-01-18T07:56:52.6568231+02:00)
+- [error] [vbnet-smoke] Service test references_greeter_class returned empty references. (2026-01-18T07:56:52.6590944+02:00)
+- [warn] [vbnet-smoke] Service test references_greeter_class failed on attempt 1; retrying. (2026-01-18T07:56:52.6601003+02:00)
+- [error] [vbnet-smoke] Service test references_greeter_class returned empty references. (2026-01-18T07:56:53.1683642+02:00)
+- [error] [vbnet-smoke] Service test references_title returned empty references. (2026-01-18T07:56:53.1702874+02:00)
+- [warn] [vbnet-smoke] Service test references_title failed on attempt 1; retrying. (2026-01-18T07:56:53.1711524+02:00)
+- [error] [vbnet-smoke] Service test references_title returned empty references. (2026-01-18T07:56:53.6782626+02:00)
+- [error] [vbnet-smoke] Service test rename_sum returned invalid workspace edit. (2026-01-18T07:56:53.6863350+02:00)
+- [warn] [vbnet-smoke] Service test rename_sum failed on attempt 1; retrying. (2026-01-18T07:56:53.6872681+02:00)
+- [error] [vbnet-smoke] Service test rename_sum returned invalid workspace edit. (2026-01-18T07:56:54.1904569+02:00)
+- [error] [vbnet-smoke] Service test rename_greeter returned workspace edit with 0 file(s), expected at least 2. (2026-01-18T07:56:54.1926006+02:00)
+- [error] [vbnet-smoke] Service test rename_greeter returned invalid workspace edit. (2026-01-18T07:56:54.1930854+02:00)
+- [warn] [vbnet-smoke] Service test rename_greeter failed on attempt 1; retrying. (2026-01-18T07:56:54.1941086+02:00)
+- [error] [vbnet-smoke] Service test rename_greeter returned workspace edit with 0 file(s), expected at least 2. (2026-01-18T07:56:54.7011552+02:00)
+- [error] [vbnet-smoke] Service test rename_greeter returned invalid workspace edit. (2026-01-18T07:56:54.7016486+02:00)
+- [error] [vbnet-smoke] Service test symbols_workspace returned empty workspace symbols. (2026-01-18T07:56:54.7443622+02:00)
+- [warn] [vbnet-smoke] Service test symbols_workspace failed on attempt 1; retrying. (2026-01-18T07:56:54.7453247+02:00)
+- [error] [vbnet-smoke] Service test symbols_workspace returned empty workspace symbols. (2026-01-18T07:56:55.2535620+02:00)
+- [error] [vbnet-smoke] One or more service tests failed. (2026-01-18T07:56:55.2566798+02:00)
 ## Timing summary (latest run)
 Run: VB.NET services Transport=pipe Server=vb Harness=vb
 
-- [n/a] server_starting (203.41 ms)
-- [n/a] initialize_response (468.63 ms)
+- [n/a] server_starting (387.42 ms)
+- [n/a] initialize_response (633.64 ms)
