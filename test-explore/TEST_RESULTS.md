@@ -12,7 +12,7 @@ Host: Windows (C:\Work\vbnet-lsp)
 - LSP smoke + diagnostics + services harnesses pass for C# + `VB.NET` servers (named pipe transport).
 - VS Code harness LSP smoke pass with debug suite skipped.
 - Emacs eglot smoke pass on Windows (C# + `VB.NET`); shutdown still times out after server exit (non-fatal).
-- WSL Emacs attempt blocked: Emacs 27.1 lacks `eglot`; ELPA download failed and `external-completion` dependency unavailable without extra setup.
+- WSL Emacs updated to snap Emacs 30.2; `VB.NET` eglot smoke runs to completion (hover empty, shutdown timeout). C# suite still failing to attach to eglot server (see notes).
 
 ## Test runs and outcomes (2026-01-18)
 
@@ -86,7 +86,25 @@ Logs:
 - `test-explore/clients/emacs/logs/emacs-eglot-20260118T075507.log` (C#)
 - `test-explore/clients/emacs/logs/emacs-eglot-20260118T075516.log` (`VB.NET`)
 
-### 8) `VB.NET` services harness (post diagnostics publish guard)
+### 8) Emacs eglot smoke (WSL, Emacs 30.2 via snap)
+
+Commands (WSL):
+- `PATH=/snap/bin:$HOME/.dotnet:$PATH CODEX_SUITE=vbnet ROSLYN_LSP_DLL=/mnt/c/Work/vbnet-lsp/_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll VBNET_LSP_DLL=/mnt/c/Work/vbnet-lsp/src/VbNet.LanguageServer/bin/Debug/net10.0/VbNet.LanguageServer.dll emacs --batch -l /mnt/c/Work/vbnet-lsp/test-explore/clients/emacs/eglot-smoke.el`
+- `PATH=/snap/bin:$HOME/.dotnet:$PATH CODEX_SUITE=all ROSLYN_LSP_DLL=/mnt/c/Work/vbnet-lsp/_external/roslyn/artifacts/bin/Microsoft.CodeAnalysis.LanguageServer/Release/net10.0/Microsoft.CodeAnalysis.LanguageServer.dll VBNET_LSP_DLL=/mnt/c/Work/vbnet-lsp/src/VbNet.LanguageServer/bin/Debug/net10.0/VbNet.LanguageServer.dll emacs --batch -l /mnt/c/Work/vbnet-lsp/test-explore/clients/emacs/eglot-smoke.el`
+
+Outcome:
+- `VB.NET`: PASS (hover empty warning, shutdown timeout after server exit)
+- `C#`: FAIL (eglot server reported missing)
+
+Notes:
+- WSL now uses snap Emacs 30.2; ELPA not required.
+- `C#` run reports `No eglot server for csharp (mode=csharp-mode)` despite server programs being set; likely eglot connect timing/behavior change in Emacs 30.
+
+Logs:
+- `test-explore/clients/emacs/logs/emacs-eglot-20260118T110935.log` (`VB.NET`)
+- `test-explore/clients/emacs/logs/emacs-eglot-20260118T110903.log` (C# + `VB.NET` attempt)
+
+### 9) `VB.NET` services harness (post diagnostics publish guard)
 
 Command:
 - `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl vb -HarnessImpl vb -ServiceTests`
@@ -95,7 +113,7 @@ Outcome: PASS
 Notes:
 - No `Pipe is broken` warnings after guarding diagnostics publish on closed/disposed transports.
 
-### 9) test-explore top-level suite (all)
+### 10) test-explore top-level suite (all)
 
 Command:
 - `test-explore\run-tests.ps1` (defaults to `Suite=all`, `Transport=pipe`)
