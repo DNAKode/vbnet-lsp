@@ -24,6 +24,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
         Private ReadOnly _workspaceManager As WorkspaceManager
         Private ReadOnly _documentManager As DocumentManager
         Private ReadOnly _signatureHelpService As SignatureHelpService
+        Private _tempProjectRoot As String
 
         Private Shared ReadOnly TestProjectsRoot As String = GetTestProjectsRoot()
 
@@ -49,16 +50,27 @@ Namespace VbNet.LanguageServer.Tests.Integration
 
         Public Async Function DisposeAsync() As Task Implements IAsyncLifetime.DisposeAsync
             Await _workspaceManager.DisposeAsync()
+
+            If Not String.IsNullOrEmpty(_tempProjectRoot) AndAlso Directory.Exists(_tempProjectRoot) Then
+                Directory.Delete(_tempProjectRoot, recursive:=True)
+            End If
         End Function
 
         <Fact>
         Public Async Function GetSignatureHelpAsync_OnMethodCall_ReturnsSignatures() As Task
-            Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
-            Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
-
-            If Not File.Exists(projectPath) Then
+            Dim sourceProjectRoot = Path.Combine(TestProjectsRoot, "SmallProject")
+            Dim sourceProjectPath = Path.Combine(sourceProjectRoot, "SmallProject.vbproj")
+            If Not File.Exists(sourceProjectPath) Then
                 Return
             End If
+
+            Dim tempRoot = Path.Combine(Path.GetTempPath(), "vbnet-lsp-tests", Guid.NewGuid().ToString("N"))
+            Dim tempProjectRoot = Path.Combine(tempRoot, "SmallProject")
+            CopyDirectory(sourceProjectRoot, tempProjectRoot)
+            _tempProjectRoot = tempRoot
+
+            Dim projectPath = Path.Combine(tempProjectRoot, "SmallProject.vbproj")
+            Dim helperPath = Path.Combine(tempProjectRoot, "Helper.vb")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -75,40 +87,40 @@ Namespace VbNet.LanguageServer.Tests.Integration
                 }
             })
 
-            Dim document = _documentManager.GetRoslynDocument(helperUri)
-            Assert.NotNull(document)
+                Dim document = _documentManager.GetRoslynDocument(helperUri)
+                Assert.NotNull(document)
 
-            Dim root = Await document.GetSyntaxRootAsync(CancellationToken.None)
-            Assert.NotNull(root)
+                Dim root = Await document.GetSyntaxRootAsync(CancellationToken.None)
+                Assert.NotNull(root)
 
-            Dim invocation = root.DescendantNodes().
-                OfType(Of InvocationExpressionSyntax)().
-                FirstOrDefault(Function(node) node.ToString().Contains("Add(1, 2)", StringComparison.Ordinal))
-            Assert.NotNull(invocation)
+                Dim invocation = root.DescendantNodes().
+                    OfType(Of InvocationExpressionSyntax)().
+                    FirstOrDefault(Function(node) node.ToString().Contains("Add(1, 2)", StringComparison.Ordinal))
+                Assert.NotNull(invocation)
 
-            Dim semanticModel = Await document.GetSemanticModelAsync(CancellationToken.None)
-            Assert.NotNull(semanticModel)
+                Dim semanticModel = Await document.GetSemanticModelAsync(CancellationToken.None)
+                Assert.NotNull(semanticModel)
 
-            Dim symbolInfo = semanticModel.GetSymbolInfo(invocation, CancellationToken.None)
-            Dim methodSymbol = TryCast(symbolInfo.Symbol, IMethodSymbol)
-            If methodSymbol Is Nothing Then
-                methodSymbol = symbolInfo.CandidateSymbols.OfType(Of IMethodSymbol)().FirstOrDefault()
-            End If
-            Assert.NotNull(methodSymbol)
+                Dim symbolInfo = semanticModel.GetSymbolInfo(invocation, CancellationToken.None)
+                Dim methodSymbol = TryCast(symbolInfo.Symbol, IMethodSymbol)
+                If methodSymbol Is Nothing Then
+                    methodSymbol = symbolInfo.CandidateSymbols.OfType(Of IMethodSymbol)().FirstOrDefault()
+                End If
+                Assert.NotNull(methodSymbol)
 
-            Dim sourceText As SourceText = SourceText.From(updatedText)
-            Dim marker = "Add(1, 2)"
-            Dim markerIndex = updatedText.IndexOf(marker, StringComparison.Ordinal)
-            If markerIndex < 0 Then
-                Return
-            End If
+                Dim sourceText As SourceText = SourceText.From(updatedText)
+                Dim marker = "Add(1, 2)"
+                Dim markerIndex = updatedText.IndexOf(marker, StringComparison.Ordinal)
+                If markerIndex < 0 Then
+                    Return
+                End If
 
-            Dim positionOffset = markerIndex + "Add(".Length
-            Dim line = sourceText.Lines.GetLineFromPosition(positionOffset)
-            Dim position = New Position With {
-                .Line = line.LineNumber,
-                .Character = positionOffset - line.Start
-            }
+                Dim positionOffset = markerIndex + "Add(".Length
+                Dim line = sourceText.Lines.GetLineFromPosition(positionOffset)
+                Dim position = New Position With {
+                    .Line = line.LineNumber,
+                    .Character = positionOffset - line.Start
+                }
 
             Dim result = Await _signatureHelpService.GetSignatureHelpAsync(New SignatureHelpParams With {
                 .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
@@ -119,6 +131,20 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Assert.NotEmpty(result.Signatures)
             Assert.Contains(result.Signatures, Function(sig) sig.Label.Contains("Add", StringComparison.OrdinalIgnoreCase))
         End Function
+
+        Private Shared Sub CopyDirectory(sourceDir As String, destinationDir As String)
+            Directory.CreateDirectory(destinationDir)
+
+            For Each filePath In Directory.GetFiles(sourceDir)
+                Dim dest = Path.Combine(destinationDir, Path.GetFileName(filePath))
+                File.Copy(filePath, dest, overwrite:=True)
+            Next
+
+            For Each directoryPath In Directory.GetDirectories(sourceDir)
+                Dim dest = Path.Combine(destinationDir, Path.GetFileName(directoryPath))
+                CopyDirectory(directoryPath, dest)
+            Next
+        End Sub
 
         Private Shared Function InsertSignatureHelpSnippet(text As String) As String
             Dim snippet = String.Join(vbLf,

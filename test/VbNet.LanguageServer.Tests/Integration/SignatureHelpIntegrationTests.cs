@@ -18,6 +18,7 @@ public class SignatureHelpIntegrationTests : IAsyncLifetime
     private readonly WorkspaceManager _workspaceManager;
     private readonly DocumentManager _documentManager;
     private readonly SignatureHelpService _signatureHelpService;
+    private string? _tempProjectRoot;
 
     private static readonly string TestProjectsRoot = GetTestProjectsRoot();
 
@@ -47,18 +48,30 @@ public class SignatureHelpIntegrationTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _workspaceManager.DisposeAsync();
+
+        if (!string.IsNullOrEmpty(_tempProjectRoot) && Directory.Exists(_tempProjectRoot))
+        {
+            Directory.Delete(_tempProjectRoot, recursive: true);
+        }
     }
 
     [Fact]
     public async Task GetSignatureHelpAsync_OnMethodCall_ReturnsSignatures()
     {
-        var projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj");
-        var helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb");
-
-        if (!File.Exists(projectPath))
+        var sourceProjectRoot = Path.Combine(TestProjectsRoot, "SmallProject");
+        var sourceProjectPath = Path.Combine(sourceProjectRoot, "SmallProject.vbproj");
+        if (!File.Exists(sourceProjectPath))
         {
             return;
         }
+
+        var tempRoot = Path.Combine(Path.GetTempPath(), "vbnet-lsp-tests", Guid.NewGuid().ToString("N"));
+        var tempProjectRoot = Path.Combine(tempRoot, "SmallProject");
+        CopyDirectory(sourceProjectRoot, tempProjectRoot);
+        _tempProjectRoot = tempRoot;
+
+        var projectPath = Path.Combine(tempProjectRoot, "SmallProject.vbproj");
+        var helperPath = Path.Combine(tempProjectRoot, "Helper.vb");
 
         await _workspaceManager.LoadProjectAsync(projectPath);
 
@@ -121,6 +134,23 @@ public class SignatureHelpIntegrationTests : IAsyncLifetime
         Assert.NotNull(result);
         Assert.NotEmpty(result!.Signatures);
         Assert.Contains(result.Signatures, sig => sig.Label.Contains("Add", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var dest = Path.Combine(destinationDir, Path.GetFileName(file));
+            File.Copy(file, dest, overwrite: true);
+        }
+
+        foreach (var directory in Directory.GetDirectories(sourceDir))
+        {
+            var dest = Path.Combine(destinationDir, Path.GetFileName(directory));
+            CopyDirectory(directory, dest);
+        }
     }
 
     private static string InsertSignatureHelpSnippet(string text)
