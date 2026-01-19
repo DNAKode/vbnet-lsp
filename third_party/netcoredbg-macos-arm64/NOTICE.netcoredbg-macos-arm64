@@ -1,0 +1,6 @@
+This distribution bundles a macOS arm64 netcoredbg build sourced from the Cliffback community release:
+- Repository: https://github.com/Cliffback/netcoredbg-macOS-arm64.nvim
+- Release tag: 3.1.3-1062 (netcoredbg-osx-arm64.tar.gz)
+
+The release packages the upstream netcoredbg binaries plus supporting libraries.
+This notice does not replace the upstream netcoredbg license.

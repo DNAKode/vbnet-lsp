@@ -19,7 +19,7 @@ First-class Visual Basic (.NET) support for Visual Studio Code, powered by a cus
 This extension bundles `netcoredbg` for supported platforms. To override with a custom debugger binary, set:
 `vbnet.debugger.path`
 
-Note: On macOS arm64 the bundled debugger is the x64 netcoredbg binary and requires Rosetta.
+Note: On macOS arm64 the bundled debugger is sourced from the Cliffback community build (see notices in the extension package).
 
 ## Resources
 - Repository: https://github.com/DNAKode/vbnet-lsp

@@ -579,3 +579,46 @@ Run: Suite=all Transport=pipe
 - [n/a] server_starting (215.76 ms)
 - [n/a] initialize_response (481.33 ms)
 - [n/a] didOpen_sent (1120.3 ms)
+
+Date: 2026-01-19
+Author: Codex (GPT-5) acting as test reviewer
+Scope: VS Code exploratory harness (Windows)
+Host: Windows (C:\Work\vbnet-lsp)
+
+## Test runs and outcomes (2026-01-19)
+
+### 1) VS Code harness - `VB.NET` LSP + debug (Windows)
+
+Commands (from `test-explore/clients/vscode`):
+- `FIXTURE_WORKSPACE=test/TestProjects/DebugConsole npm test`
+
+Outcome: FAIL (5 passing, 4 pending, 8 failing)
+
+Failures:
+- LSP smoke: hover empty, rename provider error, hover after restart failed, format edits empty.
+- Debug suite: netcoredbg launch + inferred program path + template program path + projectPath inference all failed to start.
+
+Notes:
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-19T120916071Z.log`.
+- VS Code version: 1.108.1 (vscode-test cached).
+
+### 2) VS Code harness - `VB.NET` LSP smoke only (Windows)
+
+Commands (from `test-explore/clients/vscode`):
+- `CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 SKIP_VBNET_DEBUG=1 npm test`
+
+Outcome: PASS (9 passing, 4 pending)
+Notes:
+- Log bundle: `test-explore/clients/vscode/logs/20260119T142517`.
+- Root cause for run (1) LSP failures: `FIXTURE_WORKSPACE` pointed to `test/TestProjects/DebugConsole`, so LSP tests opened fixture files outside the workspace and behaved like standalone files.
+
+### 3) VS Code harness - `VB.NET` debug only (Windows)
+
+Commands (from `test-explore/clients/vscode`):
+- `CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 SKIP_VBNET_SMOKE=1 npm test`
+
+Outcome: PASS (4 passing, 5 pending)
+Notes:
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-19T122558621Z.log`.
+- Log bundle: `test-explore/clients/vscode/logs/20260119T142554`.
+- VS Code emitted a non-fatal DAP warning: `Failed command 'threads'` during debug startup.

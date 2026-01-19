@@ -28,11 +28,30 @@ Namespace VbNet.LanguageServer.Tests.Services
         End Sub
 
         <Fact>
-        Public Async Function RenameSymbolAsync_NoDocument_ReturnsNull() As Task
+        Public Async Function PrepareRenameAsync_NoDocument_ReturnsNull() As Task
+            Dim request = New PrepareRenameParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = "file:///nonexistent.vb"},
+                .Position = New Position With {.Line = 0, .Character = 0}
+            }
+
+            Dim result = Await _renameService.PrepareRenameAsync(request, CancellationToken.None)
+
+            Assert.Null(result)
+        End Function
+
+        <Fact>
+        Public Async Function PrepareRenameAsync_NullParams_ReturnsNull() As Task
+            Dim result = Await _renameService.PrepareRenameAsync(Nothing, CancellationToken.None)
+
+            Assert.Null(result)
+        End Function
+
+        <Fact>
+        Public Async Function RenameAsync_NoDocument_ReturnsNull() As Task
             Dim request = New RenameParams With {
                 .TextDocument = New TextDocumentIdentifier With {.Uri = "file:///nonexistent.vb"},
                 .Position = New Position With {.Line = 0, .Character = 0},
-                .NewName = "Renamed"
+                .NewName = "NewName"
             }
 
             Dim result = Await _renameService.RenameAsync(request, CancellationToken.None)
@@ -41,13 +60,21 @@ Namespace VbNet.LanguageServer.Tests.Services
         End Function
 
         <Fact>
-        Public Async Function PrepareRenameAsync_NoDocument_ReturnsNull() As Task
-            Dim request = New PrepareRenameParams With {
-                .TextDocument = New TextDocumentIdentifier With {.Uri = "file:///nonexistent.vb"},
-                .Position = New Position With {.Line = 0, .Character = 0}
+        Public Async Function RenameAsync_NullParams_ReturnsNull() As Task
+            Dim result = Await _renameService.RenameAsync(Nothing, CancellationToken.None)
+
+            Assert.Null(result)
+        End Function
+
+        <Fact>
+        Public Async Function RenameAsync_EmptyNewName_ReturnsNull() As Task
+            Dim request = New RenameParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = "file:///test.vb"},
+                .Position = New Position With {.Line = 0, .Character = 0},
+                .NewName = ""
             }
 
-            Dim result = Await _renameService.PrepareRenameAsync(request, CancellationToken.None)
+            Dim result = Await _renameService.RenameAsync(request, CancellationToken.None)
 
             Assert.Null(result)
         End Function

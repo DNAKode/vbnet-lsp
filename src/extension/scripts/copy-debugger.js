@@ -58,9 +58,15 @@ const defaultExeName = targetPlatform.startsWith('win32') ? 'netcoredbg.exe' : '
 const targetDir = path.join(extensionRoot, '.debugger');
 const targetExe = path.join(targetDir, defaultExeName);
 const targetLicense = path.join(targetDir, 'LICENSE.netcoredbg');
+const targetNotice = targetAsset?.noticePath
+    ? path.join(targetDir, path.basename(targetAsset.noticePath))
+    : '';
 const fallbackLicense = assets.licensePath
     ? path.resolve(repoRoot, assets.licensePath)
     : path.join(repoRoot, 'third_party', 'netcoredbg', 'LICENSE');
+const fallbackNotice = targetAsset?.noticePath
+    ? path.resolve(repoRoot, targetAsset.noticePath)
+    : '';
 
 const findNetcoredbg = (root, exeName) => {
     if (!fs.existsSync(root)) {
@@ -175,15 +181,31 @@ const main = async () => {
     const sourceLicense = configuredLicensePath || fallbackLicense;
     fs.rmSync(targetDir, { recursive: true, force: true });
     fs.mkdirSync(targetDir, { recursive: true });
-    fs.copyFileSync(sourceExe, targetExe);
-    if (!targetPlatform.startsWith('win32')) {
-        fs.chmodSync(targetExe, 0o755);
+
+    const sourceRoot = path.dirname(sourceExe);
+    const entries = fs.readdirSync(sourceRoot, { withFileTypes: true });
+    for (const entry of entries) {
+        if (!entry.isFile()) {
+            continue;
+        }
+        const sourcePath = path.join(sourceRoot, entry.name);
+        const destPath = path.join(targetDir, entry.name);
+        fs.copyFileSync(sourcePath, destPath);
+        if (!targetPlatform.startsWith('win32') && entry.name === defaultExeName) {
+            fs.chmodSync(destPath, 0o755);
+        }
     }
 
     if (sourceLicense && fs.existsSync(sourceLicense)) {
         fs.copyFileSync(sourceLicense, targetLicense);
     } else {
         console.warn(`netcoredbg LICENSE not found at ${sourceLicense}`);
+    }
+
+    if (fallbackNotice && fs.existsSync(fallbackNotice)) {
+        fs.copyFileSync(fallbackNotice, targetNotice);
+    } else if (fallbackNotice) {
+        console.warn(`netcoredbg notice not found at ${fallbackNotice}`);
     }
 
     console.log(`Copied netcoredbg from ${sourceExe} to ${targetExe}`);

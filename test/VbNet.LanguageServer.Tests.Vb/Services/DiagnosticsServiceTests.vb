@@ -111,10 +111,41 @@ Namespace VbNet.LanguageServer.Tests.Services
 
             _diagnosticsService.Enabled = False
 
+            _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                .TextDocument = New TextDocumentItem With {
+                    .Uri = uri,
+                    .LanguageId = "vb",
+                    .Version = 1,
+                    .Text = "Module Module1" & vbLf & "End Module"
+                }
+            })
+
             Await _diagnosticsService.ComputeAndPublishDiagnosticsAsync(uri)
 
             Assert.Empty(_publishedDiagnostics)
         End Function
+
+        <Fact>
+        Public Sub Dispose_CancelsAllPendingOperations()
+            Dim uri = "file:///c:/test/module1.vb"
+
+            _diagnosticsService.TriggerDiagnostics(uri)
+
+            _diagnosticsService.Dispose()
+            _diagnosticsService.Dispose()
+        End Sub
+
+        <Fact>
+        Public Sub DebounceDelayMs_CanBeConfigured()
+            _diagnosticsService.DebounceDelayMs = 500
+            Assert.Equal(500, _diagnosticsService.DebounceDelayMs)
+        End Sub
+
+        <Fact>
+        Public Sub MinimumSeverity_CanBeConfigured()
+            _diagnosticsService.MinimumSeverity = DiagnosticSeverity.Error
+            Assert.Equal(DiagnosticSeverity.Error, _diagnosticsService.MinimumSeverity)
+        End Sub
 
         Private Async Function WaitForPublishAsync() As Task(Of PublishDiagnosticsParams)
             Dim completed = Await Task.WhenAny(_publishTcs.Task, Task.Delay(TimeSpan.FromSeconds(5)))

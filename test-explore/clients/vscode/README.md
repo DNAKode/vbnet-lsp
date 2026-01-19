@@ -60,4 +60,5 @@ npm test
 - Use isolated `--user-data-dir` and `--extensions-dir` to keep tests hermetic.
 - Extend tests by adding more fixture workspaces and assertions.
 - If extension installation fails with an EPERM rename, delete `clients/vscode/.vscode-test/extensions` and rerun.
+- LSP smoke tests expect files under `test-explore/vbnet-lsp/fixtures`; if you set `FIXTURE_WORKSPACE` elsewhere, keep `SKIP_VBNET_SMOKE=1` to avoid standalone-document failures.
 

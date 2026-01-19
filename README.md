@@ -60,7 +60,8 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download) or later
 - [Visual Studio Code](https://code.visualstudio.com/) 1.80.0 or later
 - [Node.js](https://nodejs.org/) 18.0 or later (for extension development)
-- macOS arm64 debugging uses the x64 netcoredbg binary under Rosetta
+
+The debugger is bundled with the extension; no separate install is required. Advanced users can override it via settings if needed.
 
 ### Remote + Web Notes
 
@@ -206,6 +207,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Microsoft Roslyn team** - for the amazing .NET compiler platform
 - **Microsoft C# extension team** - for the open-source LSP architecture reference
 - **Samsung netcoredbg team** - for the open-source .NET debugger
+- **Cliffback** - for macOS arm64 netcoredbg community builds
 - **DWSIM project** - for providing a large real-world `VB.NET` codebase for testing
 
 ## Support

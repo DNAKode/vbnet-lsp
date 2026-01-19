@@ -645,7 +645,7 @@ var result = await Task.Run(async () =>
 ### 11.1 Debugger: netcoredbg (DNAKode fork)
 
 **Repository**: https://github.com/DNAKode/netcoredbg (tracks Samsung/netcoredbg)
-**macOS arm64**: Bundles currently ship the x64 netcoredbg binary and require Rosetta; native arm64 build is blocked by coreclr Darwin support.
+**macOS arm64**: Bundles use the Cliffback community arm64 build; native builds are still being investigated.
 
 **Integration Point**: Debug Adapter Protocol (DAP)
 

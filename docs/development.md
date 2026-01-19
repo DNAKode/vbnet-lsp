@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - Developer Documentation**
 
 Version: 1.0
-Last Updated: 2026-01-18
+Last Updated: 2026-01-19
 
 ## Table of Contents
 
@@ -50,12 +50,16 @@ This repo defines line endings in `.gitattributes` to avoid local Git warnings a
 
 This policy is local to this repository and does not change machine-wide Git settings.
 
-### Optional Tools
+### Bundled Components (No Manual Install Needed)
 
 - **netcoredbg** (bundled for debugging)
+  - Included in the VSIX for all supported platforms; users do not need to install it separately.
   - Curated binaries are referenced in `src/extension/scripts/netcoredbg-assets.json`.
-  - Override with `NETCOREDBG_PATH` if you need a custom build.
+  - Advanced override: set `NETCOREDBG_PATH` to use a custom build during packaging or local dev.
   - Fork for macOS arm64 investigation: https://github.com/DNAKode/netcoredbg
+  - Community macOS arm64 builds: https://github.com/Cliffback/netcoredbg-macOS-arm64.nvim
+
+### Optional Tools
 
 - **Emacs** with eglot (current harness); lsp-mode optional for future coverage
   - Emacs: https://www.gnu.org/software/emacs/
@@ -131,6 +135,10 @@ git clone https://github.com/dotnet/vscode-csharp.git
 git clone https://github.com/DNAKode/netcoredbg.git
 # Size: ~50MB, Clone time: <1 minute
 
+# netcoredbg macOS arm64 community build (reference + releases)
+git clone https://github.com/Cliffback/netcoredbg-macOS-arm64.nvim.git
+# Size: ~5MB, Clone time: <1 minute
+
 # C# LSP harness (local reference, optional)
 # Kept under _external/csharp-lsp; if missing, skip C# harness tests
 
@@ -200,6 +208,7 @@ vbnet-lsp/
 |-- _external/                    # Gitignored - reference repos + large inputs
 |   |-- vscode-csharp/           # C# extension (primary reference)
 |   |-- netcoredbg/              # netcoredbg fork (macOS arm64 builds)
+|   |-- netcoredbg-macOS-arm64.nvim/ # netcoredbg macOS arm64 community build
 |   |-- csharp-lsp/              # C# harness + fixtures (reference)
 |   |-- roslyn/                  # Roslyn source (optional)
 |   `-- dwsim/                   # Large `VB.NET` test project
@@ -226,6 +235,9 @@ cd _external/vscode-csharp && git pull && cd ../..
 
 # Update netcoredbg reference (DNAKode fork)
 cd _external/netcoredbg && git pull && cd ../..
+
+# Update netcoredbg macOS arm64 community build reference
+cd _external/netcoredbg-macOS-arm64.nvim && git pull && cd ../..
 
 # Update DWSIM test project
 cd _external/dwsim && git pull && cd ../..
@@ -326,7 +338,7 @@ npm test
 
 ### Packaging netcoredbg for different platforms
 
-The extension bundles netcoredbg via `npm run bundle-debugger`. If `NETCOREDBG_PATH` is not set, the script downloads a curated binary listed in `src/extension/scripts/netcoredbg-assets.json` and copies it into `.debugger/` alongside `LICENSE.netcoredbg`. macOS arm64 currently uses the x64 netcoredbg binary under Rosetta; native arm64 builds are blocked by coreclr Darwin support.
+The extension bundles netcoredbg via `npm run bundle-debugger`. If `NETCOREDBG_PATH` is not set, the script downloads a curated binary listed in `src/extension/scripts/netcoredbg-assets.json` and copies it into `.debugger/` alongside `LICENSE.netcoredbg`. macOS arm64 uses the Cliffback community build, with an extra notice file copied into `.debugger/`.
 
 ```bash
 # PowerShell
@@ -382,6 +394,31 @@ xvfb-run -a npm test
 ```
 
 ---
+
+## macOS arm64 Debugger Validation Plan (In Progress)
+
+1. **Baseline first (Windows + Linux)**  
+   - Ensure `test/` suites pass on Windows.  
+   - Ensure VS Code harness debug tests pass on Windows.  
+   - Ensure WSL/Linux harness debug tests pass (using Linux VSIX).
+
+2. **Manual macOS arm64 validation (local machine)**  
+   - Use the `package-vsix` workflow to fetch the `darwin-arm64` VSIX.  
+   - Install VSIX locally on macOS arm64 and run the VS Code harness (debug test included).  
+   - Record results in `test-explore/TEST_RESULTS.md`.
+
+3. **GitHub Actions macOS arm64 pilot**  
+   - Create a `workflow_dispatch` action targeting `macos-14` runners.  
+   - Steps: install Node/.NET, bundle debugger (`npm run bundle-debugger -- --target darwin-arm64`), build debug fixture, run VS Code harness tests.  
+   - Keep the job gated on green Windows + Linux harness runs to avoid spurious macOS failures.
+
+4. **Stabilize + expand**  
+   - Add debugger-specific assertions/log capture if macOS flakiness appears.  
+   - Promote to a scheduled or PR-triggered workflow only after multiple green runs.
+
+## Future Test-Explore Notes
+
+- Consider adding NeoVim coverage for `VB.NET` LSP + debugger integration (possibly with `neotest`), across all supported platforms.
 
 ## 5. Debugging
 
@@ -822,7 +859,7 @@ dotnet test
 
 ---
 
-**Last Updated**: 2026-01-15
+**Last Updated**: 2026-01-19
 
 **Maintained by**: `VB.NET` Language Support Contributors
 
