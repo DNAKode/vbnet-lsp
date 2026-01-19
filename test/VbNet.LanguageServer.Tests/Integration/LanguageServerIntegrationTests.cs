@@ -51,7 +51,7 @@ public class LanguageServerIntegrationTests : IAsyncDisposable
     public void Server_HasCorrectServerInfo()
     {
         Assert.Equal("VbNet.LanguageServer", LspServer.ServerName);
-        Assert.Equal("0.1.1", LspServer.ServerVersion);
+        Assert.Equal("0.1.6", LspServer.ServerVersion);
     }
 
     [Fact]

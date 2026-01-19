@@ -50,7 +50,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
         <Fact>
         Public Sub Server_HasCorrectServerInfo()
             Assert.Equal("VbNet.LanguageServer", LspServer.ServerName)
-            Assert.Equal("0.1.1", LspServer.ServerVersion)
+            Assert.Equal("0.1.6", LspServer.ServerVersion)
         End Sub
 
         <Fact>
