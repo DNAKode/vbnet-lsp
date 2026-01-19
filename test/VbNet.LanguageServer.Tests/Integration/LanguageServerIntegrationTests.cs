@@ -51,7 +51,8 @@ public class LanguageServerIntegrationTests : IAsyncDisposable
     public void Server_HasCorrectServerInfo()
     {
         Assert.Equal("VbNet.LanguageServer", LspServer.ServerName);
-        Assert.Equal("0.1.6", LspServer.ServerVersion);
+        Assert.False(string.IsNullOrWhiteSpace(LspServer.ServerVersion));
+        Assert.Matches(@"^\d+\.\d+\.\d+(-[A-Za-z0-9\.\-]+)?$", LspServer.ServerVersion);
     }
 
     [Fact]

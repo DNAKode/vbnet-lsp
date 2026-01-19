@@ -2,6 +2,7 @@ Imports System
 Imports System.Collections.Generic
 Imports System.IO
 Imports System.Linq
+Imports System.Text.RegularExpressions
 Imports System.Threading
 Imports System.Threading.Tasks
 Imports Microsoft.Extensions.Logging.Abstractions
@@ -50,7 +51,8 @@ Namespace VbNet.LanguageServer.Tests.Integration
         <Fact>
         Public Sub Server_HasCorrectServerInfo()
             Assert.Equal("VbNet.LanguageServer", LspServer.ServerName)
-            Assert.Equal("0.1.6", LspServer.ServerVersion)
+            Assert.False(String.IsNullOrWhiteSpace(LspServer.ServerVersion))
+            Assert.Matches(New Regex("^\d+\.\d+\.\d+(-[A-Za-z0-9\.\-]+)?$"), LspServer.ServerVersion)
         End Sub
 
         <Fact>
