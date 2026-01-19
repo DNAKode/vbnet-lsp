@@ -570,21 +570,15 @@ Outcome: FAIL
 5) Resolve the intermittent `apphost.exe` access denied issue by ensuring no running server locks the build output before diagnostics runs.
 
 ## Protocol anomalies (latest run)
-Run: Suite=all Transport=pipe
+Run: VB.NET smoke Transport=pipe Server=vb Harness=cs
 
 None detected.
 ## Timing summary (latest run)
-Run: Suite=all Transport=pipe
+Run: VB.NET smoke Transport=pipe Server=vb Harness=cs
 
-- [n/a] server_starting (215.76 ms)
-- [n/a] initialize_response (481.33 ms)
-- [n/a] didOpen_sent (1120.3 ms)
-
-Date: 2026-01-19
-Author: Codex (GPT-5) acting as test reviewer
-Scope: VS Code exploratory harness (Windows)
-Host: Windows (C:\Work\vbnet-lsp)
-
+- [n/a] server_starting (194.69 ms)
+- [n/a] initialize_response (418.09 ms)
+- [n/a] didOpen_sent (893.01 ms)
 ## Test runs and outcomes (2026-01-19)
 
 ### 1) VS Code harness - `VB.NET` LSP + debug (Windows)
@@ -622,3 +616,77 @@ Notes:
 - DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-19T122558621Z.log`.
 - Log bundle: `test-explore/clients/vscode/logs/20260119T142554`.
 - VS Code emitted a non-fatal DAP warning: `Failed command 'threads'` during debug startup.
+
+### 4) LSP smoke harness 4-way matrix (Windows)
+
+Commands:
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl cs -HarnessImpl cs`
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl vb -HarnessImpl vb`
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl cs -HarnessImpl vb`
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl vb -HarnessImpl cs`
+
+Outcome: PASS
+Notes:
+- Same non-fatal analyzer warnings as prior runs for the C# harness project.
+
+### 5) VS Code harness - `VB.NET` LSP + debug (VB server, stdio fix)
+
+Commands (from `test-explore/clients/vscode`):
+- `VBNET_SERVER_PATH=src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll VBNET_LS_TRACE_TRANSPORT=1 VBNET_TRACE_CLIENT_STREAMS=2 CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
+
+Outcome: PASS (14 passing, 5 pending)
+Notes:
+- Fixed VB stdio header write to use `vbCrLf` instead of literal `\r\n` escapes; initialize response now parsed and tests proceed.
+- Log bundle: `test-explore/clients/vscode/logs/20260119T222017`.
+
+### 6) VS Code harness - `VB.NET` LSP + debug (C# server)
+
+Commands (from `test-explore/clients/vscode`):
+- `VBNET_SERVER_PATH=src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
+
+Outcome: PASS (14 passing, 5 pending)
+Notes:
+- Non-fatal DAP warning during debug startup: `Failed command 'threads'`.
+- Log bundle: `test-explore/clients/vscode/logs/20260119T222347`.
+
+### 7) VS Code harness - `VB.NET` LSP + debug (named pipes, VB server)
+
+Commands (from `test-explore/clients/vscode`):
+- `VBNET_SERVER_PATH=src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
+
+Outcome: PASS (14 passing, 5 pending)
+Notes:
+- Fixture workspace `test-explore/vbnet-lsp/fixtures/services` set to `vbnet.server.transportType=namedPipe` for this run.
+- Log bundle: `test-explore/clients/vscode/logs/20260119T224840`.
+
+### 8) VS Code harness - `VB.NET` LSP + debug (named pipes, C# server)
+
+Commands (from `test-explore/clients/vscode`):
+- `VBNET_SERVER_PATH=src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
+
+Outcome: PASS (14 passing, 5 pending)
+Notes:
+- Fixture workspace `test-explore/vbnet-lsp/fixtures/services` set to `vbnet.server.transportType=namedPipe` for this run.
+- Log bundle: `test-explore/clients/vscode/logs/20260119T224915`.
+
+### 9) LSP smoke harness 4-way matrix (Windows, named pipes)
+
+Commands:
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl cs -HarnessImpl cs`
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl vb -HarnessImpl vb`
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl cs -HarnessImpl vb`
+- `test-explore\vbnet-lsp\run-tests.ps1 -ServerImpl vb -HarnessImpl cs`
+
+Outcome: PASS
+Notes:
+- Snapshots: `test-explore/vbnet-lsp/snapshots/20260119-224944`, `20260119-224957`, `20260119-225008`, `20260119-225019`.
+
+### 10) CI-safe 4-way unit/integration matrix (Windows, Debug)
+
+Commands:
+- `dotnet test test\VbNet.LanguageServer.Tests\VbNet.LanguageServer.Tests.csproj -p:ServerImpl=cs`
+- `dotnet test test\VbNet.LanguageServer.Tests\VbNet.LanguageServer.Tests.csproj -p:ServerImpl=vb`
+- `dotnet test test\VbNet.LanguageServer.Tests.Vb\VbNet.LanguageServer.Tests.Vb.vbproj -p:ServerImpl=cs`
+- `dotnet test test\VbNet.LanguageServer.Tests.Vb\VbNet.LanguageServer.Tests.Vb.vbproj -p:ServerImpl=vb`
+
+Outcome: PASS (135/135, 135/135, 135/135, 135/135)

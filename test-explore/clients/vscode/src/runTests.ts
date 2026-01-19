@@ -151,6 +151,9 @@ async function main() {
         extensionTestsEnv.SKIP_CSHARP_TESTS = "1";
     }
     const skipDefaultServerPath = extensionTestsEnv.VBNET_SKIP_DEFAULT_SERVER_PATH === "1";
+    if (extensionTestsEnv.VBNET_SERVER_PATH && !path.isAbsolute(extensionTestsEnv.VBNET_SERVER_PATH)) {
+        extensionTestsEnv.VBNET_SERVER_PATH = resolveRepoPath(extensionTestsEnv.VBNET_SERVER_PATH);
+    }
     if (!skipDefaultServerPath && !extensionTestsEnv.VBNET_SERVER_PATH && fs.existsSync(defaultServerPath)) {
         extensionTestsEnv.VBNET_SERVER_PATH = defaultServerPath;
     }
@@ -169,14 +172,22 @@ async function main() {
         killCodePids(initialCodePids);
     }
     let runError: unknown;
+    const testTimeoutMs = Number.parseInt(process.env.VSCODE_TEST_TIMEOUT_MS ?? "", 10);
+    const effectiveTimeoutMs = Number.isFinite(testTimeoutMs) ? testTimeoutMs : 300000;
     try {
-        await runTests({
+        console.log(`Starting VS Code tests (timeout ${effectiveTimeoutMs} ms)...`);
+        await Promise.race([
+            runTests({
             vscodeExecutablePath,
             extensionDevelopmentPath,
             extensionTestsPath,
             launchArgs,
             extensionTestsEnv,
-        });
+            }),
+            new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error(`VS Code tests timed out after ${effectiveTimeoutMs} ms.`)), effectiveTimeoutMs)
+            ),
+        ]);
     } catch (error) {
         runError = error;
     } finally {

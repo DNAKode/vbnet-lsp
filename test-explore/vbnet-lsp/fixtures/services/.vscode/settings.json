@@ -1,0 +1,7 @@
+{
+  "vbnet.server.transportType": "namedPipe",
+  "vbnet.trace.server": "verbose",
+  "vbnet.completion.enable": true,
+  "editor.wordBasedSuggestions": "off",
+  "vbnet.debugger.path": "c:\\Work\\vbnet-lsp\\src\\extension\\.debugger\\netcoredbg.exe"
+}

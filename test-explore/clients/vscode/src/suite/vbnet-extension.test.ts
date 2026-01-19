@@ -274,7 +274,7 @@ if (skipVbnetSmoke) {
 
         try {
             await config.update("trace.server", "verbose", vscode.ConfigurationTarget.Workspace);
-            await config.update("server.transportType", "stdio", vscode.ConfigurationTarget.Workspace);
+            await config.update("server.transportType", "namedPipe", vscode.ConfigurationTarget.Workspace);
 
             await vscode.commands.executeCommand("vbnet.restartServer");
 

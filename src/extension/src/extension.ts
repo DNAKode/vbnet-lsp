@@ -19,7 +19,7 @@ let traceChannel: vscode.OutputChannel | undefined;
  * Extension activation entry point.
  * Called when VS Code activates the extension.
  */
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(context: vscode.ExtensionContext): Promise<VbNetExtensionApi | void> {
     const startTime = process.hrtime();
 
     // Create output channels
@@ -133,6 +133,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (languageClient) {
         context.subscriptions.push(languageClient);
     }
+
+    return {
+        getClientState: () => languageClient?.getStateName() ?? 'stopped',
+        waitForClientReady: (timeoutMs?: number) => {
+            if (!languageClient) {
+                return Promise.reject(new Error('Language client is not initialized.'));
+            }
+            return languageClient.waitForReady(timeoutMs);
+        }
+    };
 }
 
 /**
@@ -179,4 +189,9 @@ export async function deactivate(): Promise<void> {
     }
 
     outputChannel?.appendLine('VB.NET Language Support deactivated');
+}
+
+export interface VbNetExtensionApi {
+    getClientState(): string;
+    waitForClientReady(timeoutMs?: number): Promise<void>;
 }

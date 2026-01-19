@@ -13,6 +13,7 @@ import {
     State,
     Trace
 } from 'vscode-languageclient/node';
+import { PassThrough } from 'stream';
 import { PlatformInformation } from './platform';
 import { ServerLauncher, TransportType, ServerStartResult } from './serverLauncher';
 import { UriConverter } from './uriConverter';
@@ -34,6 +35,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
     private readonly onStateChangeEmitter = new vscode.EventEmitter<LanguageClientStateChangeEvent>();
     private traceConfigDisposable: vscode.Disposable | undefined;
     private initializationOptions: object | undefined;
+    private currentState: State = State.Stopped;
 
     public readonly onStateChange = this.onStateChangeEmitter.event;
 
@@ -70,11 +72,13 @@ export class VbNetLanguageClient implements vscode.Disposable {
             // Register state change handler
             this.client.onDidChangeState((event) => {
                 this.channel.appendLine(`Language client state: ${State[event.oldState]} -> ${State[event.newState]}`);
+                this.currentState = event.newState;
                 this.onStateChangeEmitter.fire(event);
             });
 
             // Start the client
             await this.client.start();
+            this.currentState = this.client.state;
             if (typeof (this.client as any).onReady === 'function') {
                 await (this.client as any).onReady();
             }
@@ -115,9 +119,46 @@ export class VbNetLanguageClient implements vscode.Disposable {
         } else {
             // Stdio transport - use the process streams directly
             serverOptions = async (): Promise<StreamInfo> => {
+                const stdout = serverResult.process.stdout!;
+                const stdin = serverResult.process.stdin!;
+
+                const traceStreams = process.env.VBNET_TRACE_CLIENT_STREAMS;
+                if (traceStreams) {
+                    const verbose =
+                        traceStreams === '2' ||
+                        traceStreams.toLowerCase() === 'true' ||
+                        traceStreams.toLowerCase() === 'verbose';
+                    const reader = new PassThrough();
+                    const writer = new PassThrough();
+
+                    stdout.pipe(reader);
+                    writer.pipe(stdin);
+
+                    reader.on('data', (chunk: Buffer) => {
+                        this.traceChannel.appendLine(`[client stream] recv ${chunk.length} bytes`);
+                        if (verbose) {
+                            const preview = chunk.toString('utf8', 0, Math.min(chunk.length, 200));
+                            const hex = chunk.subarray(0, Math.min(chunk.length, 64)).toString('hex');
+                            this.traceChannel.appendLine(`[client stream] recv preview: ${preview}`);
+                            this.traceChannel.appendLine(`[client stream] recv hex: ${hex}`);
+                        }
+                    });
+                    writer.on('data', (chunk: Buffer) => {
+                        this.traceChannel.appendLine(`[client stream] send ${chunk.length} bytes`);
+                        if (verbose) {
+                            const preview = chunk.toString('utf8', 0, Math.min(chunk.length, 200));
+                            const hex = chunk.subarray(0, Math.min(chunk.length, 64)).toString('hex');
+                            this.traceChannel.appendLine(`[client stream] send preview: ${preview}`);
+                            this.traceChannel.appendLine(`[client stream] send hex: ${hex}`);
+                        }
+                    });
+
+                    return { reader, writer };
+                }
+
                 return {
-                    reader: serverResult.process.stdout!,
-                    writer: serverResult.process.stdin!
+                    reader: stdout,
+                    writer: stdin
                 };
             };
         }
@@ -339,5 +380,33 @@ export class VbNetLanguageClient implements vscode.Disposable {
 
         filtered.sort((a, b) => a.fsPath.split(/\\|\//).length - b.fsPath.split(/\\|\//).length);
         return filtered[0].fsPath;
+    }
+
+    public getStateName(): string {
+        return State[this.currentState];
+    }
+
+    public async waitForReady(timeoutMs = 30000): Promise<void> {
+        if (!this.client) {
+            throw new Error('Language client not started.');
+        }
+
+        if (this.currentState === State.Running) {
+            return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error(`Language client did not reach Running within ${timeoutMs} ms (state=${this.getStateName()}).`));
+            }, timeoutMs);
+
+            const disposable = this.onStateChange((event) => {
+                if (event.newState === State.Running) {
+                    clearTimeout(timeout);
+                    disposable.dispose();
+                    resolve();
+                }
+            });
+        });
     }
 }
