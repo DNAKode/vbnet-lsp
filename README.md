@@ -26,7 +26,7 @@
 ## Status
 
 **Current Phase:** Phase 2 - Enhanced Editing & Debugging (baseline complete)
-**Version:** 0.1.0-alpha
+**Version:** 0.1.6 (preview)
 **Status:** In active development
 
 ### Implemented Features

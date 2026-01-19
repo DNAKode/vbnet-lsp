@@ -16,6 +16,19 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.6
+
+### Added
+- VS Code harness connection-health suite and deeper stdio stream tracing for diagnostics.
+- Named-pipe fixture settings tracked for the services workspace.
+
+### Changed
+- Server version now reports 0.1.6 in LSP initialize responses.
+- VSIX packaging now bundles the VB.NET server implementation by default.
+
+### Fixed
+- VB stdio transport now emits proper CRLF headers so VS Code can parse initialize responses.
+
 ## 0.1.5
 
 ### Added

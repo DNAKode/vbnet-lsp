@@ -1,7 +1,7 @@
 {
   "name": "vbnet-language-support",
   "publisher": "dnakode",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "First-class VB.NET language support for VS Code",
   "displayName": "VB.NET Language Support",
   "icon": "images/vbnet-icon.png",
@@ -354,7 +354,7 @@
     "watch": "tsc -watch -p ./",
     "copy-changelog": "node scripts/copy-changelog.js",
     "package": "npm run copy-changelog && npm run compile && node esbuild.js --production",
-    "bundle-server": "dotnet build ../VbNet.LanguageServer/VbNet.LanguageServer.csproj -c Release && node scripts/copy-server.js",
+    "bundle-server": "node scripts/copy-server.js --build",
     "bundle-debugger": "node scripts/copy-debugger.js",
     "bundle-debugger:win32-x64": "node scripts/copy-debugger.js --target win32-x64",
     "bundle-debugger:linux-x64": "node scripts/copy-debugger.js --target linux-x64",

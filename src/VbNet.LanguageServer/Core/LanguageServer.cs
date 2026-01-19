@@ -61,7 +61,7 @@ public sealed class LanguageServer : IAsyncDisposable
     /// <summary>
     /// Server version reported in initialize response.
     /// </summary>
-    public const string ServerVersion = "0.1.1";
+    public const string ServerVersion = "0.1.6";
 
     public LanguageServer(ITransport transport, ILoggerFactory loggerFactory)
     {
