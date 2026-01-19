@@ -16,6 +16,6 @@ jobs:
       - name: Restore
         run: dotnet restore
       - name: Test Language Server
-        run: dotnet test test/VbNet.LanguageServer.Tests/VbNet.LanguageServer.Tests.csproj -c Release
+        run: dotnet test test/VbNet.LanguageServer.Tests.Vb/VbNet.LanguageServer.Tests.Vb.vbproj -c Release
       - name: Test Extension Manifest
-        run: dotnet test test/VbNet.Extension.Tests/VbNet.Extension.Tests.csproj -c Release
+        run: dotnet test test/VbNet.Extension.Tests.Vb/VbNet.Extension.Tests.Vb.vbproj -c Release

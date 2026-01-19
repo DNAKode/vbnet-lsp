@@ -35,7 +35,6 @@ Last Updated: 2026-01-19
 - **Visual Studio Code** 1.80.0 or later
   - Download: https://code.visualstudio.com/
   - Recommended extensions:
-    - C# for Visual Studio Code
     - ESLint
     - Prettier
 
@@ -99,7 +98,7 @@ cd ../..
 
 ```bash
 # Build language server
-dotnet build src/VbNet.LanguageServer
+dotnet build src/VbNet.LanguageServer.Vb
 
 # Build VS Code extension
 cd src/extension
@@ -138,9 +137,6 @@ git clone https://github.com/DNAKode/netcoredbg.git
 # netcoredbg macOS arm64 community build (reference + releases)
 git clone https://github.com/Cliffback/netcoredbg-macOS-arm64.nvim.git
 # Size: ~5MB, Clone time: <1 minute
-
-# C# LSP harness (local reference, optional)
-# Kept under _external/csharp-lsp; if missing, skip C# harness tests
 
 # (Optional) Roslyn - Deep compiler reference
 # Only clone if needed for deep Roslyn API investigation
@@ -193,7 +189,7 @@ find _external/dwsim -name "*.vb" | head -20
 2. **Update harnesses when needed** to improve reliability and coverage
 3. **Record outcomes** in `test-explore/TEST_RESULTS.md`
 4. **Exclude incidental artifacts** (logs, downloaded runtimes) from commits
-5. **Also use test/VbNet.LanguageServer.Tests/** for unit coverage
+5. **Also use test/VbNet.LanguageServer.Tests.Vb/** for unit coverage
 
 **What you SHOULD do:**
 - Run `test-explore` harnesses during fixes and regressions
@@ -209,7 +205,6 @@ vbnet-lsp/
 |   |-- vscode-csharp/           # C# extension (primary reference)
 |   |-- netcoredbg/              # netcoredbg fork (macOS arm64 builds)
 |   |-- netcoredbg-macOS-arm64.nvim/ # netcoredbg macOS arm64 community build
-|   |-- csharp-lsp/              # C# harness + fixtures (reference)
 |   |-- roslyn/                  # Roslyn source (optional)
 |   `-- dwsim/                   # Large `VB.NET` test project
 |-- test-explore/           # Tracked - exploratory harnesses (logs excluded)
@@ -251,13 +246,13 @@ cd _external/dwsim && git pull && cd ../..
 
 ```bash
 # Debug build
-dotnet build src/VbNet.LanguageServer
+dotnet build src/VbNet.LanguageServer.Vb
 
 # Release build
-dotnet build src/VbNet.LanguageServer -c Release
+dotnet build src/VbNet.LanguageServer.Vb -c Release
 
 # Publish for distribution
-dotnet publish src/VbNet.LanguageServer -c Release -o publish
+dotnet publish src/VbNet.LanguageServer.Vb -c Release -o publish
 ```
 
 ### Build VS Code Extension
@@ -283,13 +278,13 @@ npm run package
 
 ```bash
 # Run language server tests
-dotnet test test/VbNet.LanguageServer.Tests
+dotnet test test/VbNet.LanguageServer.Tests.Vb/VbNet.LanguageServer.Tests.Vb.vbproj
 
 # Run extension manifest tests (CI-safe, no VS Code required)
-dotnet test test/VbNet.Extension.Tests
+dotnet test test/VbNet.Extension.Tests.Vb/VbNet.Extension.Tests.Vb.vbproj
 
 # Run with coverage
-dotnet test src/VbNet.LanguageServer.Tests --collect:"XPlat Code Coverage"
+dotnet test test/VbNet.LanguageServer.Tests.Vb/VbNet.LanguageServer.Tests.Vb.vbproj --collect:"XPlat Code Coverage"
 
 # Run specific test
 dotnet test --filter "FullyQualifiedName~CompletionServiceTests"
@@ -298,10 +293,7 @@ dotnet test --filter "FullyQualifiedName~CompletionServiceTests"
 ### Integration Tests
 
 ```bash
-# Run end-to-end tests
-dotnet test test/VbNet.IntegrationTests
-
-# Run against DWSIM project
+# Run the DWSIM validation script (optional)
 ./scripts/test-dwsim.sh
 ```
 
@@ -427,7 +419,7 @@ xvfb-run -a npm test
 #### From VS Code
 
 1. Open the project in VS Code
-2. Set breakpoints in C# code
+2. Set breakpoints in VB.NET code
 3. Press F5 or use "Run > Start Debugging"
 4. Select ".NET Core Launch (Language Server)" configuration
 
@@ -435,7 +427,7 @@ xvfb-run -a npm test
 
 1. Start the language server manually:
    ```bash
-   dotnet run --project src/VbNet.LanguageServer
+   dotnet run --project src/VbNet.LanguageServer.Vb
    ```
 2. In VS Code: "Run > Attach to Process"
 3. Select the `VbNet.LanguageServer` process
@@ -446,7 +438,7 @@ Enable detailed logging by setting environment variable:
 
 ```bash
 export VBNET_LS_LOG_LEVEL=Trace
-dotnet run --project src/VbNet.LanguageServer
+dotnet run --project src/VbNet.LanguageServer.Vb
 ```
 
 Logs are written to stderr.
@@ -482,27 +474,27 @@ Enable LSP tracing:
 ### Language Server Structure
 
 ```
-src/VbNet.LanguageServer/
+src/VbNet.LanguageServer.Vb/
 ├── Protocol/           # LSP protocol layer
-│   ├── JsonRpcTransport.cs
-│   ├── LspMessageHandler.cs
-│   └── LspTypes.cs
+│   ├── JsonRpcTransport.vb
+│   ├── LspMessageHandler.vb
+│   └── LspTypes.vb
 ├── Core/               # Server core
-│   ├── LanguageServer.cs
-│   ├── RequestRouter.cs
-│   └── ServerLifecycle.cs
+│   ├── LanguageServer.vb
+│   ├── RequestRouter.vb
+│   └── ServerLifecycle.vb
 ├── Workspace/          # Workspace management
-│   ├── WorkspaceManager.cs
-│   ├── DocumentManager.cs
-│   ├── ProjectLoader.cs
-│   └── FileSystemWatcher.cs
+│   ├── WorkspaceManager.vb
+│   ├── DocumentManager.vb
+│   ├── ProjectLoader.vb
+│   └── FileSystemWatcher.vb
 ├── Services/           # LSP features
-│   ├── DiagnosticsService.cs
-│   ├── CompletionService.cs
-│   ├── HoverService.cs
-│   ├── DefinitionService.cs
+│   ├── DiagnosticsService.vb
+│   ├── CompletionService.vb
+│   ├── HoverService.vb
+│   ├── DefinitionService.vb
 │   └── ... (other services)
-└── Program.cs          # Entry point
+└── Program.vb          # Entry point
 ```
 
 ### Extension Structure
@@ -522,16 +514,16 @@ src/extension/
 
 ```
 test/
-├── VbNet.LanguageServer.Tests/  # Unit tests (C#)
-│   ├── Services/                 # Service tests
-│   ├── Workspace/                # Workspace tests
-│   └── Protocol/                 # Protocol tests
-├── VbNet.IntegrationTests/       # E2E tests (C#)
-├── extension.test/               # Extension tests (TS)
-└── TestProjects/                 # Test projects
+├── VbNet.LanguageServer.Tests.Vb/  # Unit tests (VB.NET)
+│   ├── Services/                   # Service tests
+│   ├── Workspace/                  # Workspace tests
+│   └── Protocol/                   # Protocol tests
+├── VbNet.Extension.Tests.Vb/       # Extension manifest tests (VB.NET)
+├── extension.test/                 # Extension tests (TS)
+└── TestProjects/                   # Test projects
     ├── SmallProject/
     ├── MediumProject/
-    └── dwsim/                    # Git submodule
+    └── dwsim/                      # Git submodule
 ```
 
 ---
@@ -574,34 +566,13 @@ test/
 
 ### Code Conventions
 
-#### C# Code Style
+#### VB.NET Code Style
 
-- Follow standard C# naming conventions (PascalCase for types/methods, camelCase for locals)
-- Use `async`/`await` for all I/O operations
+- Follow standard VB.NET naming conventions (PascalCase for types/methods, camelCase for locals)
+- Use `Async`/`Await` for all I/O operations
 - Always pass `CancellationToken` to Roslyn APIs
 - Document public APIs with XML comments
 - Keep methods focused and small (<50 lines typical)
-
-**Example:**
-
-```csharp
-/// <summary>
-/// Provides completion items for the specified document position.
-/// </summary>
-public async Task<CompletionList> GetCompletionAsync(
-    CompletionParams params,
-    CancellationToken cancellationToken)
-{
-    var document = GetDocument(params.TextDocument.Uri);
-    cancellationToken.ThrowIfCancellationRequested();
-
-    var completionService = CompletionService.GetService(document);
-    var completions = await completionService
-        .GetCompletionsAsync(document, position, cancellationToken);
-
-    return TranslateToLsp(completions);
-}
-```
 
 #### TypeScript Code Style
 
@@ -616,7 +587,7 @@ public async Task<CompletionList> GetCompletionAsync(
 export async function activate(context: vscode.ExtensionContext) {
     const serverOptions: ServerOptions = {
         command: 'dotnet',
-        args: ['run', '--project', 'src/VbNet.LanguageServer']
+        args: ['run', '--project', 'src/VbNet.LanguageServer.Vb']
     };
 
     const clientOptions: LanguageClientOptions = {
@@ -679,7 +650,7 @@ Triggers: Push to `master`/`main`, all PRs
 Current scope: Windows-only (multi-platform planned).
 
 ```yaml
-- Run language server unit/integration tests (test/VbNet.LanguageServer.Tests)
+- Run language server unit/integration tests (test/VbNet.LanguageServer.Tests.Vb)
 - Run extension manifest checks (test/VbNet.Extension.Tests)
 ```
 
@@ -758,7 +729,7 @@ Follow Semantic Versioning (SemVer 2.0):
 1. **Update version number**
    ```bash
    # Update version in:
-   # - src/VbNet.LanguageServer/VbNet.LanguageServer.csproj
+   # - src/VbNet.LanguageServer.Vb/VbNet.LanguageServer.Vb.vbproj
    # - src/extension/package.json
    ```
 

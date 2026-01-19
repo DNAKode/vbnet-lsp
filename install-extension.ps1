@@ -17,7 +17,7 @@ Write-Host ""
 
 # Step 1: Build Language Server
 Write-Host "[1/5] Building Language Server..." -ForegroundColor Yellow
-$ServerPath = Join-Path $ProjectRoot "src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll"
+$ServerPath = Join-Path $ProjectRoot "src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll"
 
 if (-not $SkipBuild) {
     try {
@@ -27,7 +27,7 @@ if (-not $SkipBuild) {
         Start-Sleep -Seconds 1
 
         Push-Location $ProjectRoot
-        dotnet build src/VbNet.LanguageServer -c Debug
+        dotnet build src/VbNet.LanguageServer.Vb -c Debug
         Pop-Location
     }
     catch {
@@ -39,7 +39,7 @@ if (Test-Path $ServerPath) {
     Write-Host "  OK: Server DLL found at $ServerPath" -ForegroundColor Green
 } else {
     Write-Host "  ERROR: Server DLL not found!" -ForegroundColor Red
-    Write-Host "  Please build manually: dotnet build src/VbNet.LanguageServer" -ForegroundColor Red
+    Write-Host "  Please build manually: dotnet build src/VbNet.LanguageServer.Vb" -ForegroundColor Red
     exit 1
 }
 
@@ -162,7 +162,7 @@ $TasksJson = @'
             "label": "Build Language Server",
             "type": "shell",
             "command": "dotnet",
-            "args": ["build", "src/VbNet.LanguageServer", "-c", "Debug"],
+            "args": ["build", "src/VbNet.LanguageServer.Vb", "-c", "Debug"],
             "group": "build",
             "problemMatcher": "$msCompile"
         },

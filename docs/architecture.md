@@ -1,4 +1,4 @@
-# `VB.NET` Language Support Architecture
+﻿# `VB.NET` Language Support Architecture
 
 **Single Source of Truth for Architectural Decisions**
 
@@ -41,30 +41,30 @@ This document serves as the **single authoritative source** for all architectura
 `VB.NET` Language Support consists of two primary components:
 
 ```
-┌─────────────────────────────────────┐
-│   VS Code Extension (TypeScript)    │
-│  ┌──────────────────────────────┐   │
-│  │   LSP Client                 │   │
-│  │   - Extension activation     │   │
-│  │   - Configuration management │   │
-│  │   - Command registration     │   │
-│  │   - UI integration           │   │
-│  └────────────┬─────────────────┘   │
-└───────────────┼─────────────────────┘
-                │ Named Pipes / stdio (JSON-RPC)
-┌───────────────┼─────────────────────┐
-│               ▼                     │
-│   Language Server (C#/.NET)         │
-│  ┌──────────────────────────────┐   │
-│  │   Protocol Layer             │   │
-│  │   Server Core                │   │
-│  │   Workspace Layer            │   │
-│  │   Language Services          │   │
-│  │   Host / CLI                 │   │
-│  └──────────────────────────────┘   │
-│                                     │
-│   Based on Roslyn Workspace API     │
-└─────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚   VS Code Extension (TypeScript)    â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
+â”‚  â”‚   LSP Client                 â”‚   â”‚
+â”‚  â”‚   - Extension activation     â”‚   â”‚
+â”‚  â”‚   - Configuration management â”‚   â”‚
+â”‚  â”‚   - Command registration     â”‚   â”‚
+â”‚  â”‚   - UI integration           â”‚   â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                â”‚ Named Pipes / stdio (JSON-RPC)
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚               â–¼                     â”‚
+â”‚   Language Server (VB.NET/.NET)     â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
+â”‚  â”‚   Protocol Layer             â”‚   â”‚
+â”‚  â”‚   Server Core                â”‚   â”‚
+â”‚  â”‚   Workspace Layer            â”‚   â”‚
+â”‚  â”‚   Language Services          â”‚   â”‚
+â”‚  â”‚   Host / CLI                 â”‚   â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
+â”‚                                     â”‚
+â”‚   Based on Roslyn Workspace API     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### 1.2 Design Philosophy
@@ -168,9 +168,9 @@ This document serves as the **single authoritative source** for all architectura
 - `vbnet.debugger.path` - netcoredbg path override
 - `vbnet.debugger.args` - Additional netcoredbg arguments
 
-### 3.2 Language Server (C#/.NET)
+### 3.2 Language Server (VB.NET/.NET)
 
-**Location**: `src/VbNet.LanguageServer/`
+**Location**: `src/VbNet.LanguageServer.Vb/`
 
 **Canonical Name**: `VbNet.LanguageServer` (use consistently across all docs, build scripts, and code)
 
@@ -224,8 +224,8 @@ This document serves as the **single authoritative source** for all architectura
 **WRONG Sequence** (causes ENOENT errors):
 ```
 1. Create NamedPipeServerStream
-2. Output pipe name to stdout    ← Client may connect here!
-3. Start WaitForConnectionAsync  ← Too late, client already failed
+2. Output pipe name to stdout    â† Client may connect here!
+3. Start WaitForConnectionAsync  â† Too late, client already failed
 ```
 
 **Key Insight**: The pipe name output is a **readiness signal**, not just information. The server MUST be actively listening before outputting the pipe name.
@@ -272,7 +272,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.1 Layer 1: Protocol Layer
 
-**Location**: `src/VbNet.LanguageServer/Protocol/`
+**Location**: `src/VbNet.LanguageServer.Vb/Protocol/`
 
 **Responsibilities**:
 - JSON-RPC message framing and parsing
@@ -287,7 +287,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.2 Layer 2: Server Core
 
-**Location**: `src/VbNet.LanguageServer/Core/`
+**Location**: `src/VbNet.LanguageServer.Vb/Core/`
 
 **Responsibilities**:
 - Lifecycle management (`initialize`, `initialized`, `shutdown`, `exit`)
@@ -303,12 +303,12 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.3 Layer 3: Workspace Layer
 
-**Location**: `src/VbNet.LanguageServer/Workspace/`
+**Location**: `src/VbNet.LanguageServer.Vb/Workspace/`
 
 **Responsibilities**:
 - MSBuildWorkspace-based solution/project loading
 - Document buffer management and synchronization
-- URI ↔ Roslyn DocumentId mapping
+- URI â†” Roslyn DocumentId mapping
 - Incremental text change application
 - Project reload with debouncing
 - File system watching
@@ -323,7 +323,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.4 Layer 4: Language Services Layer
 
-**Location**: `src/VbNet.LanguageServer/Services/`
+**Location**: `src/VbNet.LanguageServer.Vb/Services/`
 
 **Responsibilities**:
 - LSP feature implementations using Roslyn APIs
@@ -354,7 +354,7 @@ The language server is organized into five distinct layers, each with clear resp
 
 ### 5.5 Layer 5: Host / CLI
 
-**Location**: `src/VbNet.LanguageServer/Program.cs`
+**Location**: `src/VbNet.LanguageServer.Vb/Program.vb`
 
 **Responsibilities**:
 - Process entry point
@@ -370,25 +370,25 @@ The language server is organized into five distinct layers, each with clear resp
 
 ```
 1. User types in VS Code
-   ↓
+   â†“
 2. VS Code extension sends LSP textDocument/didChange
-   ↓
+   â†“
 3. Protocol Layer receives and parses JSON-RPC message
-   ↓
+   â†“
 4. Server Core routes to DocumentManager
-   ↓
+   â†“
 5. Workspace Layer applies incremental text changes
-   ↓
+   â†“
 6. Diagnostics debounce timer starts (300ms default)
-   ↓
+   â†“
 7. Timer expires, DiagnosticsService queries Roslyn
-   ↓
+   â†“
 8. Roslyn analyzes on background thread
-   ↓
+   â†“
 9. Results translated to LSP Diagnostic[] format
-   ↓
+   â†“
 10. Protocol Layer sends textDocument/publishDiagnostics
-    ↓
+    â†“
 11. VS Code displays errors in Problems panel
 ```
 
@@ -652,13 +652,13 @@ var result = await Task.Run(async () =>
 **Architecture**:
 ```
 VS Code Debug UI
-       ↓
+       â†“
   DAP (JSON-RPC)
-       ↓
+       â†“
 Extension Debug Adapter
-       ↓
+       â†“
   netcoredbg Process
-       ↓
+       â†“
   .NET Runtime
 ```
 
@@ -727,11 +727,11 @@ See [docs/configuration.md](configuration.md) for user-facing documentation.
 ```
      /\
     /  \    E2E Tests (DWSIM validation)
-   /────\
+   /â”€â”€â”€â”€\
   /      \  Integration Tests (LSP sequences)
- /────────\
+ /â”€â”€â”€â”€â”€â”€â”€â”€\
 /          \ Unit Tests (Roslyn adapters, protocol)
-────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ```
 
 ### 13.2 Test Projects
@@ -1192,36 +1192,36 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 
 | Layer | Status | Components |
 |-------|--------|------------|
-| **VS Code Extension** | ✅ Complete | extension.ts, languageClient.ts, serverLauncher.ts, dotnetRuntime.ts, platform.ts, statusBar.ts |
-| Protocol | ✅ Complete | ITransport, NamedPipeTransport, StdioTransport, JsonRpcTypes, LspTypes, MessageDispatcher |
-| Server Core | ✅ Complete | LanguageServer (lifecycle, routing, state management) |
-| Workspace | ✅ Complete | WorkspaceManager, DocumentManager |
-| Services | ✅ Complete (Phase 1) | All MVP services implemented |
-| Host/CLI | ✅ Complete | Program.cs with argument parsing |
+| **VS Code Extension** | âœ… Complete | extension.ts, languageClient.ts, serverLauncher.ts, dotnetRuntime.ts, platform.ts, statusBar.ts |
+| Protocol | âœ… Complete | ITransport, NamedPipeTransport, StdioTransport, JsonRpcTypes, LspTypes, MessageDispatcher |
+| Server Core | âœ… Complete | LanguageServer (lifecycle, routing, state management) |
+| Workspace | âœ… Complete | WorkspaceManager, DocumentManager |
+| Services | âœ… Complete (Phase 1) | All MVP services implemented |
+| Host/CLI | âœ… Complete | Program.vb with argument parsing |
 
 ### VS Code Extension (Complete)
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| extension.ts | ✅ Complete | Activation, workspace trust, command registration |
-| languageClient.ts | ✅ Complete | LSP client with named pipe + stdio support |
-| serverLauncher.ts | ✅ Complete | Server spawning, transport negotiation |
-| dotnetRuntime.ts | ✅ Complete | .NET runtime resolution via runtime extension |
-| platform.ts | ✅ Complete | Platform detection (Windows/macOS/Linux) |
-| statusBar.ts | ✅ Complete | Server status display |
-| package.json | ✅ Complete | Extension manifest, contributions, dependencies |
+| extension.ts | âœ… Complete | Activation, workspace trust, command registration |
+| languageClient.ts | âœ… Complete | LSP client with named pipe + stdio support |
+| serverLauncher.ts | âœ… Complete | Server spawning, transport negotiation |
+| dotnetRuntime.ts | âœ… Complete | .NET runtime resolution via runtime extension |
+| platform.ts | âœ… Complete | Platform detection (Windows/macOS/Linux) |
+| statusBar.ts | âœ… Complete | Server status display |
+| package.json | âœ… Complete | Extension manifest, contributions, dependencies |
 
 ### Phase 1 Services (All Complete)
 
 | Service | Status | Description |
 |---------|--------|-------------|
-| DiagnosticsService | ✅ Complete | Real-time diagnostics with debouncing |
-| CompletionService | ✅ Complete | IntelliSense completion with resolve |
-| HoverService | ✅ Complete | Symbol info with XML documentation |
-| DefinitionService | ✅ Complete | Go to definition |
-| ReferencesService | ✅ Complete | Find all references |
-| RenameService | ✅ Complete | Symbol rename with prepare |
-| SymbolsService | ✅ Complete | Document and workspace symbols |
+| DiagnosticsService | âœ… Complete | Real-time diagnostics with debouncing |
+| CompletionService | âœ… Complete | IntelliSense completion with resolve |
+| HoverService | âœ… Complete | Symbol info with XML documentation |
+| DefinitionService | âœ… Complete | Go to definition |
+| ReferencesService | âœ… Complete | Find all references |
+| RenameService | âœ… Complete | Symbol rename with prepare |
+| SymbolsService | âœ… Complete | Document and workspace symbols |
 
 ### Test Coverage
 

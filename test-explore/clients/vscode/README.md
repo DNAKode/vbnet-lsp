@@ -1,6 +1,6 @@
 # VS Code Client Harness (Planning Scaffold)
 
-This folder contains a minimal `@vscode/test-electron` harness that can run LSP-related smoke tests inside a real VS Code instance. It is intended for integration testing of the C# and later `VB.NET` extensions.
+This folder contains a minimal `@vscode/test-electron` harness that can run LSP-related smoke tests inside a real VS Code instance. It is intended for integration testing of the `VB.NET` extension.
 
 ## Scope
 
@@ -16,8 +16,7 @@ cd test-explore\clients\vscode
 npm install
 npm run compile
 
-# Install C# extension from Marketplace and run tests
-$env:EXTENSION_ID = "ms-dotnettools.csharp"
+# Run tests with the VB.NET extension
 $env:VSCODE_EXECUTABLE = "C:\Programs\Microsoft VS Code\Code.exe"
 npm test
 ```
@@ -33,7 +32,6 @@ Optional environment variables:
 - `NETCOREDBG_PATH`: override debugger path for `VB.NET` debug tests.
 - `SKIP_VBNET_SMOKE`: set to `1` to skip `VB.NET` LSP smoke tests.
 - `SKIP_VBNET_DEBUG`: set to `1` to skip `VB.NET` debug tests.
-- `SKIP_CSHARP_TESTS`: set to `1` to skip C# tests when running `VB.NET` scenarios.
 - `VSCODE_KILL_BEFORE_TESTS`: set to `1` to terminate existing Code.exe before tests.
 - `VSCODE_KILL_ON_EXIT`: set to `1` to terminate Code.exe spawned by the harness.
 

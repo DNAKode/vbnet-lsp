@@ -451,16 +451,15 @@ A parallel test effort is underway in `test-explore/`. This is an independent va
 
 - **Location**: `test-explore/`
 - **Documentation**: `test-explore/TEST_SUITE.md`
-- **C# LSP Smoke Harness**: `_external/csharp-lsp/CSharpLspSmokeTest/`
-  - C# program that connects to Roslyn LSP via named pipes
-  - Performs initialize/shutdown handshake
-  - Tests solution/open notification
-- **Node Client (experimental)**: `_external/csharp-lsp/node-client.ts`
-  - Experimental, currently has issues with JSON-RPC framing
+- **VB.NET LSP Smoke Harness**: `test-explore/vbnet-lsp/`
+  - Runs initialize/shutdown handshake over stdio or named pipes.
+  - Exercises fixture workspaces for diagnostics and services.
+- **VS Code Harness**: `test-explore/clients/vscode/`
+  - Headless extension smoke tests via `@vscode/test-electron`.
+- **Emacs Harness**: `test-explore/clients/emacs/`
+  - Batch LSP smoke tests via `eglot`.
 
-**Status**: The C# harness validates named pipe connectivity to Roslyn LSP. This provides a reference implementation for our `VB.NET` language server's named pipe transport.
-
-**Coordination**: This effort validates testing approaches against the known-working C# extension. Findings should inform our `VB.NET` test infrastructure design but implementations remain separate.
+**Coordination**: This effort validates testing approaches against the VB.NET extension behavior and should inform future harness reliability work.
 
 ---
 

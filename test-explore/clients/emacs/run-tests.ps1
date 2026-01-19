@@ -1,8 +1,7 @@
 param(
-    [ValidateSet('csharp','vbnet','all')][string]$Suite = 'all',
+    [ValidateSet('vbnet','all')][string]$Suite = 'all',
     [string]$EmacsRoot = 'test-explore\clients\emacs\emacs',
-    [string]$RoslynLspDll = '_external\roslyn\artifacts\bin\Microsoft.CodeAnalysis.LanguageServer\Release\net10.0\Microsoft.CodeAnalysis.LanguageServer.dll',
-    [string]$VbNetLspDll = 'src\VbNet.LanguageServer\bin\Debug\net10.0\VbNet.LanguageServer.dll'
+    [string]$VbNetLspDll = 'src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,22 +49,10 @@ if (-not (Test-Path $emacsExe)) {
     throw "Emacs executable not found at $emacsExe"
 }
 
-if ($Suite -eq 'csharp' -or $Suite -eq 'all') {
-    if (-not (Test-Path $RoslynLspDll)) {
-        Write-Warning "Roslyn LSP DLL not found at $RoslynLspDll. Build it before running C# tests."
-    }
-}
-
 if ($Suite -eq 'vbnet' -or $Suite -eq 'all') {
     if (-not (Test-Path $VbNetLspDll)) {
         Write-Warning "VB.NET LSP DLL not found at $VbNetLspDll. Build it before running VB.NET tests."
     }
-}
-
-if (Test-Path $RoslynLspDll) {
-    $env:ROSLYN_LSP_DLL = (Resolve-Path $RoslynLspDll).Path
-} else {
-    $env:ROSLYN_LSP_DLL = ''
 }
 
 if (Test-Path $VbNetLspDll) {
@@ -82,10 +69,5 @@ function Invoke-EmacsSuite {
     & $emacsExe --batch -l $scriptPath
 }
 
-if ($Suite -eq 'all') {
-    Invoke-EmacsSuite -RunSuite 'csharp'
-    Invoke-EmacsSuite -RunSuite 'vbnet'
-} else {
-    Invoke-EmacsSuite -RunSuite $Suite
-}
+Invoke-EmacsSuite -RunSuite 'vbnet'
 

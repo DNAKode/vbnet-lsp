@@ -99,7 +99,7 @@ git clone https://github.com/DNAKode/vbnet-lsp.git
 cd vbnet-lsp
 
 # Build the language server
-dotnet build src/VbNet.LanguageServer
+dotnet build src/VbNet.LanguageServer.Vb
 
 # Run tests
 dotnet test
@@ -123,7 +123,7 @@ Once installed, the extension automatically activates when you open a \`.vb\` fi
 `VB.NET` Language Support follows the architecture of the "C# for Visual Studio Code" extension:
 
 - **VS Code Extension (TypeScript)** - Extension activation, LSP client, UI integration
-- **Language Server (C#/.NET)** - Roslyn workspace, LSP protocol, language services
+- **Language Server (VB.NET/.NET)** - Roslyn workspace, LSP protocol, language services
 - **Samsung netcoredbg** - Open-source .NET debugger (bundled in platform-specific VSIX packages)
 
 See [docs/architecture.md](docs/architecture.md) for detailed architectural information.

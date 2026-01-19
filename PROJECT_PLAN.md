@@ -178,7 +178,7 @@ We will **fork and host the C# extension** (github.com/dotnet/vscode-csharp) as 
 - **Debugging integration with netcoredbg** (Debug Adapter Protocol)
 - Status bar and output channel management
 
-**2. Language Server (`vbnet-ls`, C#/.NET)**
+**2. Language Server (`vbnet-ls`, VB.NET/.NET)**
 The language server is organized into five distinct layers:
 
 #### **Protocol Layer**
@@ -319,7 +319,6 @@ vbnet-lsp/
 |-- _external/                          # Gitignored - reference repos + large inputs
 |   |-- vscode-csharp/                  # C# extension (architecture reference)
 |   |-- netcoredbg/                     # Samsung debugger (DAP reference)
-|   |-- csharp-lsp/                     # C# harness + fixtures (reference)
 |   |-- roslyn/                         # Roslyn source (optional)
 |   `-- dwsim/                          # Large `VB.NET` project for testing
 |-- test-explore/                  # Tracked - exploratory harnesses (logs excluded)
@@ -333,14 +332,15 @@ vbnet-lsp/
 |   |   |   `-- features/               # VS Code UI integration
 |   |   |-- package.json                # Extension manifest
 |   |   `-- tsconfig.json
-|   `-- VbNet.LanguageServer/           # Language server (C#/.NET)
+|   `-- VbNet.LanguageServer.Vb/        # Language server (VB.NET/.NET)
 |       |-- Protocol/                   # LSP protocol layer
 |       |-- Core/                       # Server core and routing
 |       |-- Workspace/                  # MSBuild and workspace management
 |       |-- Services/                   # Language service adapters
-|       `-- Program.cs                  # Entry point
+|       `-- Program.vb                  # Entry point
 |-- test/
-|   |-- VbNet.LanguageServer.Tests/     # Server unit tests (C#)
+|   |-- VbNet.LanguageServer.Tests.Vb/  # Server unit tests (VB.NET)
+|   |-- VbNet.Extension.Tests.Vb/       # Extension manifest tests (VB.NET)
 |   `-- TestProjects/                   # Small test projects (tracked)
 |       |-- SmallProject/               # ~5-10 files
 |       `-- MediumProject/              # ~50 files, multi-project
@@ -374,7 +374,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 
 ## 8. Dependencies
 
-**Language Server (C#/.NET):**
+**Language Server (VB.NET/.NET):**
 - `Microsoft.CodeAnalysis.VisualBasic.Workspaces` (Roslyn)
 - `Microsoft.Build.Locator` (MSBuild discovery)
 - `Microsoft.CodeAnalysis.Workspaces.MSBuild`

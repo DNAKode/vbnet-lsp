@@ -1,5 +1,5 @@
 param(
-    [string]$ServerProject = 'src\VbNet.LanguageServer\VbNet.LanguageServer.csproj',
+    [string]$ServerProject = 'src\VbNet.LanguageServer.Vb\VbNet.LanguageServer.Vb.vbproj',
     [string]$BuildConfiguration = 'Debug',
     [string]$DotnetPath = 'dotnet',
     [string]$Transport = 'pipe',

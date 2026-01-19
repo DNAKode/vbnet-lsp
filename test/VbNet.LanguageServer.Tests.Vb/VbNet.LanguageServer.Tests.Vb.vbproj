@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <ServerImpl Condition="'$(ServerImpl)' == ''">vb</ServerImpl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,10 +21,7 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup Condition="'$(ServerImpl)' == 'cs'">
-    <ProjectReference Include="..\..\src\VbNet.LanguageServer\VbNet.LanguageServer.csproj" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(ServerImpl)' == 'vb'">
+  <ItemGroup>
     <ProjectReference Include="..\..\src\VbNet.LanguageServer.Vb\VbNet.LanguageServer.Vb.vbproj" />
   </ItemGroup>
 

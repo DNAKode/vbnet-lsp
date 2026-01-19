@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = $PSScriptRoot
-$ServerPath = "C:/Work/vbnet-lsp/src/VbNet.LanguageServer/bin/Debug/net10.0/VbNet.LanguageServer.dll"
+$ServerPath = "C:/Work/vbnet-lsp/src/VbNet.LanguageServer.Vb/bin/Debug/net10.0/VbNet.LanguageServer.dll"
 $VsixPath = Join-Path $ProjectRoot "src\extension\vbnet-language-support.vsix"
 
 Write-Host "Installing VB.NET Language Support Extension..." -ForegroundColor Cyan

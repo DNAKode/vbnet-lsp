@@ -52,9 +52,7 @@ async function main() {
 
     const fixtureWorkspace = process.env.FIXTURE_WORKSPACE
         ? resolveRepoPath(process.env.FIXTURE_WORKSPACE)
-        : extensionIdEnv === defaultExtensionId
-          ? path.resolve(repoRoot, "test-explore", "vbnet-lsp", "fixtures", "services")
-          : path.resolve(repoRoot, "_external", "csharp-lsp", "fixtures", "basic");
+        : path.resolve(repoRoot, "test-explore", "vbnet-lsp", "fixtures", "services");
 
     const launchArgs = [
         fixtureWorkspace,
@@ -137,7 +135,7 @@ async function main() {
     const defaultServerPath = path.resolve(
         repoRoot,
         "src",
-        "VbNet.LanguageServer",
+        "VbNet.LanguageServer.Vb",
         "bin",
         "Debug",
         "net10.0",
@@ -146,9 +144,6 @@ async function main() {
     const extensionTestsEnv = { ...process.env };
     if (!extensionTestsEnv.EXTENSION_ID) {
         extensionTestsEnv.EXTENSION_ID = extensionIdEnv;
-    }
-    if (extensionTestsEnv.EXTENSION_ID === defaultExtensionId && !extensionTestsEnv.SKIP_CSHARP_TESTS) {
-        extensionTestsEnv.SKIP_CSHARP_TESTS = "1";
     }
     const skipDefaultServerPath = extensionTestsEnv.VBNET_SKIP_DEFAULT_SERVER_PATH === "1";
     if (extensionTestsEnv.VBNET_SERVER_PATH && !path.isAbsolute(extensionTestsEnv.VBNET_SERVER_PATH)) {

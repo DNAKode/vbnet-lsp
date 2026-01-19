@@ -1,7 +1,6 @@
 (setq inhibit-message nil)
 (setq vc-handled-backends nil)
 (require 'eglot)
-(require 'cc-mode)
 (require 'jsonrpc)
 
 (setq jsonrpc-request-timeout 20)
@@ -131,25 +130,24 @@
       (error
        (codex--log "Shutdown request failed for %s: %s" name err)))))
 
-(defun codex--run-eglot-test (name mode server-command file-path request-hover strict solution-path)
+(defun codex--run-eglot-test (name mode server-command file-path request-hover strict)
   (condition-case err
       (let ((buffer (find-file-noselect file-path)))
         (unwind-protect
             (with-current-buffer buffer
               (let ((success t)
                     (default-directory (file-name-directory (expand-file-name file-path)))
-                    (process-connection-type (string= name "csharp")))
+                    (process-connection-type nil))
                 (funcall mode)
-                (when (string= name "vbnet")
-                  (setq-local eglot-language-id "vb")
-                  (let* ((project-path (expand-file-name "SmallProject.vbproj" default-directory))
-                         (init-options `(:workspace
-                                         (:projectPaths [,project-path]
-                                          :projectSearchPaths [,default-directory]
-                                          :ignoreSolutionFiles t
-                                          :maxProjectResults 5))))
-                    (setq server-command (append server-command (list :initializationOptions init-options)))
-                    (codex--log "Using initializationOptions for VB.NET: %s" init-options)))
+                (setq-local eglot-language-id "vb")
+                (let* ((project-path (expand-file-name "SmallProject.vbproj" default-directory))
+                       (init-options `(:workspace
+                                       (:projectPaths [,project-path]
+                                        :projectSearchPaths [,default-directory]
+                                        :ignoreSolutionFiles t
+                                        :maxProjectResults 5))))
+                  (setq server-command (append server-command (list :initializationOptions init-options)))
+                  (codex--log "Using initializationOptions for VB.NET: %s" init-options))
                 (setq eglot-server-programs `((,mode . ,server-command)))
                 (codex--log "eglot server programs: %s" eglot-server-programs)
                 (codex--log "major-mode: %s" major-mode)
@@ -159,36 +157,29 @@
                     (error "No eglot server for %s (mode=%s)" name major-mode))
                   (unwind-protect
                       (progn
-                        (when (and solution-path (string= name "csharp"))
-                          (let ((solution-uri (codex--file-uri solution-path)))
-                            (codex--log "Sending solution/open for %s" solution-uri)
-                            (jsonrpc-notify server 'solution/open `(:solution ,solution-uri))
-                            (sleep-for 2)))
-                        (when (string= name "vbnet")
-                          (if (codex--wait-for-event server "Project loaded:" 30)
-                              (codex--log "VB.NET project load detected")
-                            (codex--log "VB.NET project load not detected within timeout"))
-                          (sleep-for 2))
+                        (if (codex--wait-for-event server "Project loaded:" 30)
+                            (codex--log "VB.NET project load detected")
+                          (codex--log "VB.NET project load not detected within timeout"))
+                        (sleep-for 2)
                         (when request-hover
-                          (codex--send-did-open server file-path (if (string= name "csharp") "csharp" "vb"))
+                          (codex--send-did-open server file-path "vb")
                           (sleep-for 1)
-                          (when (string= name "vbnet")
-                            (sleep-for 8))
-                          (let* ((request-timeout (if (string= name "vbnet") 20 10))
-                                 (jsonrpc-request-timeout (if (string= name "vbnet") 60 jsonrpc-request-timeout))
+                          (sleep-for 8)
+                          (let* ((request-timeout 20)
+                                 (jsonrpc-request-timeout 60)
                                  (pos (codex--position-at buffer "Add(1, 2)"))
                                  (params `(:textDocument (:uri ,(codex--file-uri file-path))
                                            :position ,pos))
                                  (hover (codex--request-with-timeout server "textDocument/hover" params request-timeout))
                                  (definition (codex--request-with-timeout server "textDocument/definition" params request-timeout)))
-                            (when (or (not (car hover)) (null (cdr hover)) (eq (cdr hover) :null))
-                              (when strict
-                                (setq success nil))
-                              (codex--log "Hover response empty for %s" name))
-                            (when (or (not (car definition)) (null (cdr definition)) (eq (cdr definition) :null))
-                              (when strict
-                                (setq success nil))
-                              (codex--log "Definition response empty for %s" name)))))
+                        (when (or (not (car hover)) (null (cdr hover)) (eq (cdr hover) :null))
+                          (when strict
+                            (setq success nil))
+                          (codex--log "Hover response empty for %s" name))
+                        (when (or (not (car definition)) (null (cdr definition)) (eq (cdr definition) :null))
+                          (when strict
+                            (setq success nil))
+                          (codex--log "Definition response empty for %s" name)))))
                     (progn
                       (if (codex--server-live-p server)
                           (codex--shutdown-server server name)
@@ -204,39 +195,20 @@
 (defun codex-run ()
   (condition-case err
       (let* ((suite (or (getenv "CODEX_SUITE") "all"))
-             (roslyn-lsp (getenv "ROSLYN_LSP_DLL"))
              (root (file-name-directory (or load-file-name buffer-file-name)))
-             (default-vbnet (expand-file-name "../../src/VbNet.LanguageServer/bin/Debug/net10.0/VbNet.LanguageServer.dll" root))
+             (default-vbnet (expand-file-name "../../src/VbNet.LanguageServer.Vb/bin/Debug/net10.0/VbNet.LanguageServer.dll" root))
              (vbnet-lsp (or (getenv "VBNET_LSP_DLL")
                             (and (file-exists-p default-vbnet) default-vbnet)))
              (log-dir (expand-file-name "logs" root))
              (log-file (expand-file-name
                         (format "emacs-eglot-%s.log" (format-time-string "%Y%m%dT%H%M%S"))
                         log-dir))
-             (csharp-log-dir (expand-file-name "../../../_external/csharp-lsp/logs" root))
-             (fixture-basic (expand-file-name "../../../_external/csharp-lsp/fixtures/basic/Basic/Class1.cs" root))
-             (csharp-sln (expand-file-name "../../../_external/csharp-lsp/fixtures/basic/Basic.sln" root))
              (vb-fixture (expand-file-name "../../../test/TestProjects/SmallProject/Helper.vb" root)))
         (make-directory log-dir t)
-        (when (and roslyn-lsp csharp-log-dir)
-          (make-directory csharp-log-dir t))
         (setq codex--log-file log-file)
-        (codex--log "Env ROSLYN_LSP_DLL=%s" (or roslyn-lsp ""))
         (codex--log "Env VBNET_LSP_DLL=%s" (or vbnet-lsp ""))
         (codex--log "Starting Emacs eglot smoke tests (suite=%s)" suite)
         (let ((overall-success t))
-          (when (and (or (string= suite "csharp") (string= suite "all")) roslyn-lsp)
-            (codex--log "Running csharp eglot test")
-            (setq overall-success
-                  (and overall-success
-                       (codex--run-eglot-test
-            "csharp"
-            'csharp-mode
-            (list "dotnet" roslyn-lsp "--stdio" "--logLevel" "Information" "--extensionLogDirectory" csharp-log-dir)
-            fixture-basic
-            t
-            nil
-            csharp-sln))))
           (codex--log "VB.NET enabled=%s" (and (or (string= suite "vbnet") (string= suite "all")) vbnet-lsp))
           (when (and (or (string= suite "vbnet") (string= suite "all")) vbnet-lsp)
             (codex--log "Running vbnet eglot test")
@@ -248,7 +220,6 @@
             (list "dotnet" vbnet-lsp "--stdio" "--logLevel" "Information")
             vb-fixture
             t
-            nil
             nil))))
           (codex--log "Emacs eglot smoke tests complete. Log: %s" log-file)
           (kill-emacs (if overall-success 0 1))))
