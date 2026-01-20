@@ -1,4 +1,4 @@
-﻿Date: 2026-01-19
+﻿Date: 2026-01-20
 Author: Codex (GPT-5) acting as test reviewer
 Host: Windows (C:\Work\vbnet-lsp)
 
@@ -45,7 +45,20 @@ Optional flags:
  test-explore\clients\emacs\run-tests.ps1 -Suite vbnet
 ```
 
-## Last recorded runs (pre-C# removal)
+## Recent runs
+
+### 2026-01-20 — test-explore suite (all, VB.NET)
+
+Command:
+- `test-explore\run-tests.ps1`
+
+Outcome: PASS (with non-fatal warnings)
+Notes:
+- LSP smoke: PASS (snapshot `test-explore/vbnet-lsp/snapshots/20260120-102607`).
+- Emacs eglot: PASS, shutdown timeout after server exit (non-fatal). Log: `test-explore/clients/emacs/logs/emacs-eglot-20260120T102611.log`.
+- DWSIM smoke: PASS, but no solution or VB.NET projects detected in `_external/dwsim` (workspace scan only).
+
+## Previous runs
 
 ### 2026-01-19 — VS Code harness (VB.NET server)
 
@@ -74,3 +87,14 @@ Commands:
 - `dotnet test test\VbNet.Extension.Tests.Vb\VbNet.Extension.Tests.Vb.vbproj -c Release`
 
 Outcome: PASS (135/135, 3/3)
+
+## Protocol anomalies (latest run)
+Run: Suite=all Transport=pipe
+
+None detected.
+## Timing summary (latest run)
+Run: Suite=all Transport=pipe
+
+- [DWSIM] server_starting (191.17 ms)
+- [DWSIM] initialize_response (424.01 ms)
+- [DWSIM] didOpen_sent (908.5 ms)

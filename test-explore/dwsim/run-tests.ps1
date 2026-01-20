@@ -82,7 +82,7 @@ Write-Host "Running DWSIM smoke against: $rootPath"
 Write-Host "Test file: $testFile"
 
 $duration = Measure-Command {
-    & $DotnetPath run --project test-explore\vbnet-lsp\VbNetLspSmokeTest\VbNetLspSmokeTest.csproj -- @smokeArgs
+    & $DotnetPath run --project test-explore\vbnet-lsp\VbNetLspSmokeTest.Vb\VbNetLspSmokeTest.Vb.vbproj -- @smokeArgs
 }
 
 Write-Host ("DWSIM smoke duration: {0:n2}s" -f $duration.TotalSeconds)

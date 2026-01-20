@@ -93,7 +93,7 @@ See [docs/development.md](docs/development.md) for full setup details.
 
 Currently, `VB.NET` Language Support is in early development. To build from source:
 
-\`\`\`bash
+```bash
 # Clone the repository
 git clone https://github.com/DNAKode/vbnet-lsp.git
 cd vbnet-lsp
@@ -103,7 +103,7 @@ dotnet build src/VbNet.LanguageServer.Vb
 
 # Run tests
 dotnet test
-\`\`\`
+```
 
 See [docs/development.md](docs/development.md) for detailed setup instructions.
 
