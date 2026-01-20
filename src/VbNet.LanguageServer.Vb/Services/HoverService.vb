@@ -4,6 +4,7 @@
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.Extensions.Logging
+Imports System.Xml.Linq
 Imports VbNet.LanguageServer.Protocol
 Imports VbNet.LanguageServer.Workspace
 
@@ -137,10 +138,38 @@ Namespace Services
                 sb.AppendLine("```")
             End If
 
-            Dim documentation = GetDocumentation(symbol)
-            If Not String.IsNullOrEmpty(documentation) Then
-                sb.AppendLine()
-                sb.AppendLine(documentation)
+            Dim documentation = GetDocumentationParts(symbol)
+            If documentation IsNot Nothing Then
+                If Not String.IsNullOrEmpty(documentation.Summary) Then
+                    sb.AppendLine()
+                    sb.AppendLine(documentation.Summary)
+                End If
+
+                If documentation.ParamInfo.Count > 0 Then
+                    sb.AppendLine()
+                    sb.AppendLine("**Parameters**")
+                    For Each paramInfo In documentation.ParamInfo
+                        sb.AppendLine($"- `{paramInfo.Name}`: {paramInfo.Description}")
+                    Next
+                End If
+
+                If documentation.TypeParamInfo.Count > 0 Then
+                    sb.AppendLine()
+                    sb.AppendLine("**Type Parameters**")
+                    For Each paramInfo In documentation.TypeParamInfo
+                        sb.AppendLine($"- `{paramInfo.Name}`: {paramInfo.Description}")
+                    Next
+                End If
+
+                If Not String.IsNullOrEmpty(documentation.Returns) Then
+                    sb.AppendLine()
+                    sb.AppendLine($"**Returns**: {documentation.Returns}")
+                End If
+
+                If Not String.IsNullOrEmpty(documentation.Value) Then
+                    sb.AppendLine()
+                    sb.AppendLine($"**Value**: {documentation.Value}")
+                End If
             End If
 
             Dim containerInfo = GetContainerInfo(symbol)
@@ -197,15 +226,23 @@ Namespace Services
             End If
 
             Dim keyword = If(methodSymbol.ReturnsVoid, "Sub", "Function")
-            Return $"{accessibility}{modifiers}{keyword} {methodSymbol.Name}({parameters}){returnType}"
+            Dim typeParams = ""
+            If methodSymbol.TypeParameters.Length > 0 Then
+                typeParams = $"(Of {String.Join(", ", methodSymbol.TypeParameters.Select(Function(tp) tp.Name))})"
+            End If
+            Return $"{accessibility}{modifiers}{keyword} {methodSymbol.Name}{typeParams}({parameters}){returnType}"
         End Function
 
         Private Shared Function GetPropertySignature(propertySymbol As IPropertySymbol) As String
             Dim accessibility = GetAccessibilityString(propertySymbol.DeclaredAccessibility)
             Dim modifiers = If(propertySymbol.IsReadOnly, "ReadOnly ", If(propertySymbol.IsWriteOnly, "WriteOnly ", ""))
             Dim typeName = propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)
+            Dim parameters = ""
+            If propertySymbol.Parameters.Length > 0 Then
+                parameters = $"({String.Join(", ", propertySymbol.Parameters.Select(Function(p) $"{p.Name} As {p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}"))})"
+            End If
 
-            Return $"{accessibility}{modifiers}Property {propertySymbol.Name} As {typeName}"
+            Return $"{accessibility}{modifiers}Property {propertySymbol.Name}{parameters} As {typeName}"
         End Function
 
         Private Shared Function GetFieldSignature(fieldSymbol As IFieldSymbol) As String
@@ -311,28 +348,83 @@ Namespace Services
         ''' <summary>
         ''' Gets XML documentation for a symbol.
         ''' </summary>
-        Private Shared Function GetDocumentation(symbol As ISymbol) As String
+        Private Shared Function GetDocumentationParts(symbol As ISymbol) As DocumentationParts
             Dim xml = symbol.GetDocumentationCommentXml()
             If String.IsNullOrEmpty(xml) Then
-                Return String.Empty
+                Return Nothing
             End If
 
-            Dim summaryStart = xml.IndexOf("<summary>", StringComparison.OrdinalIgnoreCase)
-            Dim summaryEnd = xml.IndexOf("</summary>", StringComparison.OrdinalIgnoreCase)
+            Try
+                Dim doc = XDocument.Parse(xml)
+                Dim root = doc.Root
+                If root Is Nothing Then
+                    Return Nothing
+                End If
 
-            If summaryStart >= 0 AndAlso summaryEnd > summaryStart Then
-                Dim summary = xml.Substring(summaryStart + 9, summaryEnd - summaryStart - 9)
-                Return CleanXmlContent(summary)
-            End If
+                Dim parts = New DocumentationParts()
 
-            Return String.Empty
+                Dim summaryNode = root.Element("summary")
+                If summaryNode IsNot Nothing Then
+                    parts.Summary = CleanXmlContent(summaryNode.Value)
+                End If
+
+                For Each paramNode In root.Elements("param")
+                    Dim name = paramNode.Attribute("name")?.Value
+                    Dim description = CleanXmlContent(paramNode.Value)
+                    If Not String.IsNullOrEmpty(name) AndAlso Not String.IsNullOrEmpty(description) Then
+                        parts.ParamInfo.Add(New DocumentationParam With {.Name = name, .Description = description})
+                    End If
+                Next
+
+                For Each typeParamNode In root.Elements("typeparam")
+                    Dim name = typeParamNode.Attribute("name")?.Value
+                    Dim description = CleanXmlContent(typeParamNode.Value)
+                    If Not String.IsNullOrEmpty(name) AndAlso Not String.IsNullOrEmpty(description) Then
+                        parts.TypeParamInfo.Add(New DocumentationParam With {.Name = name, .Description = description})
+                    End If
+                Next
+
+                Dim returnsNode = root.Element("returns")
+                If returnsNode IsNot Nothing Then
+                    parts.Returns = CleanXmlContent(returnsNode.Value)
+                End If
+
+                Dim valueNode = root.Element("value")
+                If valueNode IsNot Nothing Then
+                    parts.Value = CleanXmlContent(valueNode.Value)
+                End If
+
+                If String.IsNullOrEmpty(parts.Summary) AndAlso
+                    parts.ParamInfo.Count = 0 AndAlso
+                    parts.TypeParamInfo.Count = 0 AndAlso
+                    String.IsNullOrEmpty(parts.Returns) AndAlso
+                    String.IsNullOrEmpty(parts.Value) Then
+                    Return Nothing
+                End If
+
+                Return parts
+            Catch
+                Return Nothing
+            End Try
         End Function
 
         Private Shared Function CleanXmlContent(content As String) As String
-            content = System.Text.RegularExpressions.Regex.Replace(content, "<[^>]+>", "")
             content = System.Text.RegularExpressions.Regex.Replace(content, "\s+", " ")
             Return content.Trim()
         End Function
+
+        Private NotInheritable Class DocumentationParts
+            Public Property Summary As String
+            Public Property Returns As String
+            Public Property Value As String
+            Public ReadOnly Property ParamInfo As New List(Of DocumentationParam)()
+            Public ReadOnly Property TypeParamInfo As New List(Of DocumentationParam)()
+        End Class
+
+        Private NotInheritable Class DocumentationParam
+            Public Property Name As String
+            Public Property Description As String
+        End Class
 
         ''' <summary>
         ''' Gets container (namespace/type) information for a symbol.
