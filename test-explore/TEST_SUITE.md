@@ -20,6 +20,17 @@ Philosophy:
 - Isolate layers where possible (unit and component tests), then confirm full integration with LSP and editor harnesses.
 - Keep tests deterministic and non-interactive; all required inputs are provided by fixtures or scripted steps.
 
+## Exploratory themes (test-explore)
+
+Run via `test-explore/run-tests.ps1 -Theme <name>`:
+
+| Theme | Purpose | Suites |
+| --- | --- | --- |
+| `core` | Fast LSP protocol/regression sanity | `vbnet-lsp` |
+| `editors` | Client behavior validation | `emacs`, `vscode` |
+| `scale` | Large-solution robustness/perf | `dwsim`, `vscode-dwsim` |
+| `all` | Full exploratory sweep | all of the above |
+
 ## Test hierarchy and scope
 
 ### 1) Unit tests (fast, isolated)

@@ -6,6 +6,31 @@ import * as vscode from "vscode";
 const extensionId = process.env.EXTENSION_ID ?? "dnakode.vbnet-language-support";
 const enableDwsim = process.env.VBNET_DWSIM === "1";
 
+function createTimingLogger(): (name: string, startedAt?: number) => void {
+    const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
+    const explicitPath = process.env.VBNET_TIMING_LOG;
+    const logPath = explicitPath
+        ? (path.isAbsolute(explicitPath) ? explicitPath : path.resolve(repoRoot, explicitPath))
+        : path.resolve(
+              repoRoot,
+              "test-explore",
+              "logs",
+              `vscode-dwsim-timing-${new Date().toISOString().replace(/[^0-9]/g, "")}.jsonl`
+          );
+
+    const write = (name: string, startedAt?: number) => {
+        const payload = {
+            timestamp: new Date().toISOString(),
+            name,
+            elapsedMs: typeof startedAt === "number" ? Date.now() - startedAt : undefined,
+        };
+        fs.mkdirSync(path.dirname(logPath), { recursive: true });
+        fs.appendFileSync(logPath, `${JSON.stringify(payload)}\n`);
+    };
+
+    return write;
+}
+
 async function retryUntil<T>(
     action: () => Thenable<T>,
     isReady: (value: T) => boolean,
@@ -48,6 +73,7 @@ if (!enableDwsim) {
 } else {
     suite("VB.NET extension DWSIM smoke (VS Code harness)", () => {
         let doc: vscode.TextDocument;
+        const logTiming = createTimingLogger();
 
         suiteSetup(async function () {
             this.timeout(240000);
@@ -80,13 +106,16 @@ if (!enableDwsim) {
             const filePath = path.join(workspaceRoot, "DWSIM", "ApplicationEvents.vb");
             assert.ok(fs.existsSync(filePath), `DWSIM file not found: ${filePath}`);
 
+            const openStart = Date.now();
             doc = await vscode.workspace.openTextDocument(filePath);
             await vscode.window.showTextDocument(doc);
+            logTiming("open_document", openStart);
 
             const hoverPosition = getTokenPosition(doc, "MyApplication_Startup", 1);
             const definitionPosition = getTokenPosition(doc, "GetSplashScreen", 1);
             const referencesPosition = getTokenPosition(doc, "MyApplication_Startup", 1);
 
+            const hoverStart = Date.now();
             const hover = await retryUntil(
                 () =>
                     vscode.commands.executeCommand<vscode.Hover[]>(
@@ -96,8 +125,10 @@ if (!enableDwsim) {
                     ),
                 (items) => !!items && items.length > 0
             );
+            logTiming("hover", hoverStart);
             assert.ok(hover && hover.length > 0, "Hover result was empty.");
 
+            const definitionStart = Date.now();
             const definitions = await retryUntil(
                 () =>
                     vscode.commands.executeCommand<vscode.Location[]>(
@@ -107,8 +138,10 @@ if (!enableDwsim) {
                     ),
                 (items) => !!items && items.length > 0
             );
+            logTiming("definition", definitionStart);
             assert.ok(definitions && definitions.length > 0, "Definition result was empty.");
 
+            const referencesStart = Date.now();
             const references = await retryUntil(
                 () =>
                     vscode.commands.executeCommand<vscode.Location[]>(
@@ -118,8 +151,10 @@ if (!enableDwsim) {
                     ),
                 (items) => !!items && items.length > 0
             );
+            logTiming("references", referencesStart);
             assert.ok(references && references.length > 0, "References result was empty.");
 
+            const docSymbolsStart = Date.now();
             const documentSymbols = await retryUntil(
                 () =>
                     vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
@@ -128,8 +163,10 @@ if (!enableDwsim) {
                     ),
                 (items) => !!items && items.length > 0
             );
+            logTiming("document_symbols", docSymbolsStart);
             assert.ok(documentSymbols && documentSymbols.length > 0, "Document symbols were empty.");
 
+            const workspaceSymbolsStart = Date.now();
             const workspaceSymbols = await retryUntil(
                 () =>
                     vscode.commands.executeCommand<vscode.SymbolInformation[]>(
@@ -138,6 +175,7 @@ if (!enableDwsim) {
                     ),
                 (items) => !!items && items.length > 0
             );
+            logTiming("workspace_symbols", workspaceSymbolsStart);
             assert.ok(workspaceSymbols && workspaceSymbols.length > 0, "Workspace symbols were empty.");
         });
     });

@@ -35,6 +35,7 @@ Optional environment variables:
 - `VSCODE_KILL_BEFORE_TESTS`: set to `1` to terminate existing Code.exe before tests.
 - `VSCODE_KILL_ON_EXIT`: set to `1` to terminate Code.exe spawned by the harness.
 - `VBNET_DWSIM`: set to `1` to enable the DWSIM smoke suite (requires `_external/dwsim`).
+- `VBNET_TIMING_LOG`: path to a JSONL timing log (used by the DWSIM VS Code suite when enabled).
 
 ## Common runs
 

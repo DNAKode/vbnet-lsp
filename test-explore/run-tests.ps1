@@ -39,11 +39,16 @@ function Invoke-Suite {
                 FIXTURE_WORKSPACE = $env:FIXTURE_WORKSPACE
                 SKIP_VBNET_SMOKE = $env:SKIP_VBNET_SMOKE
                 SKIP_VBNET_DEBUG = $env:SKIP_VBNET_DEBUG
+                VBNET_TIMING_LOG = $env:VBNET_TIMING_LOG
             }
             $env:VBNET_DWSIM = '1'
             $env:FIXTURE_WORKSPACE = '_external\dwsim'
             $env:SKIP_VBNET_SMOKE = '1'
             $env:SKIP_VBNET_DEBUG = '1'
+            if (-not $env:VBNET_TIMING_LOG) {
+                $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+                $env:VBNET_TIMING_LOG = "test-explore\\logs\\vscode-dwsim-timing-$timestamp.jsonl"
+            }
             Push-Location test-explore\clients\vscode
             try {
                 npm test
@@ -53,6 +58,7 @@ function Invoke-Suite {
                 $env:FIXTURE_WORKSPACE = $original.FIXTURE_WORKSPACE
                 $env:SKIP_VBNET_SMOKE = $original.SKIP_VBNET_SMOKE
                 $env:SKIP_VBNET_DEBUG = $original.SKIP_VBNET_DEBUG
+                $env:VBNET_TIMING_LOG = $original.VBNET_TIMING_LOG
             }
         }
         'all' {
