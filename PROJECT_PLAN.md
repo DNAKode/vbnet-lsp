@@ -291,12 +291,14 @@ The language server is organized into five distinct layers:
 ### Phase 3
 **Goal:** Advanced navigation and productivity
 
-- Inlay hints
 - Call hierarchy
 - Type hierarchy
-- Code lens (if valuable)
+- Type definition + implementation
+- Document highlights, selection ranges, and document links
+- Pull diagnostics (document + workspace)
 - Test Explorer integration
 - Performance tuning and indexing improvements
+- Inlay hints (deferred pending stable Roslyn APIs)
 
 ### Phase 4
 **Goal:** Enterprise and complex scenarios
@@ -546,10 +548,10 @@ See `docs/development.md` Section 2.1 for setup instructions.
 
 ---
 
-**Plan Version:** 4.0 (Phase 1 MVP Complete)
-**Last Updated:** 2026-01-14
-**Status:** Phase 1 MVP Complete
-**Key Change:** Shifted from C# Dev Kit to C# extension as reference model + added netcoredbg
+**Plan Version:** 4.1 (Phase 3 in progress)
+**Last Updated:** 2026-01-20
+**Status:** Phase 3 in progress
+**Key Change:** Advanced navigation features implemented; polish + test explorer integration next
 **License:** MIT (fully open source)
 
 

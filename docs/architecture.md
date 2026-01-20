@@ -1223,15 +1223,27 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 | RenameService | âœ… Complete | Symbol rename with prepare |
 | SymbolsService | âœ… Complete | Document and workspace symbols |
 
-### Test Coverage
+### Phase 3 Services (Implemented)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| CallHierarchyService | âœ… Complete | Prepare + incoming/outgoing calls |
+| TypeHierarchyService | âœ… Complete | Prepare + supertypes/subtypes |
+| TypeDefinitionService | âœ… Complete | Go to type definition |
+| ImplementationService | âœ… Complete | Go to implementation |
+| DocumentHighlightService | âœ… Complete | Document highlights |
+| SelectionRangeService | âœ… Complete | Selection range hierarchy |
+| DocumentLinkService | âœ… Complete | Document link detection |
+
+### Test Coverage (2026-01-20)
 
 | Component | Tests |
 |-----------|-------|
 | Protocol (JsonRpcTypes + LspTypes) | 15 tests |
-| Workspace (DocumentManager + WorkspaceManager) | 22 tests |
-| Services (All Phase 1) | 54 tests |
-| Integration (Full stack) | 22 tests |
-| **Total** | **113 tests passing** |
+| Workspace (DocumentManager + WorkspaceManager) | 23 tests |
+| Services | 50 tests |
+| Integration (Full stack) | 62 tests |
+| **Total** | **150 tests passing** |
 
 ### Test Fixtures
 
@@ -1268,6 +1280,7 @@ Located in `test/TestProjects/`:
 | 2026-01-11 | 2.2 | **Protocol Synchronization Fix**: Fixed named pipe race condition; Added Section 4.2 protocol sync docs; Added Section 13.4-13.5 E2E testing and protocol checklist; Updated decisions 14.14-14.16 |
 | 2026-01-11 | 2.3 | **Request Cancellation**: Documented `$/cancelRequest` handling and protocol-level request tracking |
 | 2026-01-11 | 2.4 | **Completion Resolve Alignment**: Resolve uses original request position and Roslyn text edits |
+| 2026-01-20 | 2.5 | **Phase 3 Progress**: Added call/type hierarchy, type definition, implementation, document highlight/links, selection range, pull diagnostics; expanded integration tests to 150 total |
 | 2026-01-11 | 2.5 | **Configuration + File Watch Handling**: Settings toggles and watched file reload behavior |
 | 2026-01-12 | 2.6 | **Debug Adapter Integration**: netcoredbg adapter wiring and configuration details |
 

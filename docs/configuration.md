@@ -144,7 +144,7 @@ View traces: "View > Output" > "`VB.NET` Language Support"
 }
 ```
 
-**Note**: Requires Phase 3 implementation.
+**Note**: Deferred pending stable Roslyn public APIs.
 
 ---
 

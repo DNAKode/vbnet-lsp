@@ -20,12 +20,14 @@
   - Symbol navigation and search
   - Code rename refactoring
   - Hover information
+- Advanced navigation (type definition, implementation, call/type hierarchy)
+- Document highlights, selection ranges, and document links
 - **Open-source debugging** with bundled Samsung netcoredbg (Phase 2)
 - **100% MIT licensed** - no proprietary components
 
 ## Status
 
-**Current Phase:** Phase 2 - Enhanced Editing & Debugging (baseline complete)
+**Current Phase:** Phase 3 - Advanced Navigation & Polish (in progress)
 **Version:** 0.1.6 (preview)
 **Status:** In active development
 
@@ -48,9 +50,16 @@
 | Semantic Tokens (full + range) | Implemented |
 | Signature Help | Implemented |
 | Folding Ranges | Implemented |
+| Type Definition | Implemented |
+| Implementation | Implemented |
+| Document Highlight | Implemented |
+| Selection Range | Implemented |
+| Document Links | Implemented |
+| Call/Type Hierarchy | Implemented |
+| Pull Diagnostics (document/workspace) | Implemented |
 | Debugging (netcoredbg integration) | Implemented (bundled netcoredbg) |
 
-**Test Coverage:** 136 tests passing
+**Test Coverage:** 150 tests passing
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
 ## Installation
@@ -168,9 +177,9 @@ See [docs/architecture.md](docs/architecture.md) for detailed architectural info
 - Debugging integration with bundled netcoredbg
 
 ### Phase 3 (Next)
-- Advanced navigation (call hierarchy, type hierarchy)
-- Inlay hints
+- Test explorer integration
 - Performance optimization
+- Inlay hints (deferred pending stable Roslyn APIs)
 
 ### Phase 4
 - Mixed-language solution support

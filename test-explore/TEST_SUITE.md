@@ -176,11 +176,14 @@ Phase 2 features:
 - folding ranges.
 
 Phase 3 features:
-- inlay hints.
 - call hierarchy and type hierarchy.
+- type definition and implementation.
+- document highlights, selection ranges, and document links.
+- pull diagnostics (document/workspace).
 - code lens.
 - on-type formatting.
 - performance tuning with large solutions.
+- inlay hints (deferred pending stable Roslyn APIs).
 
 Phase 4 features:
 - mixed-language solutions (serve VB only).

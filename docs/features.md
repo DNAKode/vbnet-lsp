@@ -9,8 +9,8 @@ Last Updated: 2026-01-20
 
 This document provides a concise view of LSP features supported by `VB.NET` Language Support, their implementation status, and roadmap.
 
-**Current Phase**: Phase 2 (Baseline complete)  
-**Test Coverage**: 142 tests (call/type hierarchy + codeAction/resolve; full suite run pending)
+**Current Phase**: Phase 3 (Advanced navigation complete; polish in progress)  
+**Test Coverage**: 150 tests passing
 
 ## 2. Feature Status Legend
 
