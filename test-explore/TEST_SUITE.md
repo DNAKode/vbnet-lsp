@@ -226,6 +226,8 @@ Alternate client strategy (Phase 1-2 planning):
 - A minimal VS Code harness scaffold now exists under `test-explore/clients/vscode` to run smoke tests inside VS Code using `@vscode/test-electron`.
 - A minimal Emacs harness now exists under `test-explore/clients/emacs` using built-in `eglot` for stdio-based tests.
 - Future Emacs expansion: evaluate `lsp-mode` for richer client coverage once a non-interactive package install path is available; retain `eglot` as the zero-dependency baseline.
+- Future Neovim expansion: mirror the `roslyn.nvim` approach with a VB.NET-backed client and a
+  `test-explore/clients/nvim` harness once the local reference clone exists.
 
 Data capture:
 - Standard test logs for LSP request/response.

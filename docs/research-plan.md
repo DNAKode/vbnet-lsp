@@ -463,6 +463,37 @@ A parallel test effort is underway in `test-explore/`. This is an independent va
 
 ---
 
+## 5.2 Future Editor Coverage: Neovim (roslyn.nvim)
+
+**Goal**: Add a Neovim implementation and test theme that mirrors the patterns in the C# project
+`https://github.com/seblyng/roslyn.nvim`, but adapted for the VB.NET language server.
+
+**Plan (future work)**:
+- Clone roslyn.nvim locally under `_external/roslyn.nvim` (reference only).
+- Study its server bootstrap, command-line arguments, and LSP wiring model.
+- Implement equivalent VB.NET client integration and configure NVIM LSP to run the VB.NET server.
+- Add a Neovim test harness under `test-explore/clients/nvim` and a new `Theme` entry for it.
+- Validate parity with VS Code/Emacs harnesses using the same fixture workspaces.
+
+---
+
+## 5.3 Roslyn LSP Ecosystem Notes (Context)
+
+The "Roslyn LSP server" refers to a Language Server Protocol implementation backed by Microsoft's
+Roslyn compiler platform, providing language services (completion, diagnostics, refactoring) for
+C# and Visual Basic.
+
+Key landscape notes to keep in mind for future coverage:
+- **Official Roslyn implementation** lives in the `dotnet/roslyn` repository and is used by the
+  modern C# Dev Kit extension; it is designed to be integrated by an editor extension rather than
+  used as a standalone server.
+- **Editor-specific wrappers** are commonly used in other editors (Neovim, Sublime, Emacs). For
+  example, `roslyn.nvim` handles acquisition and launching of Roslyn-based language servers.
+- **Wrapper servers** (e.g., csharp-language-server / roslyn-ls) exist to expose a conventional
+  stdio/pipe LSP endpoint for general-purpose clients.
+- **OmniSharp contrast**: the Roslyn LSP approach is generally faster and more modern than older
+  OmniSharp-based setups; many editors are migrating toward direct Roslyn LSP integration.
+
 ## 6. Action Items
 
 ### Immediate (Before Phase 1 coding)
