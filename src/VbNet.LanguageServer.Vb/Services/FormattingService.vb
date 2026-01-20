@@ -100,7 +100,11 @@ Namespace Services
             Dim current = text.ToString()
             Dim newline = If(current.Contains(vbCrLf, StringComparison.Ordinal), vbCrLf, vbLf)
 
-            If options.TrimTrailingWhitespace = True Then
+            Dim trimTrailing = If(options.TrimTrailingWhitespace, True)
+            Dim trimFinalNewlines = If(options.TrimFinalNewlines, False)
+            Dim insertFinalNewline = If(options.InsertFinalNewline, False)
+
+            If trimTrailing Then
                 Dim lines = current.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.None)
                 For i = 0 To lines.Length - 1
                     lines(i) = lines(i).TrimEnd(" "c, ControlChars.Tab)
@@ -109,11 +113,11 @@ Namespace Services
                 current = String.Join(newline, lines)
             End If
 
-            If options.TrimFinalNewlines = True Then
+            If trimFinalNewlines Then
                 current = current.TrimEnd(ChrW(13), ChrW(10))
             End If
 
-            If options.InsertFinalNewline = True AndAlso Not current.EndsWith(newline, StringComparison.Ordinal) Then
+            If insertFinalNewline AndAlso Not current.EndsWith(newline, StringComparison.Ordinal) Then
                 current &= newline
             End If
 
