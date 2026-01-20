@@ -101,6 +101,7 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 | `textDocument/rename` | Implemented | Phase 1 | Rename with prepare |
 | `textDocument/documentHighlight` | Implemented | Phase 3 | Highlight symbol usage in document |
 | `textDocument/selectionRange` | Implemented | Phase 3 | Selection range hierarchy |
+| `textDocument/documentLink` | Implemented | Phase 3 | Detect HTTP/HTTPS links |
 | `textDocument/prepareCallHierarchy` | Implemented | Phase 3 | Prepare call hierarchy |
 | `callHierarchy/incomingCalls` | Implemented | Phase 3 | Incoming calls |
 | `callHierarchy/outgoingCalls` | Implemented | Phase 3 | Outgoing calls |

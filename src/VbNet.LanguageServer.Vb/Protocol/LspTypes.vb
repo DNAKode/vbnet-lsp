@@ -250,6 +250,9 @@ Namespace Protocol
         <JsonPropertyName("implementationProvider")>
         Public Property ImplementationProvider As Boolean?
 
+        <JsonPropertyName("documentLinkProvider")>
+        Public Property DocumentLinkProvider As DocumentLinkOptions
+
         <JsonPropertyName("callHierarchyProvider")>
         Public Property CallHierarchyProvider As Boolean?
 
@@ -331,6 +334,34 @@ Namespace Protocol
 
     Public Class ImplementationParams
         Inherits TextDocumentPositionParams
+    End Class
+
+#End Region
+
+#Region "Document Link"
+
+    Public Class DocumentLinkParams
+        <JsonPropertyName("textDocument")>
+        Public Property TextDocument As TextDocumentIdentifier = New TextDocumentIdentifier()
+    End Class
+
+    Public Class DocumentLink
+        <JsonPropertyName("range")>
+        Public Property Range As Range = New Range()
+
+        <JsonPropertyName("target")>
+        Public Property Target As String
+
+        <JsonPropertyName("tooltip")>
+        Public Property Tooltip As String
+
+        <JsonPropertyName("data")>
+        Public Property Data As Object
+    End Class
+
+    Public Class DocumentLinkOptions
+        <JsonPropertyName("resolveProvider")>
+        Public Property ResolveProvider As Boolean?
     End Class
 
 #End Region

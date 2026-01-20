@@ -45,6 +45,7 @@ Namespace Core
         Private ReadOnly _selectionRangeService As SelectionRangeService
         Private ReadOnly _typeDefinitionService As TypeDefinitionService
         Private ReadOnly _implementationService As ImplementationService
+        Private ReadOnly _documentLinkService As DocumentLinkService
 
         Private _state As ServerState = ServerState.NotStarted
         Private _initializeParams As InitializeParams
@@ -177,6 +178,10 @@ Namespace Core
                 _workspaceManager,
                 _documentManager,
                 loggerFactory.CreateLogger(Of ImplementationService)())
+
+            _documentLinkService = New DocumentLinkService(
+                _documentManager,
+                loggerFactory.CreateLogger(Of DocumentLinkService)())
 
             RegisterHandlers()
         End Sub
@@ -382,6 +387,7 @@ Namespace Core
             _dispatcher.RegisterRequest(Of WorkspaceDiagnosticParams, WorkspaceDiagnosticReport)("workspace/diagnostic", AddressOf HandleWorkspaceDiagnosticAsync)
             _dispatcher.RegisterRequest(Of TypeDefinitionParams, Location())("textDocument/typeDefinition", AddressOf HandleTypeDefinitionAsync)
             _dispatcher.RegisterRequest(Of ImplementationParams, Location())("textDocument/implementation", AddressOf HandleImplementationAsync)
+            _dispatcher.RegisterRequest(Of DocumentLinkParams, DocumentLink())("textDocument/documentLink", AddressOf HandleDocumentLinkAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall())("callHierarchy/incomingCalls", AddressOf HandleIncomingCallsAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall())("callHierarchy/outgoingCalls", AddressOf HandleOutgoingCallsAsync)
@@ -926,6 +932,14 @@ Namespace Core
             Return Await _implementationService.GetImplementationAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandleDocumentLinkAsync(parameters As DocumentLinkParams, ct As CancellationToken) As Task(Of DocumentLink())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of DocumentLink)()
+            End If
+
+            Return Await _documentLinkService.GetDocumentLinksAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
         Private Async Function HandlePrepareCallHierarchyAsync(parameters As CallHierarchyPrepareParams, ct As CancellationToken) As Task(Of CallHierarchyItem())
             If parameters Is Nothing Then
                 Return Array.Empty(Of CallHierarchyItem)()
@@ -1025,6 +1039,7 @@ Namespace Core
                 .TypeHierarchyProvider = True,
                 .TypeDefinitionProvider = True,
                 .ImplementationProvider = True,
+                .DocumentLinkProvider = New DocumentLinkOptions With {.ResolveProvider = False},
                 .FoldingRangeProvider = True,
                 .DocumentFormattingProvider = True,
                 .DocumentRangeFormattingProvider = True
