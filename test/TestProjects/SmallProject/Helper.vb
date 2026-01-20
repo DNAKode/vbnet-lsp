@@ -48,3 +48,16 @@ Public Class Helper
         Dim result = Add(1, 2)
     End Sub
 End Class
+
+Public Class BaseHelper
+    Public Overridable Sub BaseWork()
+    End Sub
+End Class
+
+Public Class DerivedHelper
+    Inherits BaseHelper
+
+    Public Overrides Sub BaseWork()
+        MyBase.BaseWork()
+    End Sub
+End Class

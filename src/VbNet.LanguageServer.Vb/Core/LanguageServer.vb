@@ -40,6 +40,7 @@ Namespace Core
         Private ReadOnly _semanticTokensService As SemanticTokensService
         Private ReadOnly _codeActionsService As CodeActionsService
         Private ReadOnly _callHierarchyService As CallHierarchyService
+        Private ReadOnly _typeHierarchyService As TypeHierarchyService
 
         Private _state As ServerState = ServerState.NotStarted
         Private _initializeParams As InitializeParams
@@ -148,6 +149,11 @@ Namespace Core
                 _workspaceManager,
                 _documentManager,
                 loggerFactory.CreateLogger(Of CallHierarchyService)())
+
+            _typeHierarchyService = New TypeHierarchyService(
+                _workspaceManager,
+                _documentManager,
+                loggerFactory.CreateLogger(Of TypeHierarchyService)())
 
             RegisterHandlers()
         End Sub
@@ -349,6 +355,9 @@ Namespace Core
             _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall())("callHierarchy/incomingCalls", AddressOf HandleIncomingCallsAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall())("callHierarchy/outgoingCalls", AddressOf HandleOutgoingCallsAsync)
+            _dispatcher.RegisterRequest(Of TypeHierarchyPrepareParams, TypeHierarchyItem())("textDocument/prepareTypeHierarchy", AddressOf HandlePrepareTypeHierarchyAsync)
+            _dispatcher.RegisterRequest(Of TypeHierarchySupertypesParams, TypeHierarchyItem())("typeHierarchy/supertypes", AddressOf HandleTypeHierarchySupertypesAsync)
+            _dispatcher.RegisterRequest(Of TypeHierarchySubtypesParams, TypeHierarchyItem())("typeHierarchy/subtypes", AddressOf HandleTypeHierarchySubtypesAsync)
 
             _logger.LogDebug("All LSP handlers registered")
         End Sub
@@ -859,6 +868,30 @@ Namespace Core
             Return Await _callHierarchyService.GetOutgoingCallsAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandlePrepareTypeHierarchyAsync(parameters As TypeHierarchyPrepareParams, ct As CancellationToken) As Task(Of TypeHierarchyItem())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of TypeHierarchyItem)()
+            End If
+
+            Return Await _typeHierarchyService.PrepareTypeHierarchyAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function HandleTypeHierarchySupertypesAsync(parameters As TypeHierarchySupertypesParams, ct As CancellationToken) As Task(Of TypeHierarchyItem())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of TypeHierarchyItem)()
+            End If
+
+            Return Await _typeHierarchyService.GetSupertypesAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function HandleTypeHierarchySubtypesAsync(parameters As TypeHierarchySubtypesParams, ct As CancellationToken) As Task(Of TypeHierarchyItem())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of TypeHierarchyItem)()
+            End If
+
+            Return Await _typeHierarchyService.GetSubtypesAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
 #End Region
 
 #Region "Diagnostics"
@@ -903,6 +936,7 @@ Namespace Core
                     .ResolveProvider = False
                 },
                 .CallHierarchyProvider = True,
+                .TypeHierarchyProvider = True,
                 .FoldingRangeProvider = True,
                 .DocumentFormattingProvider = True,
                 .DocumentRangeFormattingProvider = True

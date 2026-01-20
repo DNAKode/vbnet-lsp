@@ -240,6 +240,9 @@ Namespace Protocol
 
         <JsonPropertyName("callHierarchyProvider")>
         Public Property CallHierarchyProvider As Boolean?
+
+        <JsonPropertyName("typeHierarchyProvider")>
+        Public Property TypeHierarchyProvider As Boolean?
     End Class
 
     Public Class TextDocumentSyncOptions
@@ -339,6 +342,50 @@ Namespace Protocol
 
         <JsonPropertyName("fromRanges")>
         Public Property FromRanges As Range() = Array.Empty(Of Range)()
+    End Class
+
+#End Region
+
+#Region "Type Hierarchy"
+
+    Public Class TypeHierarchyPrepareParams
+        Inherits TextDocumentPositionParams
+    End Class
+
+    Public Class TypeHierarchySupertypesParams
+        <JsonPropertyName("item")>
+        Public Property Item As TypeHierarchyItem = New TypeHierarchyItem()
+    End Class
+
+    Public Class TypeHierarchySubtypesParams
+        <JsonPropertyName("item")>
+        Public Property Item As TypeHierarchyItem = New TypeHierarchyItem()
+    End Class
+
+    Public Class TypeHierarchyItem
+        <JsonPropertyName("name")>
+        Public Property Name As String = String.Empty
+
+        <JsonPropertyName("kind")>
+        Public Property Kind As SymbolKind
+
+        <JsonPropertyName("tags")>
+        Public Property Tags As SymbolTag()
+
+        <JsonPropertyName("detail")>
+        Public Property Detail As String
+
+        <JsonPropertyName("uri")>
+        Public Property Uri As String = String.Empty
+
+        <JsonPropertyName("range")>
+        Public Property Range As Range = New Range()
+
+        <JsonPropertyName("selectionRange")>
+        Public Property SelectionRange As Range = New Range()
+
+        <JsonPropertyName("data")>
+        Public Property Data As Object
     End Class
 
 #End Region
