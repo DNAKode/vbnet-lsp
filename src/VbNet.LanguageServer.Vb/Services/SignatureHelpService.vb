@@ -4,6 +4,7 @@
 Imports System.Collections
 Imports System.Reflection
 Imports System.Text
+Imports System.Xml.Linq
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
@@ -275,11 +276,21 @@ Namespace Services
         End Function
 
         Private Shared Function ToSignatureInformation(method As IMethodSymbol, activeParameter As Integer?) As Protocol.SignatureInformation
-            Dim parameters = method.Parameters.Select(Function(p) New Protocol.ParameterInformation With {.Label = BuildParameterLabel(p)}).ToArray()
+            Dim documentation = ParseDocumentationParts(method.GetDocumentationCommentXml())
+            Dim parameters = method.Parameters.Select(Function(p)
+                                                         Dim paramDoc = documentation?.GetParamDocumentation(p.Name)
+                                                         Return New Protocol.ParameterInformation With {
+                                                             .Label = BuildParameterLabel(p),
+                                                             .Documentation = If(String.IsNullOrEmpty(paramDoc), Nothing, New MarkupContent With {
+                                                                 .Kind = MarkupKind.Markdown,
+                                                                 .Value = paramDoc
+                                                             })
+                                                         }
+                                                     End Function).ToArray()
 
             Return New Protocol.SignatureInformation With {
                 .Label = BuildMethodSignature(method, parameters),
-                .Documentation = BuildDocumentation(method),
+                .Documentation = BuildDocumentation(documentation),
                 .Parameters = parameters,
                 .ActiveParameter = activeParameter
             }
@@ -287,10 +298,14 @@ Namespace Services
 
         Private Shared Function BuildMethodSignature(method As IMethodSymbol, parameters As Protocol.ParameterInformation()) As String
             Dim name = If(method.MethodKind = MethodKind.Constructor, "New", method.Name)
+            Dim typeParams = ""
+            If method.TypeParameters.Length > 0 Then
+                typeParams = $"(Of {String.Join(", ", method.TypeParameters.Select(Function(tp) tp.Name))})"
+            End If
             Dim parameterList = String.Join(", ", parameters.Select(Function(p) p.Label))
             Dim returnType = If(method.ReturnsVoid, String.Empty, $" As {method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}")
 
-            Return $"{name}({parameterList}){returnType}"
+            Return $"{name}{typeParams}({parameterList}){returnType}"
         End Function
 
         Private Shared Function BuildParameterLabel(parameter As IParameterSymbol) As String
@@ -307,39 +322,142 @@ Namespace Services
             Return $"{optionalModifier}{modifier}{parameter.Name} As {typeName}"
         End Function
 
-        Private Shared Function BuildDocumentation(symbol As ISymbol) As MarkupContent
-            Dim xml = symbol.GetDocumentationCommentXml()
-            If String.IsNullOrWhiteSpace(xml) Then
+        Private Shared Function BuildDocumentation(documentation As DocumentationParts) As MarkupContent
+            If documentation Is Nothing Then
                 Return Nothing
             End If
 
-            Dim summary = ExtractXmlTagContent(xml, "summary")
-            If String.IsNullOrWhiteSpace(summary) Then
+            Dim sb As New StringBuilder()
+            If Not String.IsNullOrWhiteSpace(documentation.Summary) Then
+                sb.AppendLine(documentation.Summary)
+            End If
+
+            If documentation.ParamInfo.Count > 0 Then
+                If sb.Length > 0 Then
+                    sb.AppendLine()
+                End If
+                sb.AppendLine("**Parameters**")
+                For Each paramInfo In documentation.ParamInfo
+                    sb.AppendLine($"- `{paramInfo.Name}`: {paramInfo.Description}")
+                Next
+            End If
+
+            If documentation.TypeParamInfo.Count > 0 Then
+                If sb.Length > 0 Then
+                    sb.AppendLine()
+                End If
+                sb.AppendLine("**Type Parameters**")
+                For Each paramInfo In documentation.TypeParamInfo
+                    sb.AppendLine($"- `{paramInfo.Name}`: {paramInfo.Description}")
+                Next
+            End If
+
+            If Not String.IsNullOrWhiteSpace(documentation.Returns) Then
+                If sb.Length > 0 Then
+                    sb.AppendLine()
+                End If
+                sb.AppendLine($"**Returns**: {documentation.Returns}")
+            End If
+
+            If Not String.IsNullOrWhiteSpace(documentation.Value) Then
+                If sb.Length > 0 Then
+                    sb.AppendLine()
+                End If
+                sb.AppendLine($"**Value**: {documentation.Value}")
+            End If
+
+            Dim value = sb.ToString().Trim()
+            If String.IsNullOrWhiteSpace(value) Then
                 Return Nothing
             End If
 
             Return New MarkupContent With {
                 .Kind = MarkupKind.Markdown,
-                .Value = CleanXmlContent(summary)
+                .Value = value
             }
         End Function
 
-        Private Shared Function ExtractXmlTagContent(xml As String, tagName As String) As String
-            Dim startTag = $"<{tagName}>"
-            Dim endTag = $"</{tagName}>"
-            Dim startIndex = xml.IndexOf(startTag, StringComparison.OrdinalIgnoreCase)
-            Dim endIndex = xml.IndexOf(endTag, StringComparison.OrdinalIgnoreCase)
-            If startIndex < 0 OrElse endIndex <= startIndex Then
-                Return String.Empty
+        Private Shared Function ParseDocumentationParts(xml As String) As DocumentationParts
+            If String.IsNullOrWhiteSpace(xml) Then
+                Return Nothing
             End If
 
-            Return xml.Substring(startIndex + startTag.Length, endIndex - startIndex - startTag.Length)
+            Try
+                Dim doc = XDocument.Parse(xml)
+                Dim root = doc.Root
+                If root Is Nothing Then
+                    Return Nothing
+                End If
+
+                Dim parts = New DocumentationParts()
+
+                Dim summaryNode = root.Element("summary")
+                If summaryNode IsNot Nothing Then
+                    parts.Summary = CleanXmlContent(summaryNode.Value)
+                End If
+
+                For Each paramNode In root.Elements("param")
+                    Dim name = paramNode.Attribute("name")?.Value
+                    Dim description = CleanXmlContent(paramNode.Value)
+                    If Not String.IsNullOrEmpty(name) AndAlso Not String.IsNullOrEmpty(description) Then
+                        parts.ParamInfo.Add(New DocumentationParam With {.Name = name, .Description = description})
+                    End If
+                Next
+
+                For Each typeParamNode In root.Elements("typeparam")
+                    Dim name = typeParamNode.Attribute("name")?.Value
+                    Dim description = CleanXmlContent(typeParamNode.Value)
+                    If Not String.IsNullOrEmpty(name) AndAlso Not String.IsNullOrEmpty(description) Then
+                        parts.TypeParamInfo.Add(New DocumentationParam With {.Name = name, .Description = description})
+                    End If
+                Next
+
+                Dim returnsNode = root.Element("returns")
+                If returnsNode IsNot Nothing Then
+                    parts.Returns = CleanXmlContent(returnsNode.Value)
+                End If
+
+                Dim valueNode = root.Element("value")
+                If valueNode IsNot Nothing Then
+                    parts.Value = CleanXmlContent(valueNode.Value)
+                End If
+
+                If String.IsNullOrWhiteSpace(parts.Summary) AndAlso
+                    parts.ParamInfo.Count = 0 AndAlso
+                    parts.TypeParamInfo.Count = 0 AndAlso
+                    String.IsNullOrWhiteSpace(parts.Returns) AndAlso
+                    String.IsNullOrWhiteSpace(parts.Value) Then
+                    Return Nothing
+                End If
+
+                Return parts
+            Catch
+                Return Nothing
+            End Try
         End Function
 
         Private Shared Function CleanXmlContent(content As String) As String
             Dim noTags = System.Text.RegularExpressions.Regex.Replace(content, "<[^>]+>", "")
             Return System.Text.RegularExpressions.Regex.Replace(noTags, "\s+", " ").Trim()
         End Function
+
+        Private NotInheritable Class DocumentationParts
+            Public Property Summary As String
+            Public Property Returns As String
+            Public Property Value As String
+            Public ReadOnly Property ParamInfo As New List(Of DocumentationParam)()
+            Public ReadOnly Property TypeParamInfo As New List(Of DocumentationParam)()
+
+            Public Function GetParamDocumentation(name As String) As String
+                Dim param = ParamInfo.FirstOrDefault(Function(p) String.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+                Return param?.Description
+            End Function
+        End Class
+
+        Private NotInheritable Class DocumentationParam
+            Public Property Name As String
+            Public Property Description As String
+        End Class
 
         Private NotInheritable Class MethodSymbolComparer
             Implements IEqualityComparer(Of IMethodSymbol)
