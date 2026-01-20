@@ -85,16 +85,28 @@ export class ServerLauncher {
         // Check for environment variable override
         const envPath = process.env.VBNET_SERVER_PATH;
         if (envPath) {
-            this.channel.appendLine(`Using server path from VBNET_SERVER_PATH: ${envPath}`);
-            return envPath;
+            const normalizedEnvPath = path.normalize(envPath.trim());
+            if (fs.existsSync(normalizedEnvPath)) {
+                this.channel.appendLine(`Using server path from VBNET_SERVER_PATH: ${normalizedEnvPath}`);
+                return normalizedEnvPath;
+            }
+            this.channel.appendLine(
+                `Configured VBNET_SERVER_PATH does not exist: ${normalizedEnvPath}. Falling back to bundled server.`
+            );
         }
 
         // Check for configuration setting
         const config = vscode.workspace.getConfiguration('vbnet');
         const configPath = config.get<string>('server.path');
         if (configPath && configPath.trim() !== '') {
-            this.channel.appendLine(`Using server path from settings: ${configPath}`);
-            return configPath;
+            const normalizedConfigPath = path.normalize(configPath.trim());
+            if (fs.existsSync(normalizedConfigPath)) {
+                this.channel.appendLine(`Using server path from settings: ${normalizedConfigPath}`);
+                return normalizedConfigPath;
+            }
+            this.channel.appendLine(
+                `Configured vbnet.server.path does not exist: ${normalizedConfigPath}. Falling back to bundled server.`
+            );
         }
 
         // Use bundled server path (relative to extension)

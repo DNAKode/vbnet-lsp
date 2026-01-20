@@ -102,7 +102,7 @@ Harness:
 
 Additional validation matrix (production readiness focus):
 - Transport selection (`vbnet.server.transportType`): verify stdio/namedPipe/auto still serve core requests.
-- Server path override (`vbnet.server.path` + `VBNET_SERVER_PATH`): ensure override works and invalid path yields a clear failure.
+- Server path override (`vbnet.server.path` + `VBNET_SERVER_PATH`): ensure override works and invalid path logs a warning then falls back to bundled server.
 - Feature toggles: `vbnet.completion.enable` disables completion; `vbnet.diagnostics.enable` disables publishDiagnostics.
 - Trace level (`vbnet.trace.server`): ensure verbose logging is enabled and trace output is captured for post-run analysis.
 - Commands: `vbnet.restartServer` and `vbnet.showOutputChannel` are registered and functional.
