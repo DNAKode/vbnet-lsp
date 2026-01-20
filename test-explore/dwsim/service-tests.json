@@ -1,0 +1,47 @@
+﻿{
+  "workspace": "_external/dwsim",
+  "workspaceSymbolQuery": "MyApplication",
+  "file": "_external/dwsim/DWSIM/ApplicationEvents.vb",
+  "tests": [
+    {
+      "id": "hover_startup",
+      "method": "textDocument/hover",
+      "token": "MyApplication_Startup",
+      "tokenOffset": 0,
+      "tokenOccurrence": 1,
+      "expectation": "non_null"
+    },
+    {
+      "id": "definition_splash",
+      "method": "textDocument/definition",
+      "token": "GetSplashScreen",
+      "tokenOffset": 0,
+      "tokenOccurrence": 1,
+      "expectation": "non_empty"
+    },
+    {
+      "id": "references_startup",
+      "method": "textDocument/references",
+      "token": "MyApplication_Startup",
+      "tokenOffset": 0,
+      "tokenOccurrence": 1,
+      "expectation": "non_empty"
+    },
+    {
+      "id": "symbols_document",
+      "method": "textDocument/documentSymbol",
+      "token": "MyApplication_Startup",
+      "tokenOffset": 0,
+      "tokenOccurrence": 1,
+      "expectation": "non_empty"
+    },
+    {
+      "id": "symbols_workspace",
+      "method": "workspace/symbol",
+      "token": "MyApplication_Startup",
+      "tokenOffset": 0,
+      "tokenOccurrence": 1,
+      "expectation": "query:MyApplication"
+    }
+  ]
+}

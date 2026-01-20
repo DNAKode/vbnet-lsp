@@ -34,6 +34,7 @@ Optional environment variables:
 - `SKIP_VBNET_DEBUG`: set to `1` to skip `VB.NET` debug tests.
 - `VSCODE_KILL_BEFORE_TESTS`: set to `1` to terminate existing Code.exe before tests.
 - `VSCODE_KILL_ON_EXIT`: set to `1` to terminate Code.exe spawned by the harness.
+- `VBNET_DWSIM`: set to `1` to enable the DWSIM smoke suite (requires `_external/dwsim`).
 
 ## Common runs
 
@@ -49,6 +50,14 @@ Run `VB.NET` debug tests only:
 ```powershell
 $env:SKIP_VBNET_SMOKE = "1"
 $env:FIXTURE_WORKSPACE = "test\TestProjects\DebugConsole"
+npm test
+```
+
+Run DWSIM smoke tests (requires `_external/dwsim`):
+
+```powershell
+$env:VBNET_DWSIM = "1"
+$env:FIXTURE_WORKSPACE = "_external\\dwsim"
 npm test
 ```
 

@@ -134,13 +134,14 @@ Objectives:
 Approach:
 - Use `_external/dwsim/DWSIM.sln` as primary workspace root.
 - Start with a single file open (e.g., `DWSIM/ApplicationEvents.vb`) and smoke LSP lifecycle.
+- Run a DWSIM-specific service manifest to probe hover/definition/references/symbols without modifying the DWSIM source.
 - Add timing capture in the DWSIM harness and record results in `TEST_RESULTS.md`.
 - Extend to diagnostics once publishDiagnostics is working in smaller fixtures.
 - Track external restore requirements (NuGet packages) and record missing-package diagnostics as part of readiness gates.
 - Capture timing milestones (server start, solution load, first didOpen) in the DWSIM harness and record them in `TEST_RESULTS.md`.
 
 Scaffolding:
-- `test-explore/dwsim/run-tests.ps1` invokes the VB.NET LSP smoke harness with a DWSIM root.
+- `test-explore/dwsim/run-tests.ps1` invokes the VB.NET LSP smoke harness with a DWSIM root and service manifest.
 - Optional VS Code headless open check using the VS Code harness with `FIXTURE_WORKSPACE=_external/dwsim`.
 - Service tests (Phase 1): drive requests from `test-explore/vbnet-lsp/fixtures/services/service-tests.json` once services are implemented.
 

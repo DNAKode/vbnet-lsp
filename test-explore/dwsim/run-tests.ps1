@@ -65,6 +65,10 @@ if (-not (Test-Path $serverPath)) {
 
 $rootPath = (Resolve-Path $WorkspaceRoot).Path
 $testFile = (Resolve-Path $TestFilePath).Path
+$solutionPath = Join-Path $rootPath 'DWSIM.sln'
+$serviceManifest = 'test-explore\dwsim\service-tests.json'
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$serviceLogPath = "test-explore\logs\dwsim-service-tests-$timestamp.jsonl"
 
 $smokeArgs = @(
     '--serverPath', $serverPath,
@@ -72,7 +76,16 @@ $smokeArgs = @(
     '--logLevel', $LogLevel,
     '--transport', $Transport,
     '--rootPath', $rootPath,
+    '--workspaceProjectPath', $solutionPath,
+    '--workspaceProjectSearchPath', $rootPath,
+    '--workspaceExcludePath', '.git;bin;obj',
+    '--workspaceIgnoreSolutionFiles', 'false',
+    '--workspaceMaxProjectResults', '200',
+    '--workspaceLoadDelaySeconds', '10',
     '--testFile', $testFile,
+    '--serviceManifest', $serviceManifest,
+    '--serviceTimeoutSeconds', '120',
+    '--serviceLog', $serviceLogPath,
     '--protocolLog', $protocolLogFullPath,
     '--timingLog', $timingLogFullPath,
     '--timingLabel', 'DWSIM'

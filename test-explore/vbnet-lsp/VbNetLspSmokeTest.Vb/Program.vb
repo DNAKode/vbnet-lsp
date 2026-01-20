@@ -20,6 +20,12 @@ Friend NotInheritable Class Options
     Public Property DiagnosticsTimeoutSeconds As Integer = 30
     Public Property WorkspaceLoadDelaySeconds As Integer = 3
     Public Property RootPath As String = String.Empty
+    Public Property WorkspaceProjectPaths As List(Of String) = New List(Of String)()
+    Public Property WorkspaceProjectSearchPaths As List(Of String) = New List(Of String)()
+    Public Property WorkspaceExcludePaths As List(Of String) = New List(Of String)()
+    Public Property WorkspaceIgnoreSolutionFiles As Boolean?
+    Public Property WorkspaceMaxProjectResults As Integer?
+    Public Property WorkspaceSymbolQuery As String = String.Empty
     Public Property TestFilePath As String = String.Empty
     Public Property ExpectDiagnostics As Boolean
     Public Property DiagnosticsMode As String = String.Empty
@@ -175,12 +181,27 @@ Friend Module Program
 
             Dim workspaceRoot = If(String.IsNullOrWhiteSpace(options.RootPath), Nothing, Path.GetFullPath(options.RootPath))
             Dim rootUri = If(workspaceRoot Is Nothing, Nothing, New Uri(workspaceRoot))
-            Dim workspaceInit = If(workspaceRoot Is Nothing, Nothing, New With {
-                .projectSearchPaths = New String() {workspaceRoot},
-                .excludePaths = New String() {".git", "bin", "obj", "_external", "test-explore", "test"},
-                .ignoreSolutionFiles = True,
-                .maxProjectResults = 25
-            })
+            Dim workspaceInit As Dictionary(Of String, Object) = Nothing
+            If workspaceRoot IsNot Nothing Then
+                Dim projectPaths = If(options.WorkspaceProjectPaths.Count > 0, options.WorkspaceProjectPaths.ToArray(), Nothing)
+                Dim projectSearchPaths = If(options.WorkspaceProjectSearchPaths.Count > 0,
+                                            options.WorkspaceProjectSearchPaths.ToArray(),
+                                            New String() {workspaceRoot})
+                Dim excludePaths = If(options.WorkspaceExcludePaths.Count > 0,
+                                      options.WorkspaceExcludePaths.ToArray(),
+                                      New String() {".git", "bin", "obj", "_external", "test-explore", "test"})
+                Dim ignoreSolutionFiles = If(options.WorkspaceIgnoreSolutionFiles.HasValue, options.WorkspaceIgnoreSolutionFiles.Value, True)
+                Dim maxProjectResults = If(options.WorkspaceMaxProjectResults.HasValue, options.WorkspaceMaxProjectResults.Value, 25)
+
+                workspaceInit = New Dictionary(Of String, Object)()
+                If projectPaths IsNot Nothing Then
+                    workspaceInit("projectPaths") = projectPaths
+                End If
+                workspaceInit("projectSearchPaths") = projectSearchPaths
+                workspaceInit("excludePaths") = excludePaths
+                workspaceInit("ignoreSolutionFiles") = ignoreSolutionFiles
+                workspaceInit("maxProjectResults") = maxProjectResults
+            End If
 
             Dim initParams = New With {
                 .processId = Environment.ProcessId,
@@ -391,7 +412,10 @@ Friend Module Program
         }).WaitAsync(token)
 
         Await Task.Delay(500, token)
-        Await WaitForWorkspaceReadyAsync(rpc, protocolLog, token)
+        Dim readyQuery = If(Not String.IsNullOrWhiteSpace(manifest.WorkspaceSymbolQuery),
+                            manifest.WorkspaceSymbolQuery,
+                            options.WorkspaceSymbolQuery)
+        Await WaitForWorkspaceReadyAsync(rpc, protocolLog, readyQuery, token)
 
         Dim textDocument = New With {.uri = uri}
         Dim allOk = True
@@ -442,10 +466,11 @@ Friend Module Program
         Return allOk
     End Function
 
-    Private Async Function WaitForWorkspaceReadyAsync(rpc As JsonRpc, protocolLog As ProtocolLog, token As CancellationToken) As Task
+    Private Async Function WaitForWorkspaceReadyAsync(rpc As JsonRpc, protocolLog As ProtocolLog, query As String, token As CancellationToken) As Task
         Dim deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(15)
+        Dim symbolQuery = If(String.IsNullOrWhiteSpace(query), "Greeter", query)
         While DateTimeOffset.UtcNow < deadline AndAlso Not token.IsCancellationRequested
-            Dim symbols = Await rpc.InvokeWithParameterObjectAsync(Of JsonElement)("workspace/symbol", New With {.query = "Greeter"}).WaitAsync(token)
+            Dim symbols = Await rpc.InvokeWithParameterObjectAsync(Of JsonElement)("workspace/symbol", New With {.query = symbolQuery}).WaitAsync(token)
 
             If symbols.ValueKind = JsonValueKind.Array AndAlso symbols.GetArrayLength() > 0 Then
                 Return
@@ -593,7 +618,12 @@ Friend Module Program
                 Return ok
 
             Case "workspace/symbol"
-                Dim symbols = Await rpc.InvokeWithParameterObjectAsync(Of JsonElement)(method, New With {.query = "Greeter"}).WaitAsync(token)
+                Dim query = "Greeter"
+                If Not String.IsNullOrWhiteSpace(test.Expectation) AndAlso test.Expectation.StartsWith("query:", StringComparison.OrdinalIgnoreCase) Then
+                    query = test.Expectation.Substring("query:".Length).Trim()
+                End If
+
+                Dim symbols = Await rpc.InvokeWithParameterObjectAsync(Of JsonElement)(method, New With {.query = query}).WaitAsync(token)
                 Dim ok = HasSymbolResults(symbols)
                 If Not ok Then
                     protocolLog.Write("error", $"Service test {test.Id} returned empty workspace symbols.")
@@ -876,6 +906,33 @@ Friend Module Program
                     i += 1
                     options.WorkspaceLoadDelaySeconds = delay
                 End If
+            ElseIf arg = "--workspaceProjectPath" AndAlso i + 1 < args.Length Then
+                i += 1
+                options.WorkspaceProjectPaths.AddRange(
+                    args(i).Split(";"c, StringSplitOptions.RemoveEmptyEntries))
+            ElseIf arg = "--workspaceProjectSearchPath" AndAlso i + 1 < args.Length Then
+                i += 1
+                options.WorkspaceProjectSearchPaths.AddRange(
+                    args(i).Split(";"c, StringSplitOptions.RemoveEmptyEntries))
+            ElseIf arg = "--workspaceExcludePath" AndAlso i + 1 < args.Length Then
+                i += 1
+                options.WorkspaceExcludePaths.AddRange(
+                    args(i).Split(";"c, StringSplitOptions.RemoveEmptyEntries))
+            ElseIf arg = "--workspaceIgnoreSolutionFiles" AndAlso i + 1 < args.Length Then
+                Dim ignoreSolution As Boolean
+                If Boolean.TryParse(args(i + 1), ignoreSolution) Then
+                    i += 1
+                    options.WorkspaceIgnoreSolutionFiles = ignoreSolution
+                End If
+            ElseIf arg = "--workspaceMaxProjectResults" AndAlso i + 1 < args.Length Then
+                Dim maxResults As Integer
+                If Integer.TryParse(args(i + 1), maxResults) Then
+                    i += 1
+                    options.WorkspaceMaxProjectResults = maxResults
+                End If
+            ElseIf arg = "--workspaceSymbolQuery" AndAlso i + 1 < args.Length Then
+                i += 1
+                options.WorkspaceSymbolQuery = args(i)
             ElseIf arg = "--expectDiagnostics" Then
                 options.ExpectDiagnostics = True
             ElseIf arg = "--diagnosticsMode" AndAlso i + 1 < args.Length Then
@@ -1200,6 +1257,7 @@ Friend Module Program
 
     Private NotInheritable Class ServiceTestManifest
         Public Property Workspace As String = String.Empty
+        Public Property WorkspaceSymbolQuery As String = String.Empty
         Public Property File As String = String.Empty
         Public Property Tests As List(Of ServiceTestCase) = New List(Of ServiceTestCase)()
 
@@ -1237,6 +1295,7 @@ Friend Module Program
         Public Property Expectation As String = String.Empty
         Public Property Token As String = String.Empty
         Public Property TokenOffset As Integer
+        Public Property TokenOccurrence As Integer = 1
     End Class
 
     Private NotInheritable Class MarkerLocator
@@ -1252,8 +1311,19 @@ Friend Module Program
             reason = String.Empty
 
             If String.IsNullOrWhiteSpace(test.Marker) Then
-                reason = "marker_missing"
-                Return False
+                If String.IsNullOrWhiteSpace(test.Token) Then
+                    reason = "marker_missing"
+                    Return False
+                End If
+
+                Dim tokenIndex = FindTokenOccurrence(_text, test.Token, Math.Max(1, test.TokenOccurrence))
+                If tokenIndex < 0 Then
+                    reason = "token_not_found"
+                    Return False
+                End If
+
+                position = GetPosition(_text, tokenIndex + test.TokenOffset)
+                Return True
             End If
 
             Dim cacheKey = $"{test.Marker}|{test.Token}|{test.TokenOffset}"
@@ -1295,6 +1365,23 @@ Friend Module Program
             position = GetPosition(_text, markerIndex)
             _cache(cacheKey) = position
             Return True
+        End Function
+
+        Private Function FindTokenOccurrence(text As String, token As String, occurrence As Integer) As Integer
+            Dim index = -1
+            Dim start = 0
+            Dim remaining = occurrence
+            While remaining > 0
+                index = text.IndexOf(token, start, StringComparison.Ordinal)
+                If index < 0 Then
+                    Return -1
+                End If
+
+                remaining -= 1
+                start = index + token.Length
+            End While
+
+            Return index
         End Function
     End Class
 

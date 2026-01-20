@@ -1,4 +1,4 @@
-ï»¿Date: 2026-01-20
+Date: 2026-01-20
 Author: Codex (GPT-5) acting as test reviewer
 Host: Windows (C:\Work\vbnet-lsp)
 
@@ -47,7 +47,7 @@ Optional flags:
 
 ## Recent runs
 
-### 2026-01-20 â€” test-explore suite (all, VB.NET)
+### 2026-01-20 — test-explore suite (all, VB.NET)
 
 Command:
 - `test-explore\run-tests.ps1`
@@ -60,7 +60,7 @@ Notes:
 
 ## Previous runs
 
-### 2026-01-19 â€” VS Code harness (VB.NET server)
+### 2026-01-19 — VS Code harness (VB.NET server)
 
 Commands (from `test-explore/clients/vscode`):
 - `VBNET_SERVER_PATH=src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll CAPTURE_VSCODE_LOGS=1 CAPTURE_VBNET_TRACE=1 VSCODE_KILL_BEFORE_TESTS=1 VSCODE_KILL_ON_EXIT=1 npm test`
@@ -71,7 +71,7 @@ Notes:
 - Non-fatal DAP warning: `Failed command 'threads'` during debug startup.
 - Log bundles: `test-explore/clients/vscode/logs/20260119T224840`, `test-explore/clients/vscode/logs/20260119T224915`.
 
-### 2026-01-19 â€” LSP smoke harness (VB.NET)
+### 2026-01-19 — LSP smoke harness (VB.NET)
 
 Command:
 - `test-explore\vbnet-lsp\run-tests.ps1`
@@ -80,7 +80,7 @@ Outcome: PASS
 Notes:
 - Snapshots recorded under `test-explore/vbnet-lsp/snapshots/`.
 
-### 2026-01-19 â€” CI-safe tests (VB.NET only)
+### 2026-01-19 — CI-safe tests (VB.NET only)
 
 Commands:
 - `dotnet test test\VbNet.LanguageServer.Tests.Vb\VbNet.LanguageServer.Tests.Vb.vbproj -c Release`
@@ -89,12 +89,26 @@ Commands:
 Outcome: PASS (135/135, 3/3)
 
 ## Protocol anomalies (latest run)
-Run: Suite=all Transport=pipe
+Run: DWSIM smoke Transport=pipe
 
 None detected.
 ## Timing summary (latest run)
-Run: Suite=all Transport=pipe
+Run: DWSIM smoke Transport=pipe
 
-- [DWSIM] server_starting (191.17 ms)
-- [DWSIM] initialize_response (424.01 ms)
-- [DWSIM] didOpen_sent (908.5 ms)
+- [DWSIM] server_starting (409.36 ms)
+- [DWSIM] initialize_response (683.95 ms)
+- [DWSIM] solution_loading (1276.22 ms)
+- [DWSIM] solution_loaded (12266.31 ms)
+- [DWSIM] didOpen_sent (12268.31 ms)
+
+### 2026-01-20 â€” DWSIM smoke + services (VB.NET)
+
+Command:
+- `test-explore\dwsim\run-tests.ps1`
+
+Outcome: PASS (with workspace diagnostics)
+Notes:
+- Loaded `DWSIM.sln` (31 VB.NET projects). C# projects skipped as unsupported.
+- MSBuild reported missing NuGet targets for SkiaSharp/Eto/etc. (expected without restore).
+- Service tests PASS: hover/definition/references/document+workspace symbols.
+- Service log: `test-explore/logs/dwsim-service-tests-20260120-103802.jsonl`.
