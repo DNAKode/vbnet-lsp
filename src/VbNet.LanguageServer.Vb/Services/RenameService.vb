@@ -82,7 +82,12 @@ Namespace Services
                     Return Nothing
                 End If
 
-                Dim range = GetRange(token.Span, sourceText)
+                Dim identifierSpan = GetIdentifierSpan(token.Parent)
+                If identifierSpan Is Nothing Then
+                    identifierSpan = token.Span
+                End If
+
+                Dim range = GetRange(identifierSpan.Value, sourceText)
 
                 _logger.LogDebug("PrepareRename succeeded for symbol: {Symbol}", symbol.Name)
 
@@ -282,6 +287,21 @@ Namespace Services
                 .Start = New Position With {.Line = startLine.LineNumber, .Character = span.Start - startLine.Start},
                 .[End] = New Position With {.Line = endLine.LineNumber, .Character = span.[End] - endLine.Start}
             }
+        End Function
+
+        Private Shared Function GetIdentifierSpan(node As SyntaxNode) As TextSpan?
+            For Each child In node.ChildTokens()
+                If child.IsKind(Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.IdentifierToken) Then
+                    Return child.Span
+                End If
+            Next
+
+            Dim firstToken = node.GetFirstToken()
+            If firstToken.IsKind(Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.IdentifierToken) Then
+                Return firstToken.Span
+            End If
+
+            Return Nothing
         End Function
     End Class
 

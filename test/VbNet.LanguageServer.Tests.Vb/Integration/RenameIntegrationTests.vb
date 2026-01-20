@@ -90,6 +90,9 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Assert.NotNull(result)
             Assert.Equal("DoWork", result.Placeholder)
             Assert.Equal(lineIndex, result.Range.Start.Line)
+
+            Dim extracted = ExtractRangeText(text, result.Range)
+            Assert.Equal("DoWork", extracted)
         End Function
 
         <Fact>
@@ -133,6 +136,9 @@ Namespace VbNet.LanguageServer.Tests.Integration
 
             Assert.NotNull(result)
             Assert.Equal("Helper", result.Placeholder)
+
+            Dim extracted = ExtractRangeText(text, result.Range)
+            Assert.Equal("Helper", extracted)
         End Function
 
         <Fact>
@@ -231,6 +237,22 @@ Namespace VbNet.LanguageServer.Tests.Integration
                     Next
                 Next
             End If
+        End Function
+
+        Private Shared Function ExtractRangeText(text As String, range As Global.VbNet.LanguageServer.Protocol.Range) As String
+            Dim lines = text.Split(ControlChars.Lf)
+            If range.Start.Line >= lines.Length Then
+                Return String.Empty
+            End If
+
+            Dim line = lines(range.Start.Line)
+            Dim start = Math.Min(range.Start.Character, line.Length)
+            Dim [end] = Math.Min(range.End.Character, line.Length)
+            If [end] < start Then
+                Return String.Empty
+            End If
+
+            Return line.Substring(start, [end] - start)
         End Function
     End Class
 
