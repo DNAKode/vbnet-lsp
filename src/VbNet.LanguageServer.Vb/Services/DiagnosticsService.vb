@@ -416,6 +416,7 @@ Namespace Services
                 .Source = "vbnet",
                 .Message = diagnostic.GetMessage(),
                 .CodeDescription = GetCodeDescription(diagnostic),
+                .Tags = GetDiagnosticTags(diagnostic),
                 .RelatedInformation = GetRelatedInformation(diagnostic)
             }
         End Function
@@ -454,6 +455,20 @@ Namespace Services
             End If
 
             Return Nothing
+        End Function
+
+        Private Shared Function GetDiagnosticTags(diagnostic As Microsoft.CodeAnalysis.Diagnostic) As DiagnosticTag()
+            Dim tags As New List(Of DiagnosticTag)()
+
+            For Each tag In diagnostic.Descriptor.CustomTags
+                If String.Equals(tag, WellKnownDiagnosticTags.Unnecessary, StringComparison.OrdinalIgnoreCase) Then
+                    tags.Add(DiagnosticTag.Unnecessary)
+                ElseIf String.Equals(tag, WellKnownDiagnosticTags.CustomObsolete, StringComparison.OrdinalIgnoreCase) Then
+                    tags.Add(DiagnosticTag.Deprecated)
+                End If
+            Next
+
+            Return If(tags.Count = 0, Nothing, tags.ToArray())
         End Function
 
         ''' <summary>

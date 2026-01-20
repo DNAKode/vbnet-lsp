@@ -234,20 +234,30 @@ Namespace Services
             Dim kind = TranslateCompletionKind(roslynItem.Tags)
             Dim displayText = roslynItem.DisplayText
 
+            Dim sortText = roslynItem.SortText
+            If String.IsNullOrEmpty(sortText) Then
+                sortText = index.ToString("D5")
+            End If
+
+            Dim filterText = roslynItem.FilterText
+            If String.IsNullOrEmpty(filterText) Then
+                filterText = displayText
+            End If
+
             Dim item = New Protocol.CompletionItem With {
                 .Label = displayText,
                 .Kind = kind,
                 .Detail = GetDetail(roslynItem),
                 .TextEdit = CreateDefaultTextEdit(displayText, sourceText, offset, position),
                 .InsertTextFormat = InsertTextFormat.PlainText,
-                .SortText = index.ToString("D5"),
-                .FilterText = roslynItem.FilterText,
+                .SortText = sortText,
+                .FilterText = filterText,
                 .CommitCharacters = GetCommitCharacters(roslynItem),
                 .Data = New With {
                     .uri = uri,
                     .displayText = displayText,
-                    .filterText = roslynItem.FilterText,
-                    .sortText = roslynItem.SortText,
+                    .filterText = filterText,
+                    .sortText = sortText,
                     .index = index,
                     .position = New With {
                         .line = position.Line,

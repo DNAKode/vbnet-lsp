@@ -791,9 +791,17 @@ Namespace Protocol
         <JsonPropertyName("message")>
         Public Property Message As String = String.Empty
 
+        <JsonPropertyName("tags")>
+        Public Property Tags As DiagnosticTag()
+
         <JsonPropertyName("relatedInformation")>
         Public Property RelatedInformation As DiagnosticRelatedInformation()
     End Class
+
+    Public Enum DiagnosticTag
+        Unnecessary = 1
+        Deprecated = 2
+    End Enum
 
     Public Enum DiagnosticSeverity
         [Error] = 1
