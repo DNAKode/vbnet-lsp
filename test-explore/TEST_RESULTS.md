@@ -89,45 +89,21 @@ Commands:
 Outcome: PASS (135/135, 3/3)
 
 ## Protocol anomalies (latest run)
-Run: DWSIM smoke Transport=pipe
+Run: Theme=core Transport=pipe
 
 None detected.
 ## Timing summary (latest run)
-Run: DWSIM smoke Transport=pipe
+Run: Theme=core Transport=pipe
 
-- [DWSIM] server_starting (409.36 ms)
-- [DWSIM] initialize_response (683.95 ms)
-- [DWSIM] solution_loading (1276.22 ms)
-- [DWSIM] solution_loaded (12266.31 ms)
-- [DWSIM] didOpen_sent (12268.31 ms)
+- [n/a] server_starting (349.19 ms)
+- [n/a] initialize_response (702.24 ms)
+- [n/a] didOpen_sent (1191.05 ms)
 
-### 2026-01-20 — DWSIM smoke + services (VB.NET)
+### 2026-01-20 � LSP smoke harness (VB.NET, core)
 
 Command:
-- `test-explore\dwsim\run-tests.ps1`
+- `test-explore\run-tests.ps1 -Theme core`
 
-Outcome: PASS (with workspace diagnostics)
+Outcome: PASS
 Notes:
-- Loaded `DWSIM.sln` (31 VB.NET projects). C# projects skipped as unsupported.
-- MSBuild reported missing NuGet targets for SkiaSharp/Eto/etc. (expected without restore).
-- Service tests PASS: hover/definition/references/document+workspace symbols.
-- Service log: `test-explore/logs/dwsim-service-tests-20260120-103802.jsonl`.
-
-### 2026-01-20 — VS Code DWSIM smoke (headless)
-
-Command (from `test-explore/clients/vscode`):
-- `VBNET_DWSIM=1 SKIP_VBNET_SMOKE=1 SKIP_VBNET_DEBUG=1 FIXTURE_WORKSPACE=_external\dwsim npm test`
-
-Outcome: PASS (5 passing, 4 pending)
-Notes:
-- DWSIM navigation probes succeeded (hover/definition/references/symbols).
-- VS Code harness also ran workspace-open + connection health checks.
-
-### 2026-01-20 — VS Code DWSIM smoke (headless, timing)
-
-Command (from `test-explore/clients/vscode`):
-- `VBNET_DWSIM=1 SKIP_VBNET_SMOKE=1 SKIP_VBNET_DEBUG=1 FIXTURE_WORKSPACE=_external\dwsim VBNET_TIMING_LOG=test-explore\logs\vscode-dwsim-timing-20260120-110500.jsonl npm test`
-
-Outcome: PASS (5 passing, 4 pending)
-Notes:
-- Timing log: `test-explore/logs/vscode-dwsim-timing-20260120-110500.jsonl`.
+- Snapshot: `test-explore/vbnet-lsp/snapshots/20260120-220644`.
