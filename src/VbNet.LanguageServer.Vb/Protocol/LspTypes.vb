@@ -247,6 +247,9 @@ Namespace Protocol
         <JsonPropertyName("typeDefinitionProvider")>
         Public Property TypeDefinitionProvider As Boolean?
 
+        <JsonPropertyName("implementationProvider")>
+        Public Property ImplementationProvider As Boolean?
+
         <JsonPropertyName("callHierarchyProvider")>
         Public Property CallHierarchyProvider As Boolean?
 
@@ -319,6 +322,14 @@ Namespace Protocol
 #Region "Type Definition"
 
     Public Class TypeDefinitionParams
+        Inherits TextDocumentPositionParams
+    End Class
+
+#End Region
+
+#Region "Implementation"
+
+    Public Class ImplementationParams
         Inherits TextDocumentPositionParams
     End Class
 

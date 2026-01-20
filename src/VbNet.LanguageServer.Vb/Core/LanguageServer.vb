@@ -44,6 +44,7 @@ Namespace Core
         Private ReadOnly _documentHighlightService As DocumentHighlightService
         Private ReadOnly _selectionRangeService As SelectionRangeService
         Private ReadOnly _typeDefinitionService As TypeDefinitionService
+        Private ReadOnly _implementationService As ImplementationService
 
         Private _state As ServerState = ServerState.NotStarted
         Private _initializeParams As InitializeParams
@@ -171,6 +172,11 @@ Namespace Core
                 _workspaceManager,
                 _documentManager,
                 loggerFactory.CreateLogger(Of TypeDefinitionService)())
+
+            _implementationService = New ImplementationService(
+                _workspaceManager,
+                _documentManager,
+                loggerFactory.CreateLogger(Of ImplementationService)())
 
             RegisterHandlers()
         End Sub
@@ -375,6 +381,7 @@ Namespace Core
             _dispatcher.RegisterRequest(Of TextDocumentDiagnosticParams, DocumentDiagnosticReport)("textDocument/diagnostic", AddressOf HandleTextDocumentDiagnosticAsync)
             _dispatcher.RegisterRequest(Of WorkspaceDiagnosticParams, WorkspaceDiagnosticReport)("workspace/diagnostic", AddressOf HandleWorkspaceDiagnosticAsync)
             _dispatcher.RegisterRequest(Of TypeDefinitionParams, Location())("textDocument/typeDefinition", AddressOf HandleTypeDefinitionAsync)
+            _dispatcher.RegisterRequest(Of ImplementationParams, Location())("textDocument/implementation", AddressOf HandleImplementationAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall())("callHierarchy/incomingCalls", AddressOf HandleIncomingCallsAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall())("callHierarchy/outgoingCalls", AddressOf HandleOutgoingCallsAsync)
@@ -911,6 +918,14 @@ Namespace Core
             Return Await _typeDefinitionService.GetTypeDefinitionAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandleImplementationAsync(parameters As ImplementationParams, ct As CancellationToken) As Task(Of Location())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of Location)()
+            End If
+
+            Return Await _implementationService.GetImplementationAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
         Private Async Function HandlePrepareCallHierarchyAsync(parameters As CallHierarchyPrepareParams, ct As CancellationToken) As Task(Of CallHierarchyItem())
             If parameters Is Nothing Then
                 Return Array.Empty(Of CallHierarchyItem)()
@@ -1009,6 +1024,7 @@ Namespace Core
                 .CallHierarchyProvider = True,
                 .TypeHierarchyProvider = True,
                 .TypeDefinitionProvider = True,
+                .ImplementationProvider = True,
                 .FoldingRangeProvider = True,
                 .DocumentFormattingProvider = True,
                 .DocumentRangeFormattingProvider = True

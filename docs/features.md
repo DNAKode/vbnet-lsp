@@ -96,6 +96,7 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 | `workspace/symbol` | Implemented | Phase 1 | Workspace symbol search |
 | `textDocument/definition` | Implemented | Phase 1 | Go to definition |
 | `textDocument/typeDefinition` | Implemented | Phase 3 | Go to type definition |
+| `textDocument/implementation` | Implemented | Phase 3 | Go to implementation |
 | `textDocument/references` | Implemented | Phase 1 | Find all references |
 | `textDocument/rename` | Implemented | Phase 1 | Rename with prepare |
 | `textDocument/documentHighlight` | Implemented | Phase 3 | Highlight symbol usage in document |
