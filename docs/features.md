@@ -3,14 +3,14 @@
 **`VB.NET` Language Support - LSP Features and Roadmap**
 
 Version: 2.6  
-Last Updated: 2026-01-18
+Last Updated: 2026-01-20
 
 ## 1. Overview
 
 This document provides a concise view of LSP features supported by `VB.NET` Language Support, their implementation status, and roadmap.
 
 **Current Phase**: Phase 2 (Baseline complete)  
-**Test Coverage**: 136 tests passing
+**Test Coverage**: 139 tests (call hierarchy added; full suite run pending)
 
 ## 2. Feature Status Legend
 
@@ -96,6 +96,9 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 | `textDocument/definition` | Implemented | Phase 1 | Go to definition |
 | `textDocument/references` | Implemented | Phase 1 | Find all references |
 | `textDocument/rename` | Implemented | Phase 1 | Rename with prepare |
+| `textDocument/prepareCallHierarchy` | Implemented | Phase 3 | Prepare call hierarchy |
+| `callHierarchy/incomingCalls` | Implemented | Phase 3 | Incoming calls |
+| `callHierarchy/outgoingCalls` | Implemented | Phase 3 | Outgoing calls |
 
 ### Semantic Tokens
 
@@ -118,5 +121,5 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 
 ## 5. Roadmap (Next)
 
-Phase 3 focuses on inlay hints, call/type hierarchy, code lens (if valuable), test explorer integration, and performance tuning.
+Phase 3 focuses on type hierarchy, test explorer integration, and performance tuning. Inlay hints and code lens are deferred pending stable Roslyn public APIs.
 

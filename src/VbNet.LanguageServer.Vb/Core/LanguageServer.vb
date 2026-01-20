@@ -39,6 +39,7 @@ Namespace Core
         Private ReadOnly _signatureHelpService As SignatureHelpService
         Private ReadOnly _semanticTokensService As SemanticTokensService
         Private ReadOnly _codeActionsService As CodeActionsService
+        Private ReadOnly _callHierarchyService As CallHierarchyService
 
         Private _state As ServerState = ServerState.NotStarted
         Private _initializeParams As InitializeParams
@@ -142,6 +143,11 @@ Namespace Core
                 _workspaceManager,
                 _documentManager,
                 loggerFactory.CreateLogger(Of CodeActionsService)())
+
+            _callHierarchyService = New CallHierarchyService(
+                _workspaceManager,
+                _documentManager,
+                loggerFactory.CreateLogger(Of CallHierarchyService)())
 
             RegisterHandlers()
         End Sub
@@ -340,6 +346,9 @@ Namespace Core
             _dispatcher.RegisterRequest(Of SemanticTokensParams, SemanticTokens)("textDocument/semanticTokens/full", AddressOf HandleSemanticTokensAsync)
             _dispatcher.RegisterRequest(Of SemanticTokensRangeParams, SemanticTokens)("textDocument/semanticTokens/range", AddressOf HandleSemanticTokensRangeAsync)
             _dispatcher.RegisterRequest(Of CodeActionParams, CodeAction())("textDocument/codeAction", AddressOf HandleCodeActionAsync)
+            _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
+            _dispatcher.RegisterRequest(Of CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall())("callHierarchy/incomingCalls", AddressOf HandleIncomingCallsAsync)
+            _dispatcher.RegisterRequest(Of CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall())("callHierarchy/outgoingCalls", AddressOf HandleOutgoingCallsAsync)
 
             _logger.LogDebug("All LSP handlers registered")
         End Sub
@@ -826,6 +835,30 @@ Namespace Core
             Return Await _codeActionsService.GetCodeActionsAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandlePrepareCallHierarchyAsync(parameters As CallHierarchyPrepareParams, ct As CancellationToken) As Task(Of CallHierarchyItem())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of CallHierarchyItem)()
+            End If
+
+            Return Await _callHierarchyService.PrepareCallHierarchyAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function HandleIncomingCallsAsync(parameters As CallHierarchyIncomingCallsParams, ct As CancellationToken) As Task(Of CallHierarchyIncomingCall())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of CallHierarchyIncomingCall)()
+            End If
+
+            Return Await _callHierarchyService.GetIncomingCallsAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function HandleOutgoingCallsAsync(parameters As CallHierarchyOutgoingCallsParams, ct As CancellationToken) As Task(Of CallHierarchyOutgoingCall())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of CallHierarchyOutgoingCall)()
+            End If
+
+            Return Await _callHierarchyService.GetOutgoingCallsAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
 #End Region
 
 #Region "Diagnostics"
@@ -869,6 +902,7 @@ Namespace Core
                     .CodeActionKinds = New String() {CodeActionKind.Source},
                     .ResolveProvider = False
                 },
+                .CallHierarchyProvider = True,
                 .FoldingRangeProvider = True,
                 .DocumentFormattingProvider = True,
                 .DocumentRangeFormattingProvider = True

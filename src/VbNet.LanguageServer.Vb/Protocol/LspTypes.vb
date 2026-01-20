@@ -237,6 +237,9 @@ Namespace Protocol
 
         <JsonPropertyName("documentRangeFormattingProvider")>
         Public Property DocumentRangeFormattingProvider As Boolean?
+
+        <JsonPropertyName("callHierarchyProvider")>
+        Public Property CallHierarchyProvider As Boolean?
     End Class
 
     Public Class TextDocumentSyncOptions
@@ -272,6 +275,70 @@ Namespace Protocol
     Public Class RenameOptions
         <JsonPropertyName("prepareProvider")>
         Public Property PrepareProvider As Boolean?
+    End Class
+
+#End Region
+
+#Region "Call Hierarchy"
+
+    Public Class CallHierarchyPrepareParams
+        Inherits TextDocumentPositionParams
+    End Class
+
+    Public Class CallHierarchyIncomingCallsParams
+        <JsonPropertyName("item")>
+        Public Property Item As CallHierarchyItem = New CallHierarchyItem()
+    End Class
+
+    Public Class CallHierarchyOutgoingCallsParams
+        <JsonPropertyName("item")>
+        Public Property Item As CallHierarchyItem = New CallHierarchyItem()
+    End Class
+
+    Public Class CallHierarchyItem
+        <JsonPropertyName("name")>
+        Public Property Name As String = String.Empty
+
+        <JsonPropertyName("kind")>
+        Public Property Kind As SymbolKind
+
+        <JsonPropertyName("tags")>
+        Public Property Tags As SymbolTag()
+
+        <JsonPropertyName("detail")>
+        Public Property Detail As String
+
+        <JsonPropertyName("uri")>
+        Public Property Uri As String = String.Empty
+
+        <JsonPropertyName("range")>
+        Public Property Range As Range = New Range()
+
+        <JsonPropertyName("selectionRange")>
+        Public Property SelectionRange As Range = New Range()
+
+        <JsonPropertyName("data")>
+        Public Property Data As Object
+    End Class
+
+    Public Enum SymbolTag
+        Deprecated = 1
+    End Enum
+
+    Public Class CallHierarchyIncomingCall
+        <JsonPropertyName("from")>
+        Public Property [From] As CallHierarchyItem = New CallHierarchyItem()
+
+        <JsonPropertyName("fromRanges")>
+        Public Property FromRanges As Range() = Array.Empty(Of Range)()
+    End Class
+
+    Public Class CallHierarchyOutgoingCall
+        <JsonPropertyName("to")>
+        Public Property [To] As CallHierarchyItem = New CallHierarchyItem()
+
+        <JsonPropertyName("fromRanges")>
+        Public Property FromRanges As Range() = Array.Empty(Of Range)()
     End Class
 
 #End Region
