@@ -43,7 +43,8 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 | Syntax errors | Implemented | Phase 1 | Via Roslyn parser |
 | Semantic errors | Implemented | Phase 1 | Via Roslyn semantic analysis |
 | Analyzer diagnostics | Implemented | Phase 1 | Roslyn analyzer support |
-| `workspace/diagnostic` (pull model) | Not Planned | N/A | Defer to future phases |
+| `textDocument/diagnostic` (pull model) | Implemented | Phase 3 | Pull diagnostics for a document |
+| `workspace/diagnostic` (pull model) | Implemented | Phase 3 | Pull diagnostics for workspace |
 
 **Debouncing**: 300ms default (configurable via `vbnet.debounceMs`)
 

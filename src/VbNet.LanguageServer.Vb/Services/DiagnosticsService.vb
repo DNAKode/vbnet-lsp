@@ -212,6 +212,64 @@ Namespace Services
 
             Return lspDiagnostics
         End Function
+
+        ''' <summary>
+        ''' Gets pull diagnostics for a single document.
+        ''' </summary>
+        Public Async Function GetDocumentDiagnosticsReportAsync(parameters As TextDocumentDiagnosticParams, Optional cancellationToken As CancellationToken = Nothing) As Task(Of DocumentDiagnosticReport)
+            If parameters Is Nothing OrElse parameters.TextDocument Is Nothing Then
+                Return New DocumentDiagnosticReport()
+            End If
+
+            Dim uri = parameters.TextDocument.Uri
+            Dim diagnostics = Await GetDiagnosticsAsync(uri, cancellationToken).ConfigureAwait(False)
+
+            Return New DocumentDiagnosticReport With {
+                .Kind = "full",
+                .Items = diagnostics
+            }
+        End Function
+
+        ''' <summary>
+        ''' Gets pull diagnostics for all documents in the workspace.
+        ''' </summary>
+        Public Async Function GetWorkspaceDiagnosticsReportAsync(parameters As WorkspaceDiagnosticParams, Optional cancellationToken As CancellationToken = Nothing) As Task(Of WorkspaceDiagnosticReport)
+            Dim solution = _workspaceManager.CurrentSolution
+            If solution Is Nothing Then
+                Return New WorkspaceDiagnosticReport()
+            End If
+
+            Dim items As New List(Of WorkspaceDocumentDiagnosticReport)()
+
+            For Each project In _workspaceManager.GetVbNetProjects()
+                cancellationToken.ThrowIfCancellationRequested()
+
+                For Each document In project.Documents
+                    cancellationToken.ThrowIfCancellationRequested()
+
+                    If String.IsNullOrEmpty(document.FilePath) Then
+                        Continue For
+                    End If
+
+                    Dim uri = PathToUri(document.FilePath)
+                    Dim diagnostics = Await GetDiagnosticsAsync(uri, cancellationToken).ConfigureAwait(False)
+
+                    Dim openDoc = _documentManager.GetOpenDocument(uri)
+                    Dim version As Integer? = If(openDoc Is Nothing, Nothing, openDoc.Version)
+
+                    items.Add(New WorkspaceDocumentDiagnosticReport With {
+                        .Uri = uri,
+                        .Version = version,
+                        .Kind = "full",
+                        .Items = diagnostics
+                    })
+                Next
+            Next
+
+            Return New WorkspaceDiagnosticReport With {
+                .Items = items.ToArray()
+            }
+        End Function
         Private Async Function GetProjectDiagnosticsAsync(document As Document, cancellationToken As CancellationToken) As Task(Of Protocol.Diagnostic())
             Dim syntaxTree = Await document.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(False)
             If syntaxTree Is Nothing Then

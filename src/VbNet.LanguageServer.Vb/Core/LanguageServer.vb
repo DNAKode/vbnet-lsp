@@ -353,6 +353,8 @@ Namespace Core
             _dispatcher.RegisterRequest(Of SemanticTokensRangeParams, SemanticTokens)("textDocument/semanticTokens/range", AddressOf HandleSemanticTokensRangeAsync)
             _dispatcher.RegisterRequest(Of CodeActionParams, CodeAction())("textDocument/codeAction", AddressOf HandleCodeActionAsync)
             _dispatcher.RegisterRequest(Of CodeAction, CodeAction)("codeAction/resolve", AddressOf HandleCodeActionResolveAsync)
+            _dispatcher.RegisterRequest(Of TextDocumentDiagnosticParams, DocumentDiagnosticReport)("textDocument/diagnostic", AddressOf HandleTextDocumentDiagnosticAsync)
+            _dispatcher.RegisterRequest(Of WorkspaceDiagnosticParams, WorkspaceDiagnosticReport)("workspace/diagnostic", AddressOf HandleWorkspaceDiagnosticAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall())("callHierarchy/incomingCalls", AddressOf HandleIncomingCallsAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall())("callHierarchy/outgoingCalls", AddressOf HandleOutgoingCallsAsync)
@@ -853,6 +855,18 @@ Namespace Core
             Return Await _codeActionsService.ResolveCodeActionAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandleTextDocumentDiagnosticAsync(parameters As TextDocumentDiagnosticParams, ct As CancellationToken) As Task(Of DocumentDiagnosticReport)
+            If parameters Is Nothing Then
+                Return New DocumentDiagnosticReport()
+            End If
+
+            Return Await _diagnosticsService.GetDocumentDiagnosticsReportAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function HandleWorkspaceDiagnosticAsync(parameters As WorkspaceDiagnosticParams, ct As CancellationToken) As Task(Of WorkspaceDiagnosticReport)
+            Return Await _diagnosticsService.GetWorkspaceDiagnosticsReportAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
         Private Async Function HandlePrepareCallHierarchyAsync(parameters As CallHierarchyPrepareParams, ct As CancellationToken) As Task(Of CallHierarchyItem())
             If parameters Is Nothing Then
                 Return Array.Empty(Of CallHierarchyItem)()
@@ -941,6 +955,11 @@ Namespace Core
                 },
                 .SemanticTokensProvider = SemanticTokensService.GetDefaultOptions(),
                 .CodeActionProvider = CodeActionsService.GetDefaultOptions(),
+                .DiagnosticProvider = New DiagnosticOptions With {
+                    .Identifier = "vbnet",
+                    .InterFileDependencies = True,
+                    .WorkspaceDiagnostics = True
+                },
                 .CallHierarchyProvider = True,
                 .TypeHierarchyProvider = True,
                 .FoldingRangeProvider = True,

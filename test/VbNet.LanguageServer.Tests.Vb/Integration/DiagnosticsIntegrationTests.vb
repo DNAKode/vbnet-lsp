@@ -315,6 +315,68 @@ Namespace VbNet.LanguageServer.Tests.Integration
 
             Assert.All(diagnostics, Sub(d) Assert.Equal(DiagnosticSeverity.Error, d.Severity))
         End Function
+
+        <Fact>
+        Public Async Function GetDocumentDiagnosticsReportAsync_ReturnsDiagnostics() As Task
+            Dim projectPath = Path.Combine(TestProjectsRoot, "ErrorProject", "ErrorProject.vbproj")
+            Dim errorClassPath = Path.Combine(TestProjectsRoot, "ErrorProject", "ErrorClass.vb")
+
+            If Not File.Exists(projectPath) Then
+                Return
+            End If
+
+            Await _workspaceManager.LoadProjectAsync(projectPath)
+
+            Dim errorClassUri = New Uri(errorClassPath).ToString()
+            Dim text = Await File.ReadAllTextAsync(errorClassPath)
+
+            _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                .TextDocument = New TextDocumentItem With {
+                    .Uri = errorClassUri,
+                    .LanguageId = "vb",
+                    .Version = 1,
+                    .Text = text
+                }
+            })
+
+            Dim report = Await _diagnosticsService.GetDocumentDiagnosticsReportAsync(New TextDocumentDiagnosticParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = errorClassUri}
+            })
+
+            Assert.NotNull(report)
+            Assert.Equal("full", report.Kind)
+            Assert.NotEmpty(report.Items)
+        End Function
+
+        <Fact>
+        Public Async Function GetWorkspaceDiagnosticsReportAsync_ReturnsWorkspaceItems() As Task
+            Dim projectPath = Path.Combine(TestProjectsRoot, "ErrorProject", "ErrorProject.vbproj")
+            Dim errorClassPath = Path.Combine(TestProjectsRoot, "ErrorProject", "ErrorClass.vb")
+
+            If Not File.Exists(projectPath) Then
+                Return
+            End If
+
+            Await _workspaceManager.LoadProjectAsync(projectPath)
+
+            Dim errorClassUri = New Uri(errorClassPath).ToString()
+            Dim text = Await File.ReadAllTextAsync(errorClassPath)
+
+            _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                .TextDocument = New TextDocumentItem With {
+                    .Uri = errorClassUri,
+                    .LanguageId = "vb",
+                    .Version = 1,
+                    .Text = text
+                }
+            })
+
+            Dim report = Await _diagnosticsService.GetWorkspaceDiagnosticsReportAsync(New WorkspaceDiagnosticParams())
+
+            Assert.NotNull(report)
+            Assert.NotEmpty(report.Items)
+            Assert.Contains(report.Items, Function(item) item.Uri = errorClassUri AndAlso item.Items.Length > 0)
+        End Function
     End Class
 
 End Namespace

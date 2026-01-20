@@ -243,6 +243,9 @@ Namespace Protocol
 
         <JsonPropertyName("typeHierarchyProvider")>
         Public Property TypeHierarchyProvider As Boolean?
+
+        <JsonPropertyName("diagnosticProvider")>
+        Public Property DiagnosticProvider As DiagnosticOptions
     End Class
 
     Public Class TextDocumentSyncOptions
@@ -429,6 +432,81 @@ Namespace Protocol
 
         <JsonPropertyName("full")>
         Public Property Full As Boolean?
+    End Class
+
+#End Region
+
+#Region "Diagnostics Pull"
+
+    Public Class DiagnosticOptions
+        <JsonPropertyName("identifier")>
+        Public Property Identifier As String
+
+        <JsonPropertyName("interFileDependencies")>
+        Public Property InterFileDependencies As Boolean?
+
+        <JsonPropertyName("workspaceDiagnostics")>
+        Public Property WorkspaceDiagnostics As Boolean?
+    End Class
+
+    Public Class TextDocumentDiagnosticParams
+        <JsonPropertyName("textDocument")>
+        Public Property TextDocument As TextDocumentIdentifier = New TextDocumentIdentifier()
+
+        <JsonPropertyName("identifier")>
+        Public Property Identifier As String
+
+        <JsonPropertyName("previousResultId")>
+        Public Property PreviousResultId As String
+    End Class
+
+    Public Class WorkspaceDiagnosticParams
+        <JsonPropertyName("identifier")>
+        Public Property Identifier As String
+
+        <JsonPropertyName("previousResultIds")>
+        Public Property PreviousResultIds As PreviousResultId() = Array.Empty(Of PreviousResultId)()
+    End Class
+
+    Public Class PreviousResultId
+        <JsonPropertyName("uri")>
+        Public Property Uri As String = String.Empty
+
+        <JsonPropertyName("value")>
+        Public Property Value As String
+    End Class
+
+    Public Class DocumentDiagnosticReport
+        <JsonPropertyName("kind")>
+        Public Property Kind As String = "full"
+
+        <JsonPropertyName("resultId")>
+        Public Property ResultId As String
+
+        <JsonPropertyName("items")>
+        Public Property Items As Diagnostic() = Array.Empty(Of Diagnostic)()
+    End Class
+
+    Public Class WorkspaceDiagnosticReport
+        <JsonPropertyName("items")>
+        Public Property Items As WorkspaceDocumentDiagnosticReport() = Array.Empty(Of WorkspaceDocumentDiagnosticReport)()
+    End Class
+
+    Public Class WorkspaceDocumentDiagnosticReport
+        <JsonPropertyName("uri")>
+        Public Property Uri As String = String.Empty
+
+        <JsonPropertyName("version")>
+        Public Property Version As Integer?
+
+        <JsonPropertyName("kind")>
+        Public Property Kind As String = "full"
+
+        <JsonPropertyName("resultId")>
+        Public Property ResultId As String
+
+        <JsonPropertyName("items")>
+        Public Property Items As Diagnostic() = Array.Empty(Of Diagnostic)()
     End Class
 
 #End Region
