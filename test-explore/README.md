@@ -22,7 +22,7 @@ Exploratory, headless, and multi-environment harnesses for `VB.NET` language sup
 
 ## Quick entry points
 
-- `test-explore/run-tests.ps1`
+- `test-explore/run-tests.ps1` (supports themes: `core`, `editors`, `scale`, `all`)
 - `test-explore/vbnet-lsp/run-tests.ps1`
 - `test-explore/clients/vscode/README.md`
 - `test-explore/clients/emacs/README.md`

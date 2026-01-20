@@ -1,5 +1,6 @@
 param(
-    [ValidateSet('vbnet-lsp','emacs','dwsim','all')][string]$Suite = 'all',
+    [ValidateSet('vbnet-lsp','emacs','dwsim','vscode','vscode-dwsim','all')][string]$Suite = 'all',
+    [ValidateSet('core','editors','scale','all')][string]$Theme,
     [ValidateSet('pipe','stdio')][string]$Transport = 'pipe',
     [string]$ProtocolLogPath = 'test-explore\logs\protocol-anomalies.jsonl'
 )
@@ -17,17 +18,74 @@ if (Test-Path $protocolLogFullPath) {
     New-Item -ItemType File -Path $protocolLogFullPath -Force | Out-Null
 }
 
-switch ($Suite) {
-    'vbnet-lsp' { & test-explore\vbnet-lsp\run-tests.ps1 }
-    'emacs' { & test-explore\clients\emacs\run-tests.ps1 }
-    'dwsim' { & test-explore\dwsim\run-tests.ps1 }
-    'all' {
-        & test-explore\vbnet-lsp\run-tests.ps1
-        & test-explore\clients\emacs\run-tests.ps1
-        & test-explore\dwsim\run-tests.ps1
+function Invoke-Suite {
+    param([string]$Name)
+
+    switch ($Name) {
+        'vbnet-lsp' { & test-explore\vbnet-lsp\run-tests.ps1 }
+        'emacs' { & test-explore\clients\emacs\run-tests.ps1 }
+        'dwsim' { & test-explore\dwsim\run-tests.ps1 }
+        'vscode' {
+            Push-Location test-explore\clients\vscode
+            try {
+                npm test
+            } finally {
+                Pop-Location
+            }
+        }
+        'vscode-dwsim' {
+            $original = @{
+                VBNET_DWSIM = $env:VBNET_DWSIM
+                FIXTURE_WORKSPACE = $env:FIXTURE_WORKSPACE
+                SKIP_VBNET_SMOKE = $env:SKIP_VBNET_SMOKE
+                SKIP_VBNET_DEBUG = $env:SKIP_VBNET_DEBUG
+            }
+            $env:VBNET_DWSIM = '1'
+            $env:FIXTURE_WORKSPACE = '_external\dwsim'
+            $env:SKIP_VBNET_SMOKE = '1'
+            $env:SKIP_VBNET_DEBUG = '1'
+            Push-Location test-explore\clients\vscode
+            try {
+                npm test
+            } finally {
+                Pop-Location
+                $env:VBNET_DWSIM = $original.VBNET_DWSIM
+                $env:FIXTURE_WORKSPACE = $original.FIXTURE_WORKSPACE
+                $env:SKIP_VBNET_SMOKE = $original.SKIP_VBNET_SMOKE
+                $env:SKIP_VBNET_DEBUG = $original.SKIP_VBNET_DEBUG
+            }
+        }
+        'all' {
+            Invoke-Suite 'vbnet-lsp'
+            Invoke-Suite 'emacs'
+            Invoke-Suite 'dwsim'
+        }
     }
 }
 
-$runLabel = if ($Suite -eq 'all') { "Suite=all Transport=$Transport" } else { "Suite=$Suite Transport=$Transport" }
+if ($Theme) {
+    switch ($Theme) {
+        'core' { Invoke-Suite 'vbnet-lsp' }
+        'editors' {
+            Invoke-Suite 'emacs'
+            Invoke-Suite 'vscode'
+        }
+        'scale' {
+            Invoke-Suite 'dwsim'
+            Invoke-Suite 'vscode-dwsim'
+        }
+        'all' {
+            Invoke-Suite 'vbnet-lsp'
+            Invoke-Suite 'emacs'
+            Invoke-Suite 'vscode'
+            Invoke-Suite 'dwsim'
+            Invoke-Suite 'vscode-dwsim'
+        }
+    }
+} else {
+    Invoke-Suite $Suite
+}
+
+$runLabel = if ($Theme) { "Theme=$Theme Transport=$Transport" } elseif ($Suite -eq 'all') { "Suite=all Transport=$Transport" } else { "Suite=$Suite Transport=$Transport" }
 & test-explore\Update-TestResults.ps1 -ProtocolLogPath $protocolLogFullPath -RunLabel $runLabel
 

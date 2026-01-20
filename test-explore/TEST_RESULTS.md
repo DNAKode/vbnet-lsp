@@ -112,3 +112,13 @@ Notes:
 - MSBuild reported missing NuGet targets for SkiaSharp/Eto/etc. (expected without restore).
 - Service tests PASS: hover/definition/references/document+workspace symbols.
 - Service log: `test-explore/logs/dwsim-service-tests-20260120-103802.jsonl`.
+
+### 2026-01-20 — VS Code DWSIM smoke (headless)
+
+Command (from `test-explore/clients/vscode`):
+- `VBNET_DWSIM=1 SKIP_VBNET_SMOKE=1 SKIP_VBNET_DEBUG=1 FIXTURE_WORKSPACE=_external\dwsim npm test`
+
+Outcome: PASS (5 passing, 4 pending)
+Notes:
+- DWSIM navigation probes succeeded (hover/definition/references/symbols).
+- VS Code harness also ran workspace-open + connection health checks.
