@@ -42,6 +42,8 @@ Namespace Core
         Private ReadOnly _callHierarchyService As CallHierarchyService
         Private ReadOnly _typeHierarchyService As TypeHierarchyService
         Private ReadOnly _documentHighlightService As DocumentHighlightService
+        Private ReadOnly _selectionRangeService As SelectionRangeService
+        Private ReadOnly _typeDefinitionService As TypeDefinitionService
 
         Private _state As ServerState = ServerState.NotStarted
         Private _initializeParams As InitializeParams
@@ -160,6 +162,15 @@ Namespace Core
                 _workspaceManager,
                 _documentManager,
                 loggerFactory.CreateLogger(Of DocumentHighlightService)())
+
+            _selectionRangeService = New SelectionRangeService(
+                _documentManager,
+                loggerFactory.CreateLogger(Of SelectionRangeService)())
+
+            _typeDefinitionService = New TypeDefinitionService(
+                _workspaceManager,
+                _documentManager,
+                loggerFactory.CreateLogger(Of TypeDefinitionService)())
 
             RegisterHandlers()
         End Sub
@@ -360,8 +371,10 @@ Namespace Core
             _dispatcher.RegisterRequest(Of CodeActionParams, CodeAction())("textDocument/codeAction", AddressOf HandleCodeActionAsync)
             _dispatcher.RegisterRequest(Of CodeAction, CodeAction)("codeAction/resolve", AddressOf HandleCodeActionResolveAsync)
             _dispatcher.RegisterRequest(Of DocumentHighlightParams, DocumentHighlight())("textDocument/documentHighlight", AddressOf HandleDocumentHighlightAsync)
+            _dispatcher.RegisterRequest(Of SelectionRangeParams, SelectionRange())("textDocument/selectionRange", AddressOf HandleSelectionRangeAsync)
             _dispatcher.RegisterRequest(Of TextDocumentDiagnosticParams, DocumentDiagnosticReport)("textDocument/diagnostic", AddressOf HandleTextDocumentDiagnosticAsync)
             _dispatcher.RegisterRequest(Of WorkspaceDiagnosticParams, WorkspaceDiagnosticReport)("workspace/diagnostic", AddressOf HandleWorkspaceDiagnosticAsync)
+            _dispatcher.RegisterRequest(Of TypeDefinitionParams, Location())("textDocument/typeDefinition", AddressOf HandleTypeDefinitionAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall())("callHierarchy/incomingCalls", AddressOf HandleIncomingCallsAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall())("callHierarchy/outgoingCalls", AddressOf HandleOutgoingCallsAsync)
@@ -870,6 +883,14 @@ Namespace Core
             Return Await _documentHighlightService.GetDocumentHighlightsAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandleSelectionRangeAsync(parameters As SelectionRangeParams, ct As CancellationToken) As Task(Of SelectionRange())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of SelectionRange)()
+            End If
+
+            Return Await _selectionRangeService.GetSelectionRangesAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
         Private Async Function HandleTextDocumentDiagnosticAsync(parameters As TextDocumentDiagnosticParams, ct As CancellationToken) As Task(Of DocumentDiagnosticReport)
             If parameters Is Nothing Then
                 Return New DocumentDiagnosticReport()
@@ -880,6 +901,14 @@ Namespace Core
 
         Private Async Function HandleWorkspaceDiagnosticAsync(parameters As WorkspaceDiagnosticParams, ct As CancellationToken) As Task(Of WorkspaceDiagnosticReport)
             Return Await _diagnosticsService.GetWorkspaceDiagnosticsReportAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function HandleTypeDefinitionAsync(parameters As TypeDefinitionParams, ct As CancellationToken) As Task(Of Location())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of Location)()
+            End If
+
+            Return Await _typeDefinitionService.GetTypeDefinitionAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
         Private Async Function HandlePrepareCallHierarchyAsync(parameters As CallHierarchyPrepareParams, ct As CancellationToken) As Task(Of CallHierarchyItem())
@@ -971,6 +1000,7 @@ Namespace Core
                 .SemanticTokensProvider = SemanticTokensService.GetDefaultOptions(),
                 .CodeActionProvider = CodeActionsService.GetDefaultOptions(),
                 .DocumentHighlightProvider = True,
+                .SelectionRangeProvider = True,
                 .DiagnosticProvider = New DiagnosticOptions With {
                     .Identifier = "vbnet",
                     .InterFileDependencies = True,
@@ -978,6 +1008,7 @@ Namespace Core
                 },
                 .CallHierarchyProvider = True,
                 .TypeHierarchyProvider = True,
+                .TypeDefinitionProvider = True,
                 .FoldingRangeProvider = True,
                 .DocumentFormattingProvider = True,
                 .DocumentRangeFormattingProvider = True

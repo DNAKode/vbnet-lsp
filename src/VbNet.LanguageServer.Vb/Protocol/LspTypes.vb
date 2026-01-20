@@ -232,6 +232,9 @@ Namespace Protocol
         <JsonPropertyName("documentHighlightProvider")>
         Public Property DocumentHighlightProvider As Boolean?
 
+        <JsonPropertyName("selectionRangeProvider")>
+        Public Property SelectionRangeProvider As Boolean?
+
         <JsonPropertyName("foldingRangeProvider")>
         Public Property FoldingRangeProvider As Boolean?
 
@@ -240,6 +243,9 @@ Namespace Protocol
 
         <JsonPropertyName("documentRangeFormattingProvider")>
         Public Property DocumentRangeFormattingProvider As Boolean?
+
+        <JsonPropertyName("typeDefinitionProvider")>
+        Public Property TypeDefinitionProvider As Boolean?
 
         <JsonPropertyName("callHierarchyProvider")>
         Public Property CallHierarchyProvider As Boolean?
@@ -287,6 +293,34 @@ Namespace Protocol
         Read = 2
         Write = 3
     End Enum
+
+#End Region
+
+#Region "Selection Range"
+
+    Public Class SelectionRangeParams
+        <JsonPropertyName("textDocument")>
+        Public Property TextDocument As TextDocumentIdentifier = New TextDocumentIdentifier()
+
+        <JsonPropertyName("positions")>
+        Public Property Positions As Position() = Array.Empty(Of Position)()
+    End Class
+
+    Public Class SelectionRange
+        <JsonPropertyName("range")>
+        Public Property Range As Range = New Range()
+
+        <JsonPropertyName("parent")>
+        Public Property Parent As SelectionRange
+    End Class
+
+#End Region
+
+#Region "Type Definition"
+
+    Public Class TypeDefinitionParams
+        Inherits TextDocumentPositionParams
+    End Class
 
 #End Region
 
