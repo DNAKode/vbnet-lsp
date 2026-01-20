@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### Added
+- _None yet._
+
+### Changed
+- _None yet._
+
+### Fixed
+- _None yet._
+
+### Known issues
+- _None yet._
+
+## 0.1.7
+
+### Added
 - Advanced navigation: call hierarchy, type hierarchy, type definition, implementation.
 - Document highlight, selection range, and document link support.
 - Pull diagnostics (`textDocument/diagnostic`, `workspace/diagnostic`).
@@ -19,9 +33,6 @@ All notable changes to this project will be documented in this file.
 - Diagnostic tags now surface `Unnecessary` and `Deprecated` where applicable.
 - Rename prepare uses identifier spans for better range precision.
 - Invalid server path override now falls back to bundled server.
-
-### Known issues
-- _None yet._
 
 ## 0.1.6
 

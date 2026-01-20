@@ -4,10 +4,13 @@ First-class Visual Basic (.NET) support for Visual Studio Code, powered by a cus
 
 ## Features
 - IntelliSense (completion, signature help, hover)
-- Diagnostics and quick fixes
+- Diagnostics (push + pull)
 - Formatting and rename
 - Symbol search and document symbols
 - Semantic tokens and folding
+- Type definition + implementation
+- Call/type hierarchy + document highlights
+- Selection ranges + document links
 - Debugging with bundled netcoredbg
 
 ## Getting Started

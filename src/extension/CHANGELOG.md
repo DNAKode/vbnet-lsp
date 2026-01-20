@@ -16,6 +16,24 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.7
+
+### Added
+- Advanced navigation: call hierarchy, type hierarchy, type definition, implementation.
+- Document highlight, selection range, and document link support.
+- Pull diagnostics (`textDocument/diagnostic`, `workspace/diagnostic`).
+- CodeAction resolve support.
+
+### Changed
+- Hover and signature help documentation formatting (summary/params/returns).
+- Completion sorting now respects Roslyn sortText with stable fallback.
+- Formatting defaults now honor trim/EOF options when omitted.
+
+### Fixed
+- Diagnostic tags now surface `Unnecessary` and `Deprecated` where applicable.
+- Rename prepare uses identifier spans for better range precision.
+- Invalid server path override now falls back to bundled server.
+
 ## 0.1.6
 
 ### Added

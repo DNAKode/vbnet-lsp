@@ -28,7 +28,7 @@
 ## Status
 
 **Current Phase:** Phase 3 - Advanced Navigation & Polish (in progress)
-**Version:** 0.1.6 (preview)
+**Version:** 0.1.7 (preview)
 **Status:** In active development
 
 ### Implemented Features
