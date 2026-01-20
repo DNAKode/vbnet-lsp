@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - User Configuration**
 
 Version: 1.1
-Last Updated: 2026-01-18
+Last Updated: 2026-01-20
 
 ## Table of Contents
 
@@ -76,6 +76,23 @@ Last Updated: 2026-01-18
 - `verbose`: Log full LSP message content
 
 View traces: "View > Output" > "`VB.NET` Language Support"
+
+---
+
+### Server Overrides (Advanced)
+
+#### `vbnet.server.path`
+**Type**: `string`
+**Default**: `""` (use bundled server)
+**Description**: Override the language server binary path. Recommended only for local development.
+
+```json
+{
+  "vbnet.server.path": "C:\\path\\to\\VbNet.LanguageServer.dll"
+}
+```
+
+**Note**: Prefer setting this in workspace settings when developing the server. For a new user experience, leave it unset so the extension uses the bundled server.
 
 ---
 
