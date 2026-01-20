@@ -895,6 +895,9 @@ Namespace Protocol
 
         <JsonPropertyName("isPreferred")>
         Public Property IsPreferred As Boolean?
+
+        <JsonPropertyName("data")>
+        Public Property Data As Object
     End Class
 
     Public Class CodeActionOptions

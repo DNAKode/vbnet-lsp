@@ -352,6 +352,7 @@ Namespace Core
             _dispatcher.RegisterRequest(Of SemanticTokensParams, SemanticTokens)("textDocument/semanticTokens/full", AddressOf HandleSemanticTokensAsync)
             _dispatcher.RegisterRequest(Of SemanticTokensRangeParams, SemanticTokens)("textDocument/semanticTokens/range", AddressOf HandleSemanticTokensRangeAsync)
             _dispatcher.RegisterRequest(Of CodeActionParams, CodeAction())("textDocument/codeAction", AddressOf HandleCodeActionAsync)
+            _dispatcher.RegisterRequest(Of CodeAction, CodeAction)("codeAction/resolve", AddressOf HandleCodeActionResolveAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall())("callHierarchy/incomingCalls", AddressOf HandleIncomingCallsAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall())("callHierarchy/outgoingCalls", AddressOf HandleOutgoingCallsAsync)
@@ -844,6 +845,14 @@ Namespace Core
             Return Await _codeActionsService.GetCodeActionsAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandleCodeActionResolveAsync(parameters As CodeAction, ct As CancellationToken) As Task(Of CodeAction)
+            If parameters Is Nothing Then
+                Return Nothing
+            End If
+
+            Return Await _codeActionsService.ResolveCodeActionAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
         Private Async Function HandlePrepareCallHierarchyAsync(parameters As CallHierarchyPrepareParams, ct As CancellationToken) As Task(Of CallHierarchyItem())
             If parameters Is Nothing Then
                 Return Array.Empty(Of CallHierarchyItem)()
@@ -931,10 +940,7 @@ Namespace Core
                     .RetriggerCharacters = New String() {","}
                 },
                 .SemanticTokensProvider = SemanticTokensService.GetDefaultOptions(),
-                .CodeActionProvider = New CodeActionOptions With {
-                    .CodeActionKinds = New String() {CodeActionKind.Source},
-                    .ResolveProvider = False
-                },
+                .CodeActionProvider = CodeActionsService.GetDefaultOptions(),
                 .CallHierarchyProvider = True,
                 .TypeHierarchyProvider = True,
                 .FoldingRangeProvider = True,

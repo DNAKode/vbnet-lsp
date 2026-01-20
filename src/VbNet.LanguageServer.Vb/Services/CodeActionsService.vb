@@ -3,6 +3,8 @@
 
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.Extensions.Logging
+Imports System.Text.Json
+Imports System.Text.Json.Serialization
 Imports VbNet.LanguageServer.Protocol
 Imports VbNet.LanguageServer.Workspace
 
@@ -37,7 +39,7 @@ Namespace Services
         Public Shared Function GetDefaultOptions() As CodeActionOptions
             Return New CodeActionOptions With {
                 .CodeActionKinds = SupportedKinds,
-                .ResolveProvider = False
+                .ResolveProvider = True
             }
         End Function
 
@@ -80,6 +82,20 @@ Namespace Services
             Return actions.ToArray()
         End Function
 
+        Public Function ResolveCodeActionAsync(action As CodeAction, cancellationToken As CancellationToken) As Task(Of CodeAction)
+            If action Is Nothing Then
+                Return Task.FromResult(Of CodeAction)(Nothing)
+            End If
+
+            Dim data = ParseResolveData(action.Data)
+            If data Is Nothing Then
+                Return Task.FromResult(action)
+            End If
+
+            action.Edit = BuildOptionEdit(data.Uri, data.InsertionLine, data.OptionText)
+            Return Task.FromResult(action)
+        End Function
+
         Private Shared Function ContainsOptionLine(sourceText As SourceText, optionPrefix As String) As Boolean
             For Each line In sourceText.Lines
                 Dim text = line.ToString().TrimStart()
@@ -116,8 +132,21 @@ Namespace Services
         End Function
 
         Private Shared Function BuildOptionAction(uri As String, insertionLine As Integer, optionText As String) As CodeAction
+            Return New CodeAction With {
+                .Title = $"Add {optionText}",
+                .Kind = CodeActionKind.Source,
+                .IsPreferred = True,
+                .Data = New CodeActionResolveData With {
+                    .Uri = uri,
+                    .InsertionLine = insertionLine,
+                    .OptionText = optionText
+                }
+            }
+        End Function
+
+        Private Shared Function BuildOptionEdit(uri As String, insertionLine As Integer, optionText As String) As WorkspaceEdit
             Dim newLine = Environment.NewLine
-            Dim edit = New WorkspaceEdit With {
+            Return New WorkspaceEdit With {
                 .Changes = New Dictionary(Of String, TextEdit()) From {
                     {uri, New TextEdit() {
                         New TextEdit With {
@@ -130,14 +159,40 @@ Namespace Services
                     }}
                 }
             }
-
-            Return New CodeAction With {
-                .Title = $"Add {optionText}",
-                .Kind = CodeActionKind.Source,
-                .Edit = edit,
-                .IsPreferred = True
-            }
         End Function
+
+        Private Shared Function ParseResolveData(data As Object) As CodeActionResolveData
+            If data Is Nothing Then
+                Return Nothing
+            End If
+
+            Dim resolved = TryCast(data, CodeActionResolveData)
+            If resolved IsNot Nothing Then
+                Return resolved
+            End If
+
+            If TypeOf data Is JsonElement Then
+                Dim element = DirectCast(data, JsonElement)
+                Try
+                    Return JsonSerializer.Deserialize(Of CodeActionResolveData)(element.GetRawText(), JsonSerializerOptionsProvider.Options)
+                Catch
+                    Return Nothing
+                End Try
+            End If
+
+            Return Nothing
+        End Function
+
+        Private NotInheritable Class CodeActionResolveData
+            <JsonPropertyName("uri")>
+            Public Property Uri As String
+
+            <JsonPropertyName("insertionLine")>
+            Public Property InsertionLine As Integer
+
+            <JsonPropertyName("optionText")>
+            Public Property OptionText As String
+        End Class
     End Class
 
 End Namespace

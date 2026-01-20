@@ -83,6 +83,51 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Assert.Contains(result, Function(action) action.Title.Contains("Option Strict", StringComparison.OrdinalIgnoreCase))
             Assert.Contains(result, Function(action) action.Title.Contains("Option Explicit", StringComparison.OrdinalIgnoreCase))
         End Function
+
+        <Fact>
+        Public Async Function ResolveCodeActionAsync_AddsEdit() As Task
+            Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
+            Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
+
+            If Not File.Exists(projectPath) Then
+                Return
+            End If
+
+            Await _workspaceManager.LoadProjectAsync(projectPath)
+
+            Dim helperUri = New Uri(helperPath).ToString()
+            Dim text = Await File.ReadAllTextAsync(helperPath)
+
+            _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                .TextDocument = New TextDocumentItem With {
+                    .Uri = helperUri,
+                    .LanguageId = "vb",
+                    .Version = 1,
+                    .Text = text
+                }
+            })
+
+            Dim result = Await _codeActionsService.GetCodeActionsAsync(New CodeActionParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
+                .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
+                    .Start = New Position(0, 0),
+                    .End = New Position(0, 0)
+                },
+                .Context = New CodeActionContext()
+            }, CancellationToken.None)
+
+            If result.Length = 0 Then
+                Return
+            End If
+
+            Dim action = result(0)
+            Assert.Null(action.Edit)
+
+            Dim resolved = Await _codeActionsService.ResolveCodeActionAsync(action, CancellationToken.None)
+
+            Assert.NotNull(resolved)
+            Assert.NotNull(resolved.Edit)
+        End Function
     End Class
 
 End Namespace
