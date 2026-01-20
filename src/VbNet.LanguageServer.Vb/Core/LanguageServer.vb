@@ -41,6 +41,7 @@ Namespace Core
         Private ReadOnly _codeActionsService As CodeActionsService
         Private ReadOnly _callHierarchyService As CallHierarchyService
         Private ReadOnly _typeHierarchyService As TypeHierarchyService
+        Private ReadOnly _documentHighlightService As DocumentHighlightService
 
         Private _state As ServerState = ServerState.NotStarted
         Private _initializeParams As InitializeParams
@@ -154,6 +155,11 @@ Namespace Core
                 _workspaceManager,
                 _documentManager,
                 loggerFactory.CreateLogger(Of TypeHierarchyService)())
+
+            _documentHighlightService = New DocumentHighlightService(
+                _workspaceManager,
+                _documentManager,
+                loggerFactory.CreateLogger(Of DocumentHighlightService)())
 
             RegisterHandlers()
         End Sub
@@ -353,6 +359,7 @@ Namespace Core
             _dispatcher.RegisterRequest(Of SemanticTokensRangeParams, SemanticTokens)("textDocument/semanticTokens/range", AddressOf HandleSemanticTokensRangeAsync)
             _dispatcher.RegisterRequest(Of CodeActionParams, CodeAction())("textDocument/codeAction", AddressOf HandleCodeActionAsync)
             _dispatcher.RegisterRequest(Of CodeAction, CodeAction)("codeAction/resolve", AddressOf HandleCodeActionResolveAsync)
+            _dispatcher.RegisterRequest(Of DocumentHighlightParams, DocumentHighlight())("textDocument/documentHighlight", AddressOf HandleDocumentHighlightAsync)
             _dispatcher.RegisterRequest(Of TextDocumentDiagnosticParams, DocumentDiagnosticReport)("textDocument/diagnostic", AddressOf HandleTextDocumentDiagnosticAsync)
             _dispatcher.RegisterRequest(Of WorkspaceDiagnosticParams, WorkspaceDiagnosticReport)("workspace/diagnostic", AddressOf HandleWorkspaceDiagnosticAsync)
             _dispatcher.RegisterRequest(Of CallHierarchyPrepareParams, CallHierarchyItem())("textDocument/prepareCallHierarchy", AddressOf HandlePrepareCallHierarchyAsync)
@@ -855,6 +862,14 @@ Namespace Core
             Return Await _codeActionsService.ResolveCodeActionAsync(parameters, ct).ConfigureAwait(False)
         End Function
 
+        Private Async Function HandleDocumentHighlightAsync(parameters As DocumentHighlightParams, ct As CancellationToken) As Task(Of DocumentHighlight())
+            If parameters Is Nothing Then
+                Return Array.Empty(Of DocumentHighlight)()
+            End If
+
+            Return Await _documentHighlightService.GetDocumentHighlightsAsync(parameters, ct).ConfigureAwait(False)
+        End Function
+
         Private Async Function HandleTextDocumentDiagnosticAsync(parameters As TextDocumentDiagnosticParams, ct As CancellationToken) As Task(Of DocumentDiagnosticReport)
             If parameters Is Nothing Then
                 Return New DocumentDiagnosticReport()
@@ -955,6 +970,7 @@ Namespace Core
                 },
                 .SemanticTokensProvider = SemanticTokensService.GetDefaultOptions(),
                 .CodeActionProvider = CodeActionsService.GetDefaultOptions(),
+                .DocumentHighlightProvider = True,
                 .DiagnosticProvider = New DiagnosticOptions With {
                     .Identifier = "vbnet",
                     .InterFileDependencies = True,

@@ -229,6 +229,9 @@ Namespace Protocol
         <JsonPropertyName("codeActionProvider")>
         Public Property CodeActionProvider As CodeActionOptions
 
+        <JsonPropertyName("documentHighlightProvider")>
+        Public Property DocumentHighlightProvider As Boolean?
+
         <JsonPropertyName("foldingRangeProvider")>
         Public Property FoldingRangeProvider As Boolean?
 
@@ -264,6 +267,28 @@ Namespace Protocol
         Full = 1
         Incremental = 2
     End Enum
+
+#Region "Document Highlight"
+
+    Public Class DocumentHighlightParams
+        Inherits TextDocumentPositionParams
+    End Class
+
+    Public Class DocumentHighlight
+        <JsonPropertyName("range")>
+        Public Property Range As Range = New Range()
+
+        <JsonPropertyName("kind")>
+        Public Property Kind As DocumentHighlightKind?
+    End Class
+
+    Public Enum DocumentHighlightKind
+        Text = 1
+        Read = 2
+        Write = 3
+    End Enum
+
+#End Region
 
     Public Class SaveOptions
         <JsonPropertyName("includeText")>

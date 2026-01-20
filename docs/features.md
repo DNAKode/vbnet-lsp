@@ -97,6 +97,7 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 | `textDocument/definition` | Implemented | Phase 1 | Go to definition |
 | `textDocument/references` | Implemented | Phase 1 | Find all references |
 | `textDocument/rename` | Implemented | Phase 1 | Rename with prepare |
+| `textDocument/documentHighlight` | Implemented | Phase 3 | Highlight symbol usage in document |
 | `textDocument/prepareCallHierarchy` | Implemented | Phase 3 | Prepare call hierarchy |
 | `callHierarchy/incomingCalls` | Implemented | Phase 3 | Incoming calls |
 | `callHierarchy/outgoingCalls` | Implemented | Phase 3 | Outgoing calls |
