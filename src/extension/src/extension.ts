@@ -188,6 +188,26 @@ function registerCommands(context: vscode.ExtensionContext): void {
             }
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.showLogs', async () => {
+            outputChannel?.show();
+            traceChannel?.show();
+            outputChannel?.appendLine(`Log directory: ${context.logUri.fsPath}`);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.toggleLspTrace', async () => {
+            try {
+                await toggleLspTrace();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to toggle LSP trace: ${message}`);
+                vscode.window.showErrorMessage(`Failed to toggle LSP trace: ${message}`);
+            }
+        })
+    );
 }
 
 interface SolutionPickItem extends vscode.QuickPickItem {
@@ -297,6 +317,25 @@ async function solutionLikelyHasVbProjects(solutionPath: string): Promise<boolea
     } catch {
         return true;
     }
+}
+
+async function toggleLspTrace(): Promise<void> {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const current = config.get<string>('trace.server', 'off');
+    const enabled = current === 'off';
+    const next = enabled ? 'verbose' : 'off';
+
+    await config.update('trace.server', next, vscode.ConfigurationTarget.Workspace);
+
+    if (enabled) {
+        traceChannel?.show();
+    }
+
+    const message = enabled
+        ? 'VB.NET LSP trace enabled (verbose).'
+        : 'VB.NET LSP trace disabled.';
+    outputChannel?.appendLine(message);
+    vscode.window.showInformationMessage(message);
 }
 
 /**

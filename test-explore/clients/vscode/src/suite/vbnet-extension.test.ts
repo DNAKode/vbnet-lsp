@@ -275,6 +275,8 @@ if (skipVbnetSmoke) {
 
         try {
             assert.ok(commands.includes("vbnet.selectWorkspaceSolution"), "Select workspace solution command not registered.");
+            assert.ok(commands.includes("vbnet.showLogs"), "Show logs command not registered.");
+            assert.ok(commands.includes("vbnet.toggleLspTrace"), "Toggle LSP trace command not registered.");
             await config.update("trace.server", "verbose", vscode.ConfigurationTarget.Workspace);
             await config.update("server.transportType", "namedPipe", vscode.ConfigurationTarget.Workspace);
 

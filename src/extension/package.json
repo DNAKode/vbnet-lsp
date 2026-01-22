@@ -221,6 +221,16 @@
         "category": "VB.NET"
       },
       {
+        "command": "vbnet.showLogs",
+        "title": "Show VB.NET Logs",
+        "category": "VB.NET"
+      },
+      {
+        "command": "vbnet.toggleLspTrace",
+        "title": "Toggle VB.NET LSP Trace",
+        "category": "VB.NET"
+      },
+      {
         "command": "vbnet.showOutputChannel",
         "title": "Show VB.NET Output",
         "category": "VB.NET"

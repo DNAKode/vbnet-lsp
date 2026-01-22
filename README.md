@@ -128,6 +128,7 @@ Once installed, the extension automatically activates when you open a \`.vb\` fi
 4. Start coding with full IntelliSense support
 
 If you have multiple solutions, use the Command Palette action **"VB.NET: Select Workspace Solution"** to choose the active \`.sln/.slnf/.slnx\`.
+For diagnostics, use **"VB.NET: Show Logs"** and **"VB.NET: Toggle LSP Trace"**.
 
 ## Architecture
 

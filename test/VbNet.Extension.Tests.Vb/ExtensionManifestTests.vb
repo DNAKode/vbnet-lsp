@@ -63,9 +63,17 @@ Namespace VbNet.Extension.Tests
         Public Sub CommandsIncludeWorkspaceSolutionPicker()
             Dim root = LoadPackageJson()
             Dim commands = root.GetProperty("contributes").GetProperty("commands")
+            Dim commandList = commands.EnumerateArray().Select(Function(item) item.GetProperty("command").GetString()).ToArray()
 
-            Dim hasCommand = commands.EnumerateArray().Any(Function(item) item.GetProperty("command").GetString() = "vbnet.selectWorkspaceSolution")
-            Assert.True(hasCommand, "Expected vbnet.selectWorkspaceSolution to be contributed in package.json.")
+            Dim required = New String() {
+                "vbnet.selectWorkspaceSolution",
+                "vbnet.showLogs",
+                "vbnet.toggleLspTrace"
+            }
+
+            For Each commandName In required
+                Assert.Contains(commandName, commandList)
+            Next
         End Sub
     End Class
 

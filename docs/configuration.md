@@ -26,6 +26,8 @@ Last Updated: 2026-01-20
 
 - **`VB.NET: Select Workspace Solution`** — choose a `.sln/.slnf/.slnx` file and update
   `vbnet.workspace.solutionPath`. Pick "Auto-detect" to clear the override.
+- **`VB.NET: Show Logs`** — opens the main output channel and the LSP trace channel.
+- **`VB.NET: Toggle LSP Trace`** — toggles `vbnet.trace.server` between `off` and `verbose`.
 
 ---
 
