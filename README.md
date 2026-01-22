@@ -127,6 +127,8 @@ Once installed, the extension automatically activates when you open a \`.vb\` fi
 3. The extension will automatically discover and load your `VB.NET` projects
 4. Start coding with full IntelliSense support
 
+If you have multiple solutions, use the Command Palette action **"VB.NET: Select Workspace Solution"** to choose the active \`.sln/.slnf/.slnx\`.
+
 ## Architecture
 
 `VB.NET` Language Support follows the architecture of the "C# for Visual Studio Code" extension:

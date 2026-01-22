@@ -271,8 +271,10 @@ if (skipVbnetSmoke) {
         const config = vscode.workspace.getConfiguration("vbnet");
         const originalTransport = config.get<string>("server.transportType", "auto");
         const originalTrace = config.get<string>("trace.server", "off");
+        const commands = await vscode.commands.getCommands(true);
 
         try {
+            assert.ok(commands.includes("vbnet.selectWorkspaceSolution"), "Select workspace solution command not registered.");
             await config.update("trace.server", "verbose", vscode.ConfigurationTarget.Workspace);
             await config.update("server.transportType", "namedPipe", vscode.ConfigurationTarget.Workspace);
 

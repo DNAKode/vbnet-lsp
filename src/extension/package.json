@@ -216,6 +216,11 @@
         "category": "VB.NET"
       },
       {
+        "command": "vbnet.selectWorkspaceSolution",
+        "title": "Select VB.NET Workspace Solution",
+        "category": "VB.NET"
+      },
+      {
         "command": "vbnet.showOutputChannel",
         "title": "Show VB.NET Output",
         "category": "VB.NET"

@@ -1274,6 +1274,9 @@ Namespace Core
 
         Private Shared Function SolutionContainsVbProject(solutionPath As String) As Boolean
             Try
+                If solutionPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) Then
+                    Return True
+                End If
                 Dim content = File.ReadAllText(solutionPath)
                 Return content.IndexOf(".vbproj", StringComparison.OrdinalIgnoreCase) >= 0
             Catch
@@ -1326,6 +1329,7 @@ Namespace Core
 
                 Dim solutionCandidates = Directory.EnumerateFiles(searchRoot, "*.sln", SearchOption.TopDirectoryOnly) _
                     .Concat(Directory.EnumerateFiles(searchRoot, "*.slnf", SearchOption.TopDirectoryOnly)) _
+                    .Concat(Directory.EnumerateFiles(searchRoot, "*.slnx", SearchOption.TopDirectoryOnly)) _
                     .OrderBy(Function(path) path, StringComparer.OrdinalIgnoreCase) _
                     .ToList()
 

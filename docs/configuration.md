@@ -22,6 +22,11 @@ Last Updated: 2026-01-20
 - **UI**: File > Preferences > Settings > Extensions > `VB.NET` Language Support
 - **JSON**: `.vscode/settings.json` (workspace) or User Settings (global)
 
+### Commands
+
+- **`VB.NET: Select Workspace Solution`** — choose a `.sln/.slnf/.slnx` file and update
+  `vbnet.workspace.solutionPath`. Pick "Auto-detect" to clear the override.
+
 ---
 
 ## 2. VS Code Settings

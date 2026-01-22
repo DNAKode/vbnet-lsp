@@ -58,6 +58,15 @@ Namespace VbNet.Extension.Tests
 
             Assert.True(launchProps.TryGetProperty("projectPath", Nothing), "Expected launch configuration to include projectPath.")
         End Sub
+
+        <Fact>
+        Public Sub CommandsIncludeWorkspaceSolutionPicker()
+            Dim root = LoadPackageJson()
+            Dim commands = root.GetProperty("contributes").GetProperty("commands")
+
+            Dim hasCommand = commands.EnumerateArray().Any(Function(item) item.GetProperty("command").GetString() = "vbnet.selectWorkspaceSolution")
+            Assert.True(hasCommand, "Expected vbnet.selectWorkspaceSolution to be contributed in package.json.")
+        End Sub
     End Class
 
 End Namespace

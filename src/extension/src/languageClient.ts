@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode';
 import * as net from 'net';
+import * as path from 'path';
 import {
     LanguageClient,
     LanguageClientOptions,
@@ -207,6 +208,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
                     vscode.workspace.createFileSystemWatcher('**/*.vbproj'),
                     vscode.workspace.createFileSystemWatcher('**/*.sln'),
                     vscode.workspace.createFileSystemWatcher('**/*.slnf'),
+                    vscode.workspace.createFileSystemWatcher('**/*.slnx'),
                     vscode.workspace.createFileSystemWatcher('**/Directory.Build.props'),
                     vscode.workspace.createFileSystemWatcher('**/Directory.Build.targets')
                 ]
@@ -336,12 +338,12 @@ export class VbNetLanguageClient implements vscode.Disposable {
         }
 
         const resources = await vscode.workspace.findFiles(
-            '{**/*.sln,**/*.slnf,**/*.vbproj}',
+            '{**/*.sln,**/*.slnf,**/*.slnx,**/*.vbproj}',
             `{${excludePattern}}`
         );
 
         const workspaceRoot = workspaceFolders[0].uri.fsPath;
-        const solutionCandidates = resources.filter((resource) => /\.slnf?$/i.test(resource.fsPath));
+        const solutionCandidates = resources.filter((resource) => /\.(sln|slnf|slnx)$/i.test(resource.fsPath));
         const vbProjectFiles = resources.filter((resource) => /\.vbproj$/i.test(resource.fsPath));
 
         const solutionPath = await this.pickSolutionWithVbProjects(solutionCandidates);
@@ -382,6 +384,11 @@ export class VbNetLanguageClient implements vscode.Disposable {
         const filtered = [];
         for (const candidate of candidates) {
             try {
+                const extension = path.extname(candidate.fsPath).toLowerCase();
+                if (extension === '.slnx') {
+                    filtered.push(candidate);
+                    continue;
+                }
                 const content = await vscode.workspace.fs.readFile(candidate);
                 const text = Buffer.from(content).toString('utf8');
                 if (text.toLowerCase().includes('.vbproj')) {

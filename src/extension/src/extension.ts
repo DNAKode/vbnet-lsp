@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { PlatformInformation } from './platform';
 import { VbNetLanguageClient } from './languageClient';
 import { VbNetStatusBar } from './statusBar';
@@ -175,6 +176,127 @@ function registerCommands(context: vscode.ExtensionContext): void {
             outputChannel?.show();
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.selectWorkspaceSolution', async () => {
+            try {
+                await selectWorkspaceSolution();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to select workspace solution: ${message}`);
+                vscode.window.showErrorMessage(`Failed to select workspace solution: ${message}`);
+            }
+        })
+    );
+}
+
+interface SolutionPickItem extends vscode.QuickPickItem {
+    solutionPath?: string;
+    action?: 'clear';
+}
+
+async function selectWorkspaceSolution(): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showWarningMessage('No workspace folder is open.');
+        return;
+    }
+
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const defaultExclude = '**/node_modules/**,**/.git/**,**/bower_components/**';
+    const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
+
+    const resources = await vscode.workspace.findFiles(
+        '{**/*.sln,**/*.slnf,**/*.slnx}',
+        `{${excludePattern}}`
+    );
+
+    if (resources.length === 0) {
+        vscode.window.showInformationMessage('No solution files were found in this workspace.');
+        return;
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const configuredSolution = (config.get<string>('workspace.solutionPath', '') || '').trim();
+    const configuredResolved = configuredSolution
+        ? path.normalize(path.resolve(workspaceRoot, configuredSolution))
+        : '';
+
+    const items: SolutionPickItem[] = [];
+    items.push({
+        label: 'Auto-detect',
+        description: 'Clear workspace solution override',
+        action: 'clear'
+    });
+
+    const candidates = resources
+        .map((resource) => resource.fsPath)
+        .sort((a, b) => a.localeCompare(b));
+
+    for (const candidate of candidates) {
+        const resolved = path.normalize(candidate);
+        const relative = path.relative(workspaceRoot, candidate);
+        const isRelative = relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+        const label = isRelative ? relative : path.basename(candidate);
+
+        const hasVb = await solutionLikelyHasVbProjects(candidate);
+        let description: string | undefined = undefined;
+        if (configuredResolved && resolved === configuredResolved) {
+            description = 'Current selection';
+        } else if (!hasVb) {
+            description = 'No .vbproj references detected';
+        }
+
+        items.push({
+            label,
+            description,
+            detail: candidate,
+            solutionPath: candidate
+        });
+    }
+
+    const pick = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a workspace solution for VB.NET (clears auto-detection)',
+        canPickMany: false
+    });
+
+    if (!pick) {
+        return;
+    }
+
+    if (pick.action === 'clear') {
+        await config.update('workspace.solutionPath', '', vscode.ConfigurationTarget.Workspace);
+        outputChannel?.appendLine('Workspace solution override cleared (auto-detect enabled).');
+        vscode.window.showInformationMessage('Workspace solution override cleared (auto-detect enabled).');
+        return;
+    }
+
+    if (!pick.solutionPath) {
+        return;
+    }
+
+    const relative = path.relative(workspaceRoot, pick.solutionPath);
+    const configValue = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+        ? relative
+        : pick.solutionPath;
+
+    await config.update('workspace.solutionPath', configValue, vscode.ConfigurationTarget.Workspace);
+    outputChannel?.appendLine(`Workspace solution override set to: ${configValue}`);
+    vscode.window.showInformationMessage(`Workspace solution set to ${configValue}`);
+}
+
+async function solutionLikelyHasVbProjects(solutionPath: string): Promise<boolean> {
+    if (solutionPath.toLowerCase().endsWith('.slnx')) {
+        return true;
+    }
+
+    try {
+        const content = await vscode.workspace.fs.readFile(vscode.Uri.file(solutionPath));
+        const text = Buffer.from(content).toString('utf8');
+        return text.toLowerCase().includes('.vbproj');
+    } catch {
+        return true;
+    }
 }
 
 /**
