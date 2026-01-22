@@ -47,6 +47,24 @@ Optional flags:
 
 ## Recent runs
 
+### 2026-01-22 — CI-safe tests (VB.NET only)
+
+Commands:
+- `dotnet test test\VbNet.LanguageServer.Tests.Vb\VbNet.LanguageServer.Tests.Vb.vbproj -c Release`
+- `dotnet test test\VbNet.Extension.Tests.Vb\VbNet.Extension.Tests.Vb.vbproj -c Release`
+
+Outcome: PASS (150/150, 6/6)
+
+### 2026-01-22 — VS Code harness (VB.NET server, test commands)
+
+Command:
+- `cd test-explore\\clients\\vscode; npm test`
+
+Outcome: PASS (14 passing, 5 pending; non-fatal DAP warnings)
+Notes:
+- DAP warnings: `Failed command 'threads' : 0x80004005`.
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-22T203652019Z.log`.
+
 ### 2026-01-22 — VS Code harness (VB.NET server, attach command)
 
 Command:

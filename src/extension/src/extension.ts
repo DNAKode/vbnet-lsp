@@ -271,6 +271,31 @@ function registerCommands(context: vscode.ExtensionContext): void {
             }
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.runTestsInContext', async () => {
+            try {
+                await runTestsInContext();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to run tests: ${message}`);
+                vscode.window.showErrorMessage(`Failed to run tests: ${message}`);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.debugTestsInContext', async () => {
+            try {
+                vscode.window.showInformationMessage('Debug test support is in preview; running dotnet test for now.');
+                await runTestsInContext(true);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to debug tests: ${message}`);
+                vscode.window.showErrorMessage(`Failed to debug tests: ${message}`);
+            }
+        })
+    );
 }
 
 interface SolutionPickItem extends vscode.QuickPickItem {
@@ -290,6 +315,10 @@ interface ProcessInfo {
 
 interface ProcessPickItem extends vscode.QuickPickItem {
     pid: number;
+}
+
+interface TestPickItem extends vscode.QuickPickItem {
+    targetPath?: string;
 }
 
 async function selectWorkspaceSolution(): Promise<void> {
@@ -429,7 +458,7 @@ async function restoreWorkspace(): Promise<void> {
     }
 
     const label = candidateSolution ? `Restoring ${path.basename(candidateSolution)}` : 'Restoring workspace';
-    await runDotnetCommand(args, workspaceRoot, label);
+    await runDotnetCommand(args, workspaceRoot, label, 'Restore completed.');
 }
 
 async function restoreProject(): Promise<void> {
@@ -465,7 +494,30 @@ async function restoreProject(): Promise<void> {
         return;
     }
 
-    await runDotnetCommand(['restore', pick.projectPath], workspaceRoot, `Restoring ${pick.label}`);
+    await runDotnetCommand(['restore', pick.projectPath], workspaceRoot, `Restoring ${pick.label}`, 'Restore completed.');
+}
+
+async function runTestsInContext(debug: boolean = false): Promise<void> {
+    const workspaceRoot = getWorkspaceRoot();
+    if (!workspaceRoot) {
+        return;
+    }
+
+    const target = await resolveTestTarget(workspaceRoot);
+    const args = ['test'];
+    if (target) {
+        args.push(target);
+    }
+
+    const title = target
+        ? `${debug ? 'Debugging' : 'Running'} tests: ${path.basename(target)}`
+        : `${debug ? 'Debugging' : 'Running'} tests`;
+
+    const successMessage = debug
+        ? 'Test run completed (debug attach not yet implemented).'
+        : 'Test run completed.';
+
+    await runDotnetCommand(args, workspaceRoot, title, successMessage);
 }
 
 function getWorkspaceRoot(): string | undefined {
@@ -517,6 +569,59 @@ async function pickWorkspaceSolutionCandidate(workspaceRoot: string): Promise<st
     return candidates[0];
 }
 
+async function resolveTestTarget(workspaceRoot: string): Promise<string | undefined> {
+    const activeFile = vscode.window.activeTextEditor?.document?.uri?.fsPath;
+    if (activeFile && activeFile.startsWith(workspaceRoot) && activeFile.toLowerCase().endsWith('.vb')) {
+        const nearestProject = findNearestProjectForFile(activeFile, workspaceRoot);
+        if (nearestProject) {
+            return nearestProject;
+        }
+    }
+
+    const configuredSolution = getConfiguredSolutionPath(workspaceRoot);
+    if (configuredSolution) {
+        return configuredSolution;
+    }
+
+    const candidateSolution = await pickWorkspaceSolutionCandidate(workspaceRoot);
+    if (candidateSolution) {
+        return candidateSolution;
+    }
+
+    const projects = await findWorkspaceProjects();
+    if (projects.length === 1) {
+        return projects[0];
+    }
+
+    if (projects.length > 1) {
+        const items: TestPickItem[] = projects.map((projectPath) => {
+            const relative = path.relative(workspaceRoot, projectPath);
+            const label = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+                ? relative
+                : path.basename(projectPath);
+            return {
+                label,
+                detail: projectPath,
+                targetPath: projectPath
+            };
+        });
+
+        items.unshift({
+            label: 'Workspace (dotnet test)',
+            description: 'Run tests without an explicit project/solution'
+        });
+
+        const pick = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a project/solution to test',
+            matchOnDescription: true
+        });
+
+        return pick?.targetPath;
+    }
+
+    return undefined;
+}
+
 async function findWorkspaceSolutions(): Promise<string[]> {
     const config = vscode.workspace.getConfiguration('vbnet');
     const defaultExclude = '**/node_modules/**,**/.git/**,**/bower_components/**';
@@ -543,7 +648,7 @@ async function findWorkspaceProjects(): Promise<string[]> {
     return resources.map((resource) => resource.fsPath);
 }
 
-async function runDotnetCommand(args: string[], cwd: string, title: string): Promise<void> {
+async function runDotnetCommand(args: string[], cwd: string, title: string, successMessage?: string): Promise<void> {
     outputChannel?.show();
     outputChannel?.appendLine(`Running: dotnet ${args.join(' ')}`);
 
@@ -578,7 +683,9 @@ async function runDotnetCommand(args: string[], cwd: string, title: string): Pro
         })
     );
 
-    vscode.window.showInformationMessage('Restore completed.');
+    if (successMessage) {
+        vscode.window.showInformationMessage(successMessage);
+    }
 }
 
 function fsPathExists(filePath: string): boolean {
@@ -587,6 +694,34 @@ function fsPathExists(filePath: string): boolean {
     } catch {
         return false;
     }
+}
+
+function findNearestProjectForFile(filePath: string, workspaceRoot: string): string | undefined {
+    let current = path.dirname(filePath);
+    const root = path.resolve(workspaceRoot);
+
+    while (current.startsWith(root)) {
+        try {
+            const entries = fs.readdirSync(current);
+            const candidates = entries.filter((entry) => entry.toLowerCase().endsWith('.vbproj'));
+            if (candidates.length > 0) {
+                return path.join(current, candidates[0]);
+            }
+        } catch {
+            return undefined;
+        }
+
+        if (current === root) {
+            break;
+        }
+        const parent = path.dirname(current);
+        if (parent === current) {
+            break;
+        }
+        current = parent;
+    }
+
+    return undefined;
 }
 
 async function attachToProcess(): Promise<void> {

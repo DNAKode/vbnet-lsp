@@ -243,6 +243,16 @@
         "category": "VB.NET"
       },
       {
+        "command": "vbnet.runTestsInContext",
+        "title": "Run VB.NET Tests",
+        "category": "VB.NET"
+      },
+      {
+        "command": "vbnet.debugTestsInContext",
+        "title": "Debug VB.NET Tests (Preview)",
+        "category": "VB.NET"
+      },
+      {
         "command": "vbnet.reloadWorkspace",
         "title": "Reload VB.NET Workspace",
         "category": "VB.NET"

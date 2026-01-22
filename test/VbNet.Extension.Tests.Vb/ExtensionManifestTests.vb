@@ -71,6 +71,8 @@ Namespace VbNet.Extension.Tests
                 "vbnet.toggleLspTrace",
                 "vbnet.restoreWorkspace",
                 "vbnet.restoreProject",
+                "vbnet.runTestsInContext",
+                "vbnet.debugTestsInContext",
                 "vbnet.reloadWorkspace",
                 "vbnet.attachToProcess"
             }

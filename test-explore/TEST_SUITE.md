@@ -92,7 +92,7 @@ Purpose: Validate extension activation, configuration, and editor integrations.
 Targets:
 - Activation events (.vb file open, workspace containing .sln/.vbproj).
 - Output channels and log level propagation.
-- Commands (restart server, select solution, show output).
+- Commands (restart server, select solution, show output, restore, reload, attach, test runs).
 - Configuration changes (debounce and diagnostics mode).
 - Workspace trust behavior (limited activation if applicable).
 

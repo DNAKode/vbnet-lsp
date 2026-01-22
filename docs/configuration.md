@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - User Configuration**
 
 Version: 1.1
-Last Updated: 2026-01-20
+Last Updated: 2026-01-22
 
 ## Table of Contents
 
@@ -30,6 +30,8 @@ Last Updated: 2026-01-20
 - **`VB.NET: Toggle LSP Trace`** — toggles `vbnet.trace.server` between `off` and `verbose`.
 - **`VB.NET: Restore Workspace`** — runs `dotnet restore` using the selected solution (or workspace root).
 - **`VB.NET: Restore Project`** — picks a `.vbproj` file and runs `dotnet restore` for it.
+- **`VB.NET: Run Tests`** — runs `dotnet test` using the active `.vb` context, selected solution, or project.
+- **`VB.NET: Debug Tests (Preview)`** — runs `dotnet test` and notes that debug attach is not yet implemented.
 - **`VB.NET: Reload Workspace`** — requests a workspace reload without restarting the extension.
 - **`VB.NET: Attach Debugger to Process`** — picks a running process and starts an attach session.
 
@@ -740,7 +742,7 @@ If configuration issues persist:
 
 ---
 
-**Last Updated**: 2026-01-18
+**Last Updated**: 2026-01-22
 
 **Maintained by**: `VB.NET` Language Support Contributors
 

@@ -279,6 +279,8 @@ if (skipVbnetSmoke) {
             assert.ok(commands.includes("vbnet.toggleLspTrace"), "Toggle LSP trace command not registered.");
             assert.ok(commands.includes("vbnet.restoreWorkspace"), "Restore workspace command not registered.");
             assert.ok(commands.includes("vbnet.restoreProject"), "Restore project command not registered.");
+            assert.ok(commands.includes("vbnet.runTestsInContext"), "Run tests command not registered.");
+            assert.ok(commands.includes("vbnet.debugTestsInContext"), "Debug tests command not registered.");
             assert.ok(commands.includes("vbnet.reloadWorkspace"), "Reload workspace command not registered.");
             assert.ok(commands.includes("vbnet.attachToProcess"), "Attach to process command not registered.");
             await config.update("trace.server", "verbose", vscode.ConfigurationTarget.Workspace);
