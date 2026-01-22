@@ -259,6 +259,18 @@ function registerCommands(context: vscode.ExtensionContext): void {
             }
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.attachToProcess', async () => {
+            try {
+                await attachToProcess();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to attach to process: ${message}`);
+                vscode.window.showErrorMessage(`Failed to attach to process: ${message}`);
+            }
+        })
+    );
 }
 
 interface SolutionPickItem extends vscode.QuickPickItem {
@@ -268,6 +280,16 @@ interface SolutionPickItem extends vscode.QuickPickItem {
 
 interface ProjectPickItem extends vscode.QuickPickItem {
     projectPath: string;
+}
+
+interface ProcessInfo {
+    pid: number;
+    name: string;
+    commandLine?: string;
+}
+
+interface ProcessPickItem extends vscode.QuickPickItem {
+    pid: number;
 }
 
 async function selectWorkspaceSolution(): Promise<void> {
@@ -565,6 +587,122 @@ function fsPathExists(filePath: string): boolean {
     } catch {
         return false;
     }
+}
+
+async function attachToProcess(): Promise<void> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const processes = await listProcesses();
+
+    if (processes.length === 0) {
+        vscode.window.showInformationMessage('No running processes found.');
+        return;
+    }
+
+    processes.sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0) {
+            return nameCompare;
+        }
+        return a.pid - b.pid;
+    });
+
+    const items: ProcessPickItem[] = processes.map((proc) => ({
+        label: `${proc.name} (${proc.pid})`,
+        description: proc.commandLine,
+        pid: proc.pid
+    }));
+
+    const pick = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a process to attach netcoredbg',
+        matchOnDescription: true
+    });
+
+    if (!pick) {
+        return;
+    }
+
+    const attachConfig: vscode.DebugConfiguration = {
+        name: `VB.NET Attach (${pick.pid})`,
+        type: 'vbnet',
+        request: 'attach',
+        processId: pick.pid
+    };
+
+    const started = await vscode.debug.startDebugging(workspaceFolder, attachConfig);
+    if (!started) {
+        vscode.window.showErrorMessage('Failed to start VB.NET attach session.');
+    }
+}
+
+async function listProcesses(): Promise<ProcessInfo[]> {
+    if (process.platform === 'win32') {
+        return await listWindowsProcesses();
+    }
+
+    return await listUnixProcesses();
+}
+
+async function listWindowsProcesses(): Promise<ProcessInfo[]> {
+    const output = await execCommand('tasklist', ['/FO', 'CSV', '/NH']);
+    const lines = output.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0);
+    const results: ProcessInfo[] = [];
+
+    for (const line of lines) {
+        const values = line.split('","').map((value) => value.replace(/^"|"$/g, ''));
+        if (values.length < 2) {
+            continue;
+        }
+        const pid = Number.parseInt(values[1], 10);
+        if (Number.isNaN(pid)) {
+            continue;
+        }
+        results.push({
+            pid,
+            name: values[0],
+            commandLine: values[0]
+        });
+    }
+
+    return results;
+}
+
+async function listUnixProcesses(): Promise<ProcessInfo[]> {
+    const output = await execCommand('ps', ['-ax', '-o', 'pid=,comm=,args=']);
+    const lines = output.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0);
+    const results: ProcessInfo[] = [];
+
+    for (const line of lines) {
+        const match = line.match(/^(\d+)\s+(\S+)\s*(.*)$/);
+        if (!match) {
+            continue;
+        }
+        const pid = Number.parseInt(match[1], 10);
+        if (Number.isNaN(pid)) {
+            continue;
+        }
+        results.push({
+            pid,
+            name: match[2],
+            commandLine: match[3]
+        });
+    }
+
+    return results;
+}
+
+async function execCommand(command: string, args: string[]): Promise<string> {
+    return await new Promise((resolve, reject) => {
+        cp.execFile(command, args, { encoding: 'utf8' }, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+                return;
+            }
+            if (stderr) {
+                outputChannel?.appendLine(stderr.trim());
+            }
+            resolve(stdout ?? '');
+        });
+    });
 }
 
 /**

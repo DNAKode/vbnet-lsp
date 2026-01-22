@@ -248,6 +248,11 @@
         "category": "VB.NET"
       },
       {
+        "command": "vbnet.attachToProcess",
+        "title": "Attach VB.NET Debugger to Process",
+        "category": "VB.NET"
+      },
+      {
         "command": "vbnet.showOutputChannel",
         "title": "Show VB.NET Output",
         "category": "VB.NET"
@@ -378,6 +383,20 @@
               "type": "vbnet",
               "request": "launch",
               "program": "${workspaceFolder}/bin/Debug/net10.0/YourApp.dll",
+              "args": [],
+              "cwd": "${workspaceFolder}",
+              "console": "internalConsole",
+              "stopAtEntry": false
+            }
+          },
+          {
+            "label": "VB.NET: Launch (projectPath inference)",
+            "description": "Launch using projectPath and let the extension infer the program.",
+            "body": {
+              "name": "VB.NET Launch (projectPath)",
+              "type": "vbnet",
+              "request": "launch",
+              "projectPath": "${workspaceFolder}/YourProject.vbproj",
               "args": [],
               "cwd": "${workspaceFolder}",
               "console": "internalConsole",

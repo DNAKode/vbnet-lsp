@@ -31,6 +31,7 @@ Last Updated: 2026-01-20
 - **`VB.NET: Restore Workspace`** — runs `dotnet restore` using the selected solution (or workspace root).
 - **`VB.NET: Restore Project`** — picks a `.vbproj` file and runs `dotnet restore` for it.
 - **`VB.NET: Reload Workspace`** — requests a workspace reload without restarting the extension.
+- **`VB.NET: Attach Debugger to Process`** — picks a running process and starts an attach session.
 
 ### Explorer File Nesting Defaults
 

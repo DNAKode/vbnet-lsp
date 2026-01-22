@@ -71,7 +71,8 @@ Namespace VbNet.Extension.Tests
                 "vbnet.toggleLspTrace",
                 "vbnet.restoreWorkspace",
                 "vbnet.restoreProject",
-                "vbnet.reloadWorkspace"
+                "vbnet.reloadWorkspace",
+                "vbnet.attachToProcess"
             }
 
             For Each commandName In required

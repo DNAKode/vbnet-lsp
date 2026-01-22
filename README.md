@@ -131,6 +131,7 @@ If you have multiple solutions, use the Command Palette action **"VB.NET: Select
 For diagnostics, use **"VB.NET: Show Logs"** and **"VB.NET: Toggle LSP Trace"**.
 If assets are missing, run **"VB.NET: Restore Workspace"** or **"VB.NET: Restore Project"**.
 To force a reanalysis without restarting VS Code, use **"VB.NET: Reload Workspace"**.
+For attaching to a running .NET process, use **"VB.NET: Attach Debugger to Process"**.
 
 ## Architecture
 
