@@ -31,6 +31,13 @@ Last Updated: 2026-01-20
 - **`VB.NET: Restore Workspace`** — runs `dotnet restore` using the selected solution (or workspace root).
 - **`VB.NET: Restore Project`** — picks a `.vbproj` file and runs `dotnet restore` for it.
 
+### Explorer File Nesting Defaults
+
+The extension contributes file nesting patterns so common VB artifacts are grouped in the
+Explorer (for example, `.Designer.vb`, `.g.vb`, `.g.i.vb`, `.generated.vb`, `.AssemblyInfo.vb`,
+and `My*.vb` under their primary `.vb` file). You can override these defaults via
+`explorer.fileNesting.patterns` in your settings.
+
 ---
 
 ## 2. VS Code Settings

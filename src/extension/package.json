@@ -248,6 +248,13 @@
         "category": "VB.NET"
       }
     ],
+    "configurationDefaults": {
+      "explorer.fileNesting.patterns": {
+        "*.vb": "${capture}.Designer.vb,${capture}.g.vb,${capture}.g.i.vb,${capture}.generated.vb,${capture}.AssemblyInfo.vb,${capture}.My*.vb",
+        "*.resx": "${capture}.Designer.vb",
+        "*.vbproj": "${capture}.vbproj.user"
+      }
+    },
     "breakpoints": [
       {
         "language": "vb"

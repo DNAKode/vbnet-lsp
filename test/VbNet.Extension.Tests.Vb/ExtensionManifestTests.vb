@@ -86,6 +86,17 @@ Namespace VbNet.Extension.Tests
             Assert.Contains("workspaceContains:**/*.slnf", eventsArray)
             Assert.Contains("workspaceContains:**/*.slnx", eventsArray)
         End Sub
+
+        <Fact>
+        Public Sub ConfigurationDefaultsIncludeFileNesting()
+            Dim root = LoadPackageJson()
+            Dim defaults = root.GetProperty("contributes").GetProperty("configurationDefaults")
+            Dim patterns = defaults.GetProperty("explorer.fileNesting.patterns")
+
+            Dim vbPattern = patterns.GetProperty("*.vb").GetString()
+            Assert.NotNull(vbPattern)
+            Assert.Contains(".Designer.vb", vbPattern, StringComparison.OrdinalIgnoreCase)
+        End Sub
     End Class
 
 End Namespace
