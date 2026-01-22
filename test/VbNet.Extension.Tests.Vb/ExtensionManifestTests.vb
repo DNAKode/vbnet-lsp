@@ -77,6 +77,15 @@ Namespace VbNet.Extension.Tests
                 Assert.Contains(commandName, commandList)
             Next
         End Sub
+
+        <Fact>
+        Public Sub ActivationEventsIncludeSolutionFilters()
+            Dim root = LoadPackageJson()
+            Dim eventsArray = root.GetProperty("activationEvents").EnumerateArray().Select(Function(item) item.GetString()).ToArray()
+
+            Assert.Contains("workspaceContains:**/*.slnf", eventsArray)
+            Assert.Contains("workspaceContains:**/*.slnx", eventsArray)
+        End Sub
     End Class
 
 End Namespace

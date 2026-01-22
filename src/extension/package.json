@@ -48,7 +48,9 @@
     "onDebugResolve:vbnet",
     "onLanguage:vb",
     "workspaceContains:**/*.vbproj",
-    "workspaceContains:**/*.sln"
+    "workspaceContains:**/*.sln",
+    "workspaceContains:**/*.slnf",
+    "workspaceContains:**/*.slnx"
   ],
   "extensionDependencies": [
     "ms-dotnettools.vscode-dotnet-runtime"
