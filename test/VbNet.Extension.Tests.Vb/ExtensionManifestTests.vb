@@ -101,6 +101,16 @@ Namespace VbNet.Extension.Tests
             Assert.NotNull(vbPattern)
             Assert.Contains(".Designer.vb", vbPattern, StringComparison.OrdinalIgnoreCase)
         End Sub
+
+        <Fact>
+        Public Sub ConfigurationIncludesMsbuildAndLoggingSettings()
+            Dim root = LoadPackageJson()
+            Dim properties = root.GetProperty("contributes").GetProperty("configuration")(0).GetProperty("properties")
+
+            Assert.True(properties.TryGetProperty("vbnet.logLevel", Nothing), "Expected vbnet.logLevel setting.")
+            Assert.True(properties.TryGetProperty("vbnet.msbuildPath", Nothing), "Expected vbnet.msbuildPath setting.")
+            Assert.True(properties.TryGetProperty("vbnet.maxMemoryMB", Nothing), "Expected vbnet.maxMemoryMB setting.")
+        End Sub
     End Class
 
 End Namespace

@@ -303,7 +303,19 @@ export class ServerLauncher {
             return args;
         }
 
-        return [transport === 'namedPipe' ? '--pipe' : '--stdio'];
+        const args: string[] = [];
+        const logLevel = this.getVbNetLogLevel();
+        if (logLevel) {
+            args.push('--logLevel', logLevel);
+        }
+
+        const msbuildPath = this.getVbNetMsbuildPath();
+        if (msbuildPath) {
+            args.push('--msbuildPath', msbuildPath);
+        }
+
+        args.push(transport === 'namedPipe' ? '--pipe' : '--stdio');
+        return args;
     }
 
     private getRoslynLogLevel(): string {
@@ -316,6 +328,45 @@ export class ServerLauncher {
             return 'Information';
         }
         return 'Error';
+    }
+
+    private getVbNetLogLevel(): string | undefined {
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const level = (config.get<string>('logLevel', 'info') || '').trim().toLowerCase();
+        if (!level) {
+            return undefined;
+        }
+
+        switch (level) {
+            case 'trace':
+                return 'Trace';
+            case 'debug':
+                return 'Debug';
+            case 'info':
+                return 'Information';
+            case 'warn':
+                return 'Warning';
+            case 'error':
+                return 'Error';
+            default:
+                return 'Information';
+        }
+    }
+
+    private getVbNetMsbuildPath(): string | undefined {
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const configPath = config.get<string>('msbuildPath');
+        if (!configPath || configPath.trim() === '') {
+            return undefined;
+        }
+
+        const normalizedConfigPath = path.normalize(configPath.trim());
+        if (fs.existsSync(normalizedConfigPath)) {
+            return normalizedConfigPath;
+        }
+
+        this.channel.appendLine(`Configured vbnet.msbuildPath does not exist: ${normalizedConfigPath}.`);
+        return undefined;
     }
 
     private getRoslynLogDirectory(): string {

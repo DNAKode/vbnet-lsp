@@ -533,16 +533,18 @@ function getWorkspaceRoot(): string | undefined {
 function getConfiguredSolutionPath(workspaceRoot: string): string | undefined {
     const config = vscode.workspace.getConfiguration('vbnet');
     const configuredSolution = (config.get<string>('workspace.solutionPath', '') || '').trim();
-    if (!configuredSolution) {
+    const legacySolution = (config.get<string>('solutionPath', '') || '').trim();
+    const effectiveSolution = configuredSolution || legacySolution;
+    if (!effectiveSolution) {
         return undefined;
     }
 
-    const resolved = path.resolve(workspaceRoot, configuredSolution);
+    const resolved = path.resolve(workspaceRoot, effectiveSolution);
     if (resolved && fsPathExists(resolved)) {
         return resolved;
     }
 
-    outputChannel?.appendLine(`Configured solution path not found: ${configuredSolution}`);
+    outputChannel?.appendLine(`Configured solution path not found: ${effectiveSolution}`);
     return undefined;
 }
 

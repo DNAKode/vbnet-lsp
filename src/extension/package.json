@@ -74,6 +74,23 @@
       {
         "title": "VB.NET Language Support",
         "properties": {
+          "vbnet.enable": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable/disable the VB.NET language server."
+          },
+          "vbnet.logLevel": {
+            "type": "string",
+            "enum": [
+              "trace",
+              "debug",
+              "info",
+              "warn",
+              "error"
+            ],
+            "default": "info",
+            "description": "Language server logging level."
+          },
           "vbnet.server.path": {
             "type": "string",
             "default": "",
@@ -152,6 +169,26 @@
             "default": true,
             "description": "Enable IntelliSense code completion."
           },
+          "vbnet.enableFormatting": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable document formatting."
+          },
+          "vbnet.enableCodeActions": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable code actions and quick fixes."
+          },
+          "vbnet.semanticTokens": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable semantic syntax highlighting."
+          },
+          "vbnet.inlayHints": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enable inline type and parameter hints."
+          },
           "vbnet.debugger.path": {
             "type": "string",
             "default": "",
@@ -169,6 +206,11 @@
             "type": "string",
             "default": "",
             "description": "Explicit path to a .sln file to load. Leave empty for auto-detection."
+          },
+          "vbnet.solutionPath": {
+            "type": "string",
+            "default": "",
+            "description": "Legacy solution path setting. Prefer vbnet.workspace.solutionPath."
           },
           "vbnet.workspace.ignoreSolutionFiles": {
             "type": "boolean",
@@ -207,6 +249,26 @@
             "type": "number",
             "default": 250,
             "description": "Maximum number of project files to consider when no solution is present."
+          },
+          "vbnet.loadProjectsOnStart": {
+            "type": "boolean",
+            "default": true,
+            "description": "Load projects during initialization."
+          },
+          "vbnet.maxProjectCount": {
+            "type": "number",
+            "default": 100,
+            "description": "Maximum number of projects to load."
+          },
+          "vbnet.msbuildPath": {
+            "type": "string",
+            "default": "",
+            "description": "Explicit MSBuild path override."
+          },
+          "vbnet.maxMemoryMB": {
+            "type": "number",
+            "default": 2048,
+            "description": "Maximum memory usage (MB) before warning."
           }
         }
       }

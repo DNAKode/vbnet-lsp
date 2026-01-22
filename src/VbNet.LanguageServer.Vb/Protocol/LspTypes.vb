@@ -1365,4 +1365,23 @@ Namespace Protocol
 
 #End Region
 
+#Region "Window Messages"
+
+    Public Enum MessageType
+        [Error] = 1
+        Warning = 2
+        Info = 3
+        Log = 4
+    End Enum
+
+    Public Class ShowMessageParams
+        <JsonPropertyName("type")>
+        Public Property Type As MessageType
+
+        <JsonPropertyName("message")>
+        Public Property Message As String = String.Empty
+    End Class
+
+#End Region
+
 End Namespace

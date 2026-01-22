@@ -60,6 +60,9 @@ Namespace Core
         Private _workspaceExcludePaths As String()
         Private _workspaceMaxProjectResults As Integer = 250
         Private Const MaxAncestorSearchDepth As Integer = 4
+        Private ReadOnly _reportedNetFxProjects As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+        Private _netFxWarningSent As Boolean
+        Private _restoreHintSent As Boolean
 
         ''' <summary>
         ''' Server name reported in initialize response.
@@ -87,6 +90,7 @@ Namespace Core
             ' Initialize workspace layer
             _workspaceManager = New WorkspaceManager(loggerFactory.CreateLogger(Of WorkspaceManager)())
             _documentManager = New DocumentManager(_workspaceManager, loggerFactory.CreateLogger(Of DocumentManager)())
+            AddHandler _workspaceManager.WorkspaceDiagnostic, AddressOf OnWorkspaceDiagnostic
 
             ' Initialize services layer
             _diagnosticsService = New DiagnosticsService(
@@ -494,9 +498,20 @@ Namespace Core
                     Return
                 End If
 
+                Dim projectSearchRoots = GetProjectSearchRoots(rootPath)
+                Dim vbprojFiles = CollectVbProjFiles(
+                    projectSearchRoots,
+                    _workspaceExcludePaths,
+                    _workspaceMaxProjectResults,
+                    ct)
+
+                Await ReportNetFxSupportWarningsAsync(vbprojFiles, ct).ConfigureAwait(False)
+
                 If Not String.IsNullOrWhiteSpace(_workspaceSolutionPathOverride) Then
                     Dim explicitSolutionPath = ResolvePath(_workspaceSolutionPathOverride, rootPath)
                     If Not String.IsNullOrEmpty(explicitSolutionPath) Then
+                        Dim explicitProjects = GetSolutionProjectPaths(explicitSolutionPath)
+                        Await ReportNetFxSupportWarningsAsync(explicitProjects, ct).ConfigureAwait(False)
                         loadSucceeded = Await _workspaceManager.LoadSolutionAsync(explicitSolutionPath, ct).ConfigureAwait(False)
                         Return
                     End If
@@ -504,6 +519,7 @@ Namespace Core
 
                 If _workspaceProjectPathsOverride IsNot Nothing AndAlso _workspaceProjectPathsOverride.Length > 0 Then
                     Dim anyLoaded = False
+                    Await ReportNetFxSupportWarningsAsync(_workspaceProjectPathsOverride, ct).ConfigureAwait(False)
                     For Each projectPath In _workspaceProjectPathsOverride
                         If String.IsNullOrWhiteSpace(projectPath) OrElse Not projectPath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) Then
                             Continue For
@@ -528,6 +544,8 @@ Namespace Core
                     If solutionCandidates.Count > 0 Then
                         For Each candidate In solutionCandidates
                             If SolutionContainsVbProject(candidate) Then
+                                Dim solutionProjects = GetSolutionProjectPaths(candidate)
+                                Await ReportNetFxSupportWarningsAsync(solutionProjects, ct).ConfigureAwait(False)
                                 Dim loadedVb = Await _workspaceManager.LoadSolutionAsync(candidate, ct).ConfigureAwait(False)
                                 loadSucceeded = loadedVb
                                 If loadedVb Then
@@ -539,12 +557,6 @@ Namespace Core
                         Next
                     End If
                 End If
-
-                Dim vbprojFiles = CollectVbProjFiles(
-                    GetProjectSearchRoots(rootPath),
-                    _workspaceExcludePaths,
-                    _workspaceMaxProjectResults,
-                    ct)
 
                 If _workspaceMaxProjectResults > 0 AndAlso vbprojFiles.Count >= _workspaceMaxProjectResults Then
                     _logger.LogInformation("Project search capped at {Max} results", _workspaceMaxProjectResults)
@@ -655,6 +667,10 @@ Namespace Core
             End If
 
             Dim solutionPathOverride = GetStringSetting(settingsElement, "workspace", "solutionPath")
+            Dim legacySolutionPath = GetRootStringSetting(settingsElement, "solutionPath")
+            If String.IsNullOrWhiteSpace(solutionPathOverride) AndAlso legacySolutionPath IsNot Nothing Then
+                solutionPathOverride = legacySolutionPath
+            End If
             Dim projectPathsOverride = GetStringArraySetting(settingsElement, "workspace", "projectPaths")
             Dim projectSearchPaths = GetStringArraySetting(settingsElement, "workspace", "projectSearchPaths")
             Dim excludePaths = GetStringArraySetting(settingsElement, "workspace", "excludePaths")
@@ -762,6 +778,28 @@ Namespace Core
             If reloaded AndAlso _diagnosticsEnabled Then
                 TriggerDiagnosticsForOpenDocuments()
             End If
+        End Function
+
+        Private Sub OnWorkspaceDiagnostic(sender As Object, args As Microsoft.CodeAnalysis.WorkspaceDiagnosticEventArgs)
+            Dim message = args?.Diagnostic?.Message
+            If String.IsNullOrWhiteSpace(message) Then
+                Return
+            End If
+
+            If Not _restoreHintSent AndAlso IsRestoreRelatedMessage(message) Then
+                _restoreHintSent = True
+                Dim hint = "Restore appears incomplete. Run 'VB.NET: Restore Workspace' or 'VB.NET: Restore Project' and reopen the solution."
+                Dim ignore = SendWindowMessageAsync(MessageType.Warning, hint)
+            End If
+        End Sub
+
+        Private Shared Function IsRestoreRelatedMessage(message As String) As Boolean
+            Dim lowered = message.ToLowerInvariant()
+            Return lowered.Contains("restore") OrElse
+                lowered.Contains("project.assets.json") OrElse
+                lowered.Contains("assets file") OrElse
+                lowered.Contains("nu1301") OrElse
+                lowered.Contains("nu1101")
         End Function
 
 #End Region
@@ -1014,6 +1052,19 @@ Namespace Core
             End If
 
             Await _dispatcher.SendNotificationAsync(method, parameters, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function SendWindowMessageAsync(messageType As MessageType, message As String, Optional ct As CancellationToken = Nothing) As Task
+            If String.IsNullOrWhiteSpace(message) Then
+                Return
+            End If
+
+            Dim parameters = New ShowMessageParams With {
+                .Type = messageType,
+                .Message = message
+            }
+
+            Await _dispatcher.SendNotificationAsync("window/showMessage", parameters, ct).ConfigureAwait(False)
         End Function
 
 #End Region
@@ -1302,6 +1353,81 @@ Namespace Core
             End Try
         End Function
 
+        Private Shared Function GetSolutionProjectPaths(solutionPath As String) As List(Of String)
+            Dim results As New List(Of String)()
+            If String.IsNullOrWhiteSpace(solutionPath) OrElse Not File.Exists(solutionPath) Then
+                Return results
+            End If
+
+            Dim extension = Path.GetExtension(solutionPath).ToLowerInvariant()
+            Dim resolvedSolutionPath = solutionPath
+
+            If extension = ".slnf" Then
+                Dim filterSolutionPath = TryResolveSolutionPathFromFilter(solutionPath)
+                If Not String.IsNullOrWhiteSpace(filterSolutionPath) Then
+                    resolvedSolutionPath = filterSolutionPath
+                End If
+            ElseIf extension = ".slnx" Then
+                Return results
+            End If
+
+            If String.IsNullOrWhiteSpace(resolvedSolutionPath) OrElse Not File.Exists(resolvedSolutionPath) Then
+                Return results
+            End If
+
+            Dim solutionDir = Path.GetDirectoryName(resolvedSolutionPath)
+            For Each line In File.ReadLines(resolvedSolutionPath)
+                If line.IndexOf(".vbproj", StringComparison.OrdinalIgnoreCase) < 0 Then
+                    Continue For
+                End If
+
+                Dim parts = line.Split(","c)
+                If parts.Length < 2 Then
+                    Continue For
+                End If
+
+                Dim relativePath = parts(1).Trim().Trim(""""c)
+                If Not relativePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) Then
+                    Continue For
+                End If
+
+                Dim projectPath = If(Path.IsPathRooted(relativePath), relativePath, Path.Combine(solutionDir, relativePath))
+                results.Add(projectPath)
+            Next
+
+            Return results
+        End Function
+
+        Private Shared Function TryResolveSolutionPathFromFilter(solutionFilterPath As String) As String
+            Try
+                Dim json = File.ReadAllText(solutionFilterPath)
+                Dim document = JsonDocument.Parse(json)
+                Using document
+                    Dim root = document.RootElement
+                    Dim solutionElement As JsonElement
+                    If root.ValueKind <> JsonValueKind.Object OrElse Not root.TryGetProperty("solution", solutionElement) Then
+                        Return Nothing
+                    End If
+
+                    Dim pathElement As JsonElement
+                    If solutionElement.ValueKind <> JsonValueKind.Object OrElse Not solutionElement.TryGetProperty("path", pathElement) Then
+                        Return Nothing
+                    End If
+
+                    Dim relativePath = pathElement.GetString()
+                    If String.IsNullOrWhiteSpace(relativePath) Then
+                        Return Nothing
+                    End If
+
+                    Dim filterDir = Path.GetDirectoryName(solutionFilterPath)
+                    Dim resolved = If(Path.IsPathRooted(relativePath), relativePath, Path.Combine(filterDir, relativePath))
+                    Return resolved
+                End Using
+            Catch
+                Return Nothing
+            End Try
+        End Function
+
         Private Function GetProjectSearchRoots(rootPath As String) As IEnumerable(Of String)
             If _workspaceProjectSearchPaths Is Nothing OrElse _workspaceProjectSearchPaths.Length = 0 Then
                 Return GetAncestorRoots(rootPath)
@@ -1454,6 +1580,111 @@ Namespace Core
                     stack.Push(directory)
                 Next
             End While
+        End Function
+
+        Private Async Function ReportNetFxSupportWarningsAsync(projectPaths As IEnumerable(Of String), ct As CancellationToken) As Task
+            If projectPaths Is Nothing Then
+                Return
+            End If
+
+            Dim netFxTargets As New SortedSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            Dim netFxProjects As New List(Of String)()
+
+            For Each projectPath In projectPaths
+                If String.IsNullOrWhiteSpace(projectPath) Then
+                    Continue For
+                End If
+
+                Dim fullPath = Path.GetFullPath(projectPath)
+                If _reportedNetFxProjects.Contains(fullPath) Then
+                    Continue For
+                End If
+
+                Dim targets = NetFxProjectInspector.GetSdkStyleNetFxTargets(fullPath)
+                If targets.Length = 0 Then
+                    Continue For
+                End If
+
+                _reportedNetFxProjects.Add(fullPath)
+                netFxProjects.Add(Path.GetFileName(fullPath))
+                For Each target In targets
+                    netFxTargets.Add(target)
+                Next
+            Next
+
+            If netFxTargets.Count = 0 OrElse _netFxWarningSent Then
+                Return
+            End If
+
+            _netFxWarningSent = True
+
+            Dim targetList = String.Join(", ", netFxTargets)
+            Dim projectList = String.Join(", ", netFxProjects.Take(3))
+            If netFxProjects.Count > 3 Then
+                projectList &= ", ..."
+            End If
+
+            If Not OperatingSystem.IsWindows() Then
+                Dim message = $"SDK-style .NET Framework targets ({targetList}) are not supported on non-Windows hosts. Projects: {projectList}."
+                message &= " Use Windows or retarget to a modern .NET runtime."
+                Await SendWindowMessageAsync(MessageType.Warning, message, ct).ConfigureAwait(False)
+                Return
+            End If
+
+            Dim missingTargets = netFxTargets.Where(Function(target) Not HasNetFxReferenceAssemblies(target)).ToList()
+            Dim needsFullMsbuild = IsDotnetSdkMsbuild()
+
+            If missingTargets.Count = 0 AndAlso Not needsFullMsbuild Then
+                Return
+            End If
+
+            Dim messageParts As New List(Of String)()
+            If missingTargets.Count > 0 Then
+                messageParts.Add($"Missing .NET Framework reference assemblies for {String.Join(", ", missingTargets)}.")
+                messageParts.Add("Install the .NET Framework targeting pack or Visual Studio Build Tools.")
+                messageParts.Add("Alternatively add Microsoft.NETFramework.ReferenceAssemblies to the project.")
+            End If
+
+            If needsFullMsbuild Then
+                messageParts.Add("For best compatibility with net4x, set vbnet.msbuildPath to a full MSBuild (VS Build Tools).")
+            End If
+
+            If messageParts.Count > 0 Then
+                Await SendWindowMessageAsync(MessageType.Warning, String.Join(" ", messageParts), ct).ConfigureAwait(False)
+            End If
+        End Function
+
+        Private Shared Function HasNetFxReferenceAssemblies(targetFramework As String) As Boolean
+            Dim folderName = NetFxProjectInspector.GetNetFxReferenceFolderName(targetFramework)
+            If String.IsNullOrWhiteSpace(folderName) Then
+                Return False
+            End If
+
+            Dim programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+            If String.IsNullOrWhiteSpace(programFilesX86) Then
+                Return False
+            End If
+
+            Dim referencePath = Path.Combine(
+                programFilesX86,
+                "Reference Assemblies",
+                "Microsoft",
+                "Framework",
+                ".NETFramework",
+                folderName)
+
+            Return Directory.Exists(referencePath)
+        End Function
+
+        Private Shared Function IsDotnetSdkMsbuild() As Boolean
+            Dim msbuildPath = Environment.GetEnvironmentVariable("VBNET_MSBUILD_PATH_ACTIVE")
+            If String.IsNullOrWhiteSpace(msbuildPath) Then
+                Return False
+            End If
+
+            Dim normalized = msbuildPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar).ToLowerInvariant()
+            Dim token = $"{Path.DirectorySeparatorChar}dotnet{Path.DirectorySeparatorChar}sdk"
+            Return normalized.Contains(token)
         End Function
 
         Private Shared Function GetStringArraySetting(settings As JsonElement, section As String, name As String) As String()

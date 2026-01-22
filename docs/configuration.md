@@ -540,6 +540,22 @@ Check output panel for startup errors.
 
 ---
 
+### Problem: SDK-style .NET Framework (net4x) projects fail to load
+
+**Symptoms**: "Visual Basic not supported" or missing reference assemblies for net4x targets.
+
+**Check (Windows)**:
+1. Install the .NET Framework targeting packs or Visual Studio Build Tools.
+2. Set `vbnet.msbuildPath` to a full MSBuild (from Visual Studio/Build Tools).
+3. If targeting packs are unavailable, add `Microsoft.NETFramework.ReferenceAssemblies` to the project.
+
+**Check (non-Windows)**:
+- SDK-style net4x targets are not supported. Retarget to modern .NET or build on Windows.
+
+**Tip**: If restores are missing, use **"VB.NET: Restore Workspace"** or **"VB.NET: Restore Project"**.
+
+---
+
 ### Problem: High CPU usage
 
 **Symptoms**: VS Code sluggish, high CPU in Task Manager

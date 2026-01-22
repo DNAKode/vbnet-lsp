@@ -1,6 +1,7 @@
 ' VB.NET Language Server entry point
 ' Host/CLI layer as defined in docs/architecture.md Section 5.5
 
+Imports System.IO
 Imports Microsoft.Build.Locator
 Imports Microsoft.Extensions.Logging
 Imports VbNet.LanguageServer.Core
@@ -23,7 +24,7 @@ Public Module Program
             Dim logger = loggerFactory.CreateLogger("VbNet.LanguageServer")
 
             Try
-                RegisterMSBuild(logger)
+                RegisterMSBuild(logger, options.MsbuildPath)
 
                 If options.WaitForDebugger Then
                     logger.LogInformation("Waiting for debugger to attach...")
@@ -63,7 +64,29 @@ Public Module Program
     ''' Registers MSBuild for MSBuildWorkspace.
     ''' Must be called before any Roslyn types are loaded.
     ''' </summary>
-    Private Sub RegisterMSBuild(logger As ILogger)
+    Private Sub RegisterMSBuild(logger As ILogger, msbuildPathOverride As String)
+        Dim configuredPath = If(String.IsNullOrWhiteSpace(msbuildPathOverride),
+                                Environment.GetEnvironmentVariable("VBNET_MSBUILD_PATH"),
+                                msbuildPathOverride)
+
+        If Not String.IsNullOrWhiteSpace(configuredPath) Then
+            Dim normalized = configuredPath.Trim()
+            Dim resolved = If(Directory.Exists(normalized), Path.GetFullPath(normalized), Nothing)
+
+            If resolved Is Nothing AndAlso File.Exists(normalized) Then
+                resolved = Path.GetDirectoryName(Path.GetFullPath(normalized))
+            End If
+
+            If String.IsNullOrWhiteSpace(resolved) OrElse Not Directory.Exists(resolved) Then
+                logger.LogWarning("Configured MSBuild path not found: {Path}", normalized)
+            Else
+                MSBuildLocator.RegisterMSBuildPath(resolved)
+                Environment.SetEnvironmentVariable("VBNET_MSBUILD_PATH_ACTIVE", resolved)
+                logger.LogInformation("Registered MSBuild from override path: {Path}", resolved)
+                Return
+            End If
+        End If
+
         Dim instances = MSBuildLocator.QueryVisualStudioInstances().ToList()
 
         If instances.Count = 0 Then
@@ -73,6 +96,7 @@ Public Module Program
 
         Dim instance = instances.OrderByDescending(Function(i) i.Version).First()
         MSBuildLocator.RegisterInstance(instance)
+        Environment.SetEnvironmentVariable("VBNET_MSBUILD_PATH_ACTIVE", instance.MSBuildPath)
 
         logger.LogInformation("Registered MSBuild from: {Path} (version {Version})", instance.MSBuildPath, instance.Version)
     End Sub
@@ -109,6 +133,11 @@ Public Module Program
                     If i + 1 < args.Length Then
                         i += 1
                         options.LogLevel = ParseLogLevel(args(i))
+                    End If
+                Case "--msbuildPath"
+                    If i + 1 < args.Length Then
+                        i += 1
+                        options.MsbuildPath = args(i)
                     End If
                 Case "--help", "-h"
                     PrintHelp()
@@ -156,6 +185,7 @@ Public Module Program
                           "  --pipe              Use named pipe transport (default)" & Environment.NewLine &
                           "  --stdio             Use stdio transport" & Environment.NewLine &
                           "  --logLevel <level>  Set log level (Trace, Debug, Information, Warning, Error, Critical)" & Environment.NewLine &
+                          "  --msbuildPath <path>  Use a specific MSBuild path for project loading" & Environment.NewLine &
                           "  --debug             Wait for debugger to attach before starting" & Environment.NewLine &
                           "  --version, -v       Show version information" & Environment.NewLine &
                           "  --help, -h          Show this help message" & Environment.NewLine & Environment.NewLine &
@@ -183,6 +213,11 @@ Friend Class ServerOptions
     ''' Minimum log level.
     ''' </summary>
     Public Property LogLevel As LogLevel = LogLevel.Information
+
+    ''' <summary>
+    ''' MSBuild path override.
+    ''' </summary>
+    Public Property MsbuildPath As String
 
     ''' <summary>
     ''' Wait for debugger to attach before starting.

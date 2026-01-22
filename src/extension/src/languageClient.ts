@@ -326,12 +326,18 @@ export class VbNetLanguageClient implements vscode.Disposable {
         const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
         const maxProjectResults = config.get<number>('workspace.maxProjectResults', 250);
         const configuredSolution = (config.get<string>('workspace.solutionPath', '') || '').trim();
+        const legacySolution = (config.get<string>('solutionPath', '') || '').trim();
         const ignoreSolutionFiles = config.get<boolean>('workspace.ignoreSolutionFiles', false);
 
-        if (configuredSolution) {
+        const effectiveSolution = configuredSolution || legacySolution;
+
+        if (effectiveSolution) {
+            if (!configuredSolution && legacySolution) {
+                this.channel.appendLine('Using legacy vbnet.solutionPath; prefer vbnet.workspace.solutionPath.');
+            }
             return {
                 workspace: {
-                    solutionPath: configuredSolution,
+                    solutionPath: effectiveSolution,
                     ignoreSolutionFiles
                 }
             };
