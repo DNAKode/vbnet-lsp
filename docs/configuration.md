@@ -30,6 +30,7 @@ Last Updated: 2026-01-20
 - **`VB.NET: Toggle LSP Trace`** — toggles `vbnet.trace.server` between `off` and `verbose`.
 - **`VB.NET: Restore Workspace`** — runs `dotnet restore` using the selected solution (or workspace root).
 - **`VB.NET: Restore Project`** — picks a `.vbproj` file and runs `dotnet restore` for it.
+- **`VB.NET: Reload Workspace`** — requests a workspace reload without restarting the extension.
 
 ### Explorer File Nesting Defaults
 

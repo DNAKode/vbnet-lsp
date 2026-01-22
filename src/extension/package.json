@@ -243,6 +243,11 @@
         "category": "VB.NET"
       },
       {
+        "command": "vbnet.reloadWorkspace",
+        "title": "Reload VB.NET Workspace",
+        "category": "VB.NET"
+      },
+      {
         "command": "vbnet.showOutputChannel",
         "title": "Show VB.NET Output",
         "category": "VB.NET"

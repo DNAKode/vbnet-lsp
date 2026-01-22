@@ -434,4 +434,12 @@ export class VbNetLanguageClient implements vscode.Disposable {
             });
         });
     }
+
+    public async reloadWorkspace(): Promise<void> {
+        if (!this.client) {
+            throw new Error('Language client not started.');
+        }
+
+        await this.client.sendNotification('vbnet/reloadWorkspace');
+    }
 }

@@ -70,7 +70,8 @@ Namespace VbNet.Extension.Tests
                 "vbnet.showLogs",
                 "vbnet.toggleLspTrace",
                 "vbnet.restoreWorkspace",
-                "vbnet.restoreProject"
+                "vbnet.restoreProject",
+                "vbnet.reloadWorkspace"
             }
 
             For Each commandName In required

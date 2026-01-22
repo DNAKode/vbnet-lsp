@@ -483,6 +483,7 @@ var vbProjects = solution.Projects
 - Debounced reload (1000ms default)
 - Preserve open document buffers across reloads
 - Incremental reload where possible
+- Manual reload via custom `vbnet/reloadWorkspace` notification (command palette action).
 
 ---
 

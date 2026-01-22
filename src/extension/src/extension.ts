@@ -234,6 +234,31 @@ function registerCommands(context: vscode.ExtensionContext): void {
             }
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.reloadWorkspace', async () => {
+            if (!languageClient) {
+                vscode.window.showWarningMessage('VB.NET Language Server is not running.');
+                return;
+            }
+
+            try {
+                await vscode.window.withProgress(
+                    {
+                        location: vscode.ProgressLocation.Notification,
+                        title: 'Reloading VB.NET workspace',
+                        cancellable: false
+                    },
+                    () => languageClient!.reloadWorkspace()
+                );
+                vscode.window.showInformationMessage('VB.NET workspace reload requested.');
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to reload workspace: ${message}`);
+                vscode.window.showErrorMessage(`Failed to reload workspace: ${message}`);
+            }
+        })
+    );
 }
 
 interface SolutionPickItem extends vscode.QuickPickItem {

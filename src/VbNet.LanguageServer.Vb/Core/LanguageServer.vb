@@ -362,6 +362,7 @@ Namespace Core
             ' Workspace notifications
             _dispatcher.RegisterNotification(Of DidChangeConfigurationParams)("workspace/didChangeConfiguration", AddressOf HandleDidChangeConfigurationAsync)
             _dispatcher.RegisterNotification(Of DidChangeWatchedFilesParams)("workspace/didChangeWatchedFiles", AddressOf HandleDidChangeWatchedFilesAsync)
+            _dispatcher.RegisterNotification("vbnet/reloadWorkspace", AddressOf HandleReloadWorkspaceAsync)
 
             ' Language features
             _dispatcher.RegisterRequest(Of CompletionParams, CompletionList)("textDocument/completion", AddressOf HandleCompletionAsync)
@@ -748,6 +749,21 @@ Namespace Core
             End If
         End Function
 
+        Private Async Function HandleReloadWorkspaceAsync(ct As CancellationToken) As Task
+            If String.IsNullOrEmpty(_workspaceRootUri) Then
+                _logger.LogWarning("Workspace reload requested but no workspace root is set.")
+                Return
+            End If
+
+            _logger.LogInformation("Workspace reload requested by client.")
+            Dim reloaded = Await _workspaceManager.ReloadWorkspaceAsync(ct).ConfigureAwait(False)
+            _documentManager.ReassociateDocumentsWithWorkspace()
+
+            If reloaded AndAlso _diagnosticsEnabled Then
+                TriggerDiagnosticsForOpenDocuments()
+            End If
+        End Function
+
 #End Region
 
 #Region "Language Feature Handlers"
@@ -1083,6 +1099,7 @@ Namespace Core
             Dim fileName = Path.GetFileName(filePath)
             Return filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) OrElse
                 filePath.EndsWith(".slnf", StringComparison.OrdinalIgnoreCase) OrElse
+                filePath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) OrElse
                 filePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) OrElse
                 String.Equals(fileName, "Directory.Build.props", StringComparison.OrdinalIgnoreCase) OrElse
                 String.Equals(fileName, "Directory.Build.targets", StringComparison.OrdinalIgnoreCase)
@@ -1090,7 +1107,8 @@ Namespace Core
 
         Private Function ShouldReloadForWorkspaceFile(filePath As String) As Boolean
             If filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) OrElse
-                filePath.EndsWith(".slnf", StringComparison.OrdinalIgnoreCase) Then
+                filePath.EndsWith(".slnf", StringComparison.OrdinalIgnoreCase) OrElse
+                filePath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) Then
                 Return Not String.IsNullOrEmpty(_workspaceManager.LoadedSolutionPath) AndAlso
                     String.Equals(Path.GetFullPath(_workspaceManager.LoadedSolutionPath), Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase)
             End If

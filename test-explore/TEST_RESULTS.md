@@ -47,6 +47,16 @@ Optional flags:
 
 ## Recent runs
 
+### 2026-01-22 — VS Code harness (VB.NET server, reload command)
+
+Command:
+- `cd test-explore\\clients\\vscode; npm test`
+
+Outcome: PASS (14 passing, 5 pending; non-fatal DAP warnings)
+Notes:
+- DAP warnings: `Failed command 'threads' : 0x80004005`.
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-22T201724918Z.log`.
+
 ### 2026-01-22 — VS Code harness (VB.NET server, restore commands)
 
 Command:
