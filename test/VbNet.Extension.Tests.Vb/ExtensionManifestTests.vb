@@ -68,7 +68,9 @@ Namespace VbNet.Extension.Tests
             Dim required = New String() {
                 "vbnet.selectWorkspaceSolution",
                 "vbnet.showLogs",
-                "vbnet.toggleLspTrace"
+                "vbnet.toggleLspTrace",
+                "vbnet.restoreWorkspace",
+                "vbnet.restoreProject"
             }
 
             For Each commandName In required

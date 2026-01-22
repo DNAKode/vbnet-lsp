@@ -129,6 +129,7 @@ Once installed, the extension automatically activates when you open a \`.vb\` fi
 
 If you have multiple solutions, use the Command Palette action **"VB.NET: Select Workspace Solution"** to choose the active \`.sln/.slnf/.slnx\`.
 For diagnostics, use **"VB.NET: Show Logs"** and **"VB.NET: Toggle LSP Trace"**.
+If assets are missing, run **"VB.NET: Restore Workspace"** or **"VB.NET: Restore Project"**.
 
 ## Architecture
 

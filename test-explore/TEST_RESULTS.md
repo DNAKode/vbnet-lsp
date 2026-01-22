@@ -47,6 +47,15 @@ Optional flags:
 
 ## Recent runs
 
+### 2026-01-22 — VS Code harness (VB.NET server, restore commands)
+
+Command:
+- `cd test-explore\\clients\\vscode; npm test`
+
+Outcome: PASS (14 passing, 5 pending)
+Notes:
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-22T200313660Z.log`.
+
 ### 2026-01-22 — VS Code harness (VB.NET server, trace commands)
 
 Command:

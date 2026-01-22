@@ -5,6 +5,8 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as cp from 'child_process';
+import * as fs from 'fs';
 import { PlatformInformation } from './platform';
 import { VbNetLanguageClient } from './languageClient';
 import { VbNetStatusBar } from './statusBar';
@@ -208,11 +210,39 @@ function registerCommands(context: vscode.ExtensionContext): void {
             }
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.restoreWorkspace', async () => {
+            try {
+                await restoreWorkspace();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to restore workspace: ${message}`);
+                vscode.window.showErrorMessage(`Failed to restore workspace: ${message}`);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.restoreProject', async () => {
+            try {
+                await restoreProject();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to restore project: ${message}`);
+                vscode.window.showErrorMessage(`Failed to restore project: ${message}`);
+            }
+        })
+    );
 }
 
 interface SolutionPickItem extends vscode.QuickPickItem {
     solutionPath?: string;
     action?: 'clear';
+}
+
+interface ProjectPickItem extends vscode.QuickPickItem {
+    projectPath: string;
 }
 
 async function selectWorkspaceSolution(): Promise<void> {
@@ -336,6 +366,180 @@ async function toggleLspTrace(): Promise<void> {
         : 'VB.NET LSP trace disabled.';
     outputChannel?.appendLine(message);
     vscode.window.showInformationMessage(message);
+}
+
+async function restoreWorkspace(): Promise<void> {
+    const workspaceRoot = getWorkspaceRoot();
+    if (!workspaceRoot) {
+        return;
+    }
+
+    const configuredSolution = getConfiguredSolutionPath(workspaceRoot);
+    const candidateSolution = configuredSolution ?? await pickWorkspaceSolutionCandidate(workspaceRoot);
+    const args = ['restore'];
+    if (candidateSolution) {
+        args.push(candidateSolution);
+    }
+
+    const label = candidateSolution ? `Restoring ${path.basename(candidateSolution)}` : 'Restoring workspace';
+    await runDotnetCommand(args, workspaceRoot, label);
+}
+
+async function restoreProject(): Promise<void> {
+    const workspaceRoot = getWorkspaceRoot();
+    if (!workspaceRoot) {
+        return;
+    }
+
+    const projects = await findWorkspaceProjects();
+    if (projects.length === 0) {
+        vscode.window.showInformationMessage('No VB.NET project files were found in this workspace.');
+        return;
+    }
+
+    const items: ProjectPickItem[] = projects.map((projectPath) => {
+        const relative = path.relative(workspaceRoot, projectPath);
+        const label = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+            ? relative
+            : path.basename(projectPath);
+        return {
+            label,
+            detail: projectPath,
+            projectPath
+        };
+    });
+
+    const pick = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a VB.NET project to restore',
+        canPickMany: false
+    });
+
+    if (!pick) {
+        return;
+    }
+
+    await runDotnetCommand(['restore', pick.projectPath], workspaceRoot, `Restoring ${pick.label}`);
+}
+
+function getWorkspaceRoot(): string | undefined {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showWarningMessage('No workspace folder is open.');
+        return undefined;
+    }
+
+    return workspaceFolders[0].uri.fsPath;
+}
+
+function getConfiguredSolutionPath(workspaceRoot: string): string | undefined {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const configuredSolution = (config.get<string>('workspace.solutionPath', '') || '').trim();
+    if (!configuredSolution) {
+        return undefined;
+    }
+
+    const resolved = path.resolve(workspaceRoot, configuredSolution);
+    if (resolved && fsPathExists(resolved)) {
+        return resolved;
+    }
+
+    outputChannel?.appendLine(`Configured solution path not found: ${configuredSolution}`);
+    return undefined;
+}
+
+async function pickWorkspaceSolutionCandidate(workspaceRoot: string): Promise<string | undefined> {
+    const solutions = await findWorkspaceSolutions();
+    if (solutions.length === 0) {
+        return undefined;
+    }
+
+    const withVb = [];
+    for (const solutionPath of solutions) {
+        if (await solutionLikelyHasVbProjects(solutionPath)) {
+            withVb.push(solutionPath);
+        }
+    }
+
+    const candidates = (withVb.length > 0 ? withVb : solutions)
+        .sort((a, b) => {
+            const depthA = a.split(path.sep).length;
+            const depthB = b.split(path.sep).length;
+            return depthA - depthB;
+        });
+
+    return candidates[0];
+}
+
+async function findWorkspaceSolutions(): Promise<string[]> {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const defaultExclude = '**/node_modules/**,**/.git/**,**/bower_components/**';
+    const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
+
+    const resources = await vscode.workspace.findFiles(
+        '{**/*.sln,**/*.slnf,**/*.slnx}',
+        `{${excludePattern}}`
+    );
+
+    return resources.map((resource) => resource.fsPath);
+}
+
+async function findWorkspaceProjects(): Promise<string[]> {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const defaultExclude = '**/node_modules/**,**/.git/**,**/bower_components/**';
+    const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
+
+    const resources = await vscode.workspace.findFiles(
+        '**/*.vbproj',
+        `{${excludePattern}}`
+    );
+
+    return resources.map((resource) => resource.fsPath);
+}
+
+async function runDotnetCommand(args: string[], cwd: string, title: string): Promise<void> {
+    outputChannel?.show();
+    outputChannel?.appendLine(`Running: dotnet ${args.join(' ')}`);
+
+    await vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title,
+            cancellable: false
+        },
+        () => new Promise<void>((resolve, reject) => {
+            const child = cp.spawn('dotnet', args, { cwd, env: process.env });
+
+            child.stdout?.on('data', (data: Buffer) => {
+                outputChannel?.appendLine(data.toString().trimEnd());
+            });
+
+            child.stderr?.on('data', (data: Buffer) => {
+                outputChannel?.appendLine(data.toString().trimEnd());
+            });
+
+            child.on('error', (error) => {
+                reject(error);
+            });
+
+            child.on('exit', (code) => {
+                if (code === 0) {
+                    resolve();
+                    return;
+                }
+                reject(new Error(`dotnet ${args[0]} exited with code ${code}`));
+            });
+        })
+    );
+
+    vscode.window.showInformationMessage('Restore completed.');
+}
+
+function fsPathExists(filePath: string): boolean {
+    try {
+        return fs.statSync(filePath).isFile();
+    } catch {
+        return false;
+    }
 }
 
 /**

@@ -28,6 +28,8 @@ Last Updated: 2026-01-20
   `vbnet.workspace.solutionPath`. Pick "Auto-detect" to clear the override.
 - **`VB.NET: Show Logs`** — opens the main output channel and the LSP trace channel.
 - **`VB.NET: Toggle LSP Trace`** — toggles `vbnet.trace.server` between `off` and `verbose`.
+- **`VB.NET: Restore Workspace`** — runs `dotnet restore` using the selected solution (or workspace root).
+- **`VB.NET: Restore Project`** — picks a `.vbproj` file and runs `dotnet restore` for it.
 
 ---
 

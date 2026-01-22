@@ -231,6 +231,16 @@
         "category": "VB.NET"
       },
       {
+        "command": "vbnet.restoreWorkspace",
+        "title": "Restore VB.NET Workspace",
+        "category": "VB.NET"
+      },
+      {
+        "command": "vbnet.restoreProject",
+        "title": "Restore VB.NET Project",
+        "category": "VB.NET"
+      },
+      {
         "command": "vbnet.showOutputChannel",
         "title": "Show VB.NET Output",
         "category": "VB.NET"
