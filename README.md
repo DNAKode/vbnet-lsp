@@ -142,6 +142,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed architectural info
 - [Architecture](docs/architecture.md) - System architecture and design decisions
 - [Development Guide](docs/development.md) - Building, testing, and contributing
 - [Configuration](docs/configuration.md) - Settings and customization
+- [Roslyn Packaging](docs/roslyn-packaging.md) - Roslyn LSP packaging and layout
 - [Feature Support](docs/features.md) - LSP feature matrix and roadmap
 
 ## Project Goals

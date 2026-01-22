@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - Developer Documentation**
 
 Version: 1.0
-Last Updated: 2026-01-19
+Last Updated: 2026-01-21
 
 ## Table of Contents
 
@@ -652,6 +652,7 @@ Current scope: Windows-only (multi-platform planned).
 ```yaml
 - Run language server unit/integration tests (test/VbNet.LanguageServer.Tests.Vb)
 - Run extension manifest checks (test/VbNet.Extension.Tests)
+- Bundle Roslyn LSP (win-x64) and validate `.roslyn` + `.roslyn-vb` layout
 ```
 
 #### Planned (not yet in repo)
@@ -667,7 +668,8 @@ Two workflows are available via `workflow_dispatch` (manual trigger):
 - **package-vsix.yml**: Build a VSIX artifact for a selected target.
 - **publish-vsix.yml**: Build and publish a VSIX to the Marketplace.
 
-Both workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`.
+Both workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`,
+bundle Roslyn LSP assets via NuGet, and validate that `.roslyn` + `.roslyn-vb` are present in the VSIX.
 Publishing also requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
 
 ### CI Duration Note (Tracking)

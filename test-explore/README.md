@@ -26,6 +26,7 @@ Exploratory, headless, and multi-environment harnesses for `VB.NET` language sup
 - `test-explore/vbnet-lsp/run-tests.ps1`
 - `test-explore/clients/vscode/README.md`
 - `test-explore/clients/emacs/README.md`
+- `test-explore/clients/nvim/README.md`
 
 ## Results
 

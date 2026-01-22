@@ -168,6 +168,13 @@ This document serves as the **single authoritative source** for all architectura
 - `vbnet.debugger.path` - netcoredbg path override
 - `vbnet.debugger.args` - Additional netcoredbg arguments
 
+**Backend Selection (planned)**:
+- The extension will support selecting which LSP server to launch (our VB.NET LSP vs Roslyn LSP),
+  but only one server is active at a time. This keeps behavior predictable and avoids regressions.
+- Alternative approach (not implemented): run both servers and route specific requests to a
+  secondary backend for missing features. We are intentionally not doing this yet due to
+  complexity and regression risk.
+
 ### 3.2 Language Server (VB.NET/.NET)
 
 **Location**: `src/VbNet.LanguageServer.Vb/`

@@ -27,7 +27,7 @@ Run via `test-explore/run-tests.ps1 -Theme <name>`:
 | Theme | Purpose | Suites |
 | --- | --- | --- |
 | `core` | Fast LSP protocol/regression sanity | `vbnet-lsp` |
-| `editors` | Client behavior validation | `emacs`, `vscode` |
+| `editors` | Client behavior validation | `emacs`, `vscode`, `nvim` |
 | `scale` | Large-solution robustness/perf | `dwsim`, `vscode-dwsim` |
 | `all` | Full exploratory sweep | all of the above |
 
@@ -231,6 +231,9 @@ Alternate client strategy (Phase 1-2 planning):
 - Future Emacs expansion: evaluate `lsp-mode` for richer client coverage once a non-interactive package install path is available; retain `eglot` as the zero-dependency baseline.
 - Future Neovim expansion: mirror the `roslyn.nvim` approach with a VB.NET-backed client and a
   `test-explore/clients/nvim` harness once the local reference clone exists.
+  - Status: initial Neovim harness scaffolded under `test-explore/clients/nvim` (headless smoke).
+  - Optional reference runs: C# Roslyn server and VB.NET Roslyn server can be exercised via the Neovim harness for parity checks.
+  - Current reference source: Mason custom registry `Crashdummyy/roslynLanguageServer` (version tracked in `TEST_RESULTS.md`).
 
 Data capture:
 - Standard test logs for LSP request/response.

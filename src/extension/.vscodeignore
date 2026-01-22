@@ -9,3 +9,4 @@ esbuild.js
 **/*.ts
 **/*.map
 *.vsix
+.roslyn-downloads/**

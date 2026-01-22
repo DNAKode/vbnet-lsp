@@ -34,6 +34,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
     private serverLauncher: ServerLauncher;
     private readonly onStateChangeEmitter = new vscode.EventEmitter<LanguageClientStateChangeEvent>();
     private traceConfigDisposable: vscode.Disposable | undefined;
+    private serverConfigDisposable: vscode.Disposable | undefined;
     private initializationOptions: object | undefined;
     private currentState: State = State.Stopped;
 
@@ -43,9 +44,10 @@ export class VbNetLanguageClient implements vscode.Disposable {
         private readonly channel: vscode.OutputChannel,
         private readonly traceChannel: vscode.OutputChannel,
         private readonly platformInfo: PlatformInformation,
-        private readonly extensionPath: string
+        private readonly extensionPath: string,
+        private readonly logRoot: string
     ) {
-        this.serverLauncher = new ServerLauncher(channel, platformInfo, extensionPath);
+        this.serverLauncher = new ServerLauncher(channel, platformInfo, extensionPath, logRoot);
     }
 
     /**
@@ -61,9 +63,10 @@ export class VbNetLanguageClient implements vscode.Disposable {
             // Get transport type from configuration
             const config = vscode.workspace.getConfiguration('vbnet');
             const transportType = config.get<TransportType>('server.transportType', 'auto');
+            const backend = config.get<'vbnet' | 'roslyn'>('server.backend', 'vbnet');
 
             // Start the server
-            const serverResult = await this.serverLauncher.startServer(transportType);
+            const serverResult = await this.serverLauncher.startServer(transportType, backend);
 
             // Create the language client
             this.initializationOptions = await this.buildInitializationOptions();
@@ -88,6 +91,19 @@ export class VbNetLanguageClient implements vscode.Disposable {
                 if (event.affectsConfiguration('vbnet.trace.server')) {
                     this.updateTraceLevel().catch((error) => {
                         this.channel.appendLine(`Failed to update trace level: ${error}`);
+                    });
+                }
+            });
+
+            this.serverConfigDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+                if (event.affectsConfiguration('vbnet.server.backend') ||
+                    event.affectsConfiguration('vbnet.server.path') ||
+                    event.affectsConfiguration('vbnet.server.transportType') ||
+                    event.affectsConfiguration('vbnet.roslyn.server.path') ||
+                    event.affectsConfiguration('vbnet.roslyn.server.extensionPath')) {
+                    this.channel.appendLine('Server configuration changed. Restarting language server...');
+                    this.restart().catch((error) => {
+                        this.channel.appendLine(`Failed to restart language server after config change: ${error}`);
                     });
                 }
             });
@@ -240,6 +256,8 @@ export class VbNetLanguageClient implements vscode.Disposable {
 
         this.traceConfigDisposable?.dispose();
         this.traceConfigDisposable = undefined;
+        this.serverConfigDisposable?.dispose();
+        this.serverConfigDisposable = undefined;
 
         await this.serverLauncher.stopServer();
     }

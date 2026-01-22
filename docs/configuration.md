@@ -94,6 +94,44 @@ View traces: "View > Output" > "`VB.NET` Language Support"
 
 **Note**: Prefer setting this in workspace settings when developing the server. For a new user experience, leave it unset so the extension uses the bundled server.
 
+#### `vbnet.server.backend`
+**Type**: `enum`
+**Values**: `"vbnet"`, `"roslyn"`
+**Default**: `"vbnet"`
+**Description**: Select which language server backend to launch.
+
+```json
+{
+  "vbnet.server.backend": "vbnet"
+}
+```
+
+**Notes**:
+- `vbnet` uses the bundled VB.NET language server (current default).
+- `roslyn` uses the Roslyn language server with VB assemblies loaded via extension path.
+
+#### `vbnet.roslyn.server.path`
+**Type**: `string`
+**Default**: `""` (use bundled Roslyn server)
+**Description**: Override the Roslyn language server binary path.
+
+```json
+{
+  "vbnet.roslyn.server.path": "C:\\path\\to\\Microsoft.CodeAnalysis.LanguageServer.dll"
+}
+```
+
+#### `vbnet.roslyn.server.extensionPath`
+**Type**: `string`
+**Default**: `""`
+**Description**: Directory containing Roslyn VB extension assemblies (`Microsoft.CodeAnalysis.VisualBasic*.dll`).
+
+```json
+{
+  "vbnet.roslyn.server.extensionPath": "C:\\path\\to\\roslyn-vb-extension"
+}
+```
+
 ---
 
 ### Feature Toggles
@@ -645,6 +683,18 @@ export VBNET_LS_MAX_MEMORY_MB=4096
 # Windows (PowerShell)
 $env:VBNET_LS_LOG_LEVEL="Trace"
 $env:VBNET_LS_MAX_MEMORY_MB="4096"
+```
+
+Additional environment variables (Roslyn backend):
+
+```bash
+# Linux/macOS
+export VBNET_ROSLYN_SERVER_PATH=/path/to/Microsoft.CodeAnalysis.LanguageServer.dll
+export VBNET_ROSLYN_EXTENSION_PATH=/path/to/roslyn-vb-extension
+
+# Windows (PowerShell)
+$env:VBNET_ROSLYN_SERVER_PATH="C:\\path\\to\\Microsoft.CodeAnalysis.LanguageServer.dll"
+$env:VBNET_ROSLYN_EXTENSION_PATH="C:\\path\\to\\roslyn-vb-extension"
 ```
 
 **Note**: VS Code settings override environment variables.

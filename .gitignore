@@ -505,6 +505,12 @@ _external/
 # Exploratory harness artifacts (logs, downloaded runtimes, caches)
 test-explore/clients/emacs/emacs/
 test-explore/clients/vscode/.vscode-test/
+test-explore/clients/nvim/nvim/
 test-explore/**/logs/
 test-explore/vbnet-lsp/snapshots/
+
+# Roslyn LSP bundle artifacts (generated during packaging)
+src/extension/.roslyn/
+src/extension/.roslyn-vb/
+src/extension/.roslyn-downloads/
 

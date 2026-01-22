@@ -87,7 +87,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<VbNetE
             outputChannel,
             traceChannel,
             platformInfo,
-            context.extensionPath
+            context.extensionPath,
+            context.logUri.fsPath
         );
 
         // Update status bar on state changes

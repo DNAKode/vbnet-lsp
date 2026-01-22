@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('vbnet-lsp','emacs','dwsim','vscode','vscode-dwsim','all')][string]$Suite = 'all',
+    [ValidateSet('vbnet-lsp','emacs','nvim','dwsim','vscode','vscode-dwsim','all')][string]$Suite = 'all',
     [ValidateSet('core','editors','scale','all')][string]$Theme,
     [ValidateSet('pipe','stdio')][string]$Transport = 'pipe',
     [string]$ProtocolLogPath = 'test-explore\logs\protocol-anomalies.jsonl'
@@ -24,6 +24,7 @@ function Invoke-Suite {
     switch ($Name) {
         'vbnet-lsp' { & test-explore\vbnet-lsp\run-tests.ps1 }
         'emacs' { & test-explore\clients\emacs\run-tests.ps1 }
+        'nvim' { & test-explore\clients\nvim\run-tests.ps1 }
         'dwsim' { & test-explore\dwsim\run-tests.ps1 }
         'vscode' {
             Push-Location test-explore\clients\vscode
@@ -64,6 +65,7 @@ function Invoke-Suite {
         'all' {
             Invoke-Suite 'vbnet-lsp'
             Invoke-Suite 'emacs'
+            Invoke-Suite 'nvim'
             Invoke-Suite 'dwsim'
         }
     }
@@ -75,6 +77,7 @@ if ($Theme) {
         'editors' {
             Invoke-Suite 'emacs'
             Invoke-Suite 'vscode'
+            Invoke-Suite 'nvim'
         }
         'scale' {
             Invoke-Suite 'dwsim'
@@ -84,6 +87,7 @@ if ($Theme) {
             Invoke-Suite 'vbnet-lsp'
             Invoke-Suite 'emacs'
             Invoke-Suite 'vscode'
+            Invoke-Suite 'nvim'
             Invoke-Suite 'dwsim'
             Invoke-Suite 'vscode-dwsim'
         }

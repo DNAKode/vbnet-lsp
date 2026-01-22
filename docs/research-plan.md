@@ -475,6 +475,15 @@ A parallel test effort is underway in `test-explore/`. This is an independent va
 - Add a Neovim test harness under `test-explore/clients/nvim` and a new `Theme` entry for it.
 - Validate parity with VS Code/Emacs harnesses using the same fixture workspaces.
 
+**Findings (2026-01-20)**:
+- roslyn.nvim launches Roslyn over **stdio** with required args: `--logLevel=Information` and `--extensionLogDirectory=<path>` (plus Razor extensions when present). We should support similar CLI args if we ever want to mirror this launch style.
+- The plugin sends **`solution/open`** or **`project/open`** notifications after startup to select a target. This is Roslyn-specific (not standard LSP); if we want a first-class Neovim wrapper, we need to decide whether to add analogous custom notifications or rely on standard workspace discovery.
+- Root selection logic includes **broad parent search** for `.sln/.slnf/.slnx` plus a **lock_target** mode that pins a solution for subsequent attaches.
+- File watching is configurable: it can disable Neovim watchers and let the server handle file watching, or disable all watchers. It does this by mutating `client/registerCapability` for `workspace/didChangeWatchedFiles`.
+- It triggers **pull diagnostics** via `textDocument/diagnostic` on `workspace/projectInitializationComplete` (and requires `textDocument.diagnostic.dynamicRegistration=true` to see diagnostics in Neovim).
+- It implements custom handlers for **nested/fix-all code actions** and **completion complex edits**, and forwards Razor LSP calls. For VB.NET we likely only need the nested/fix-all and completion edit patterns (no Razor).
+- It refreshes **source-generated documents** via `workspace/refreshSourceGeneratedDocument` and `sourceGeneratedDocument/_roslyn_getText` (Roslyn-only endpoints).
+
 ---
 
 ## 5.3 Roslyn LSP Ecosystem Notes (Context)

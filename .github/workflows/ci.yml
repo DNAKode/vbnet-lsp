@@ -19,3 +19,27 @@ jobs:
         run: dotnet test test/VbNet.LanguageServer.Tests.Vb/VbNet.LanguageServer.Tests.Vb.vbproj -c Release
       - name: Test Extension Manifest
         run: dotnet test test/VbNet.Extension.Tests.Vb/VbNet.Extension.Tests.Vb.vbproj -c Release
+
+  roslyn-bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: src/extension/package-lock.json
+      - name: Install extension dependencies
+        working-directory: src/extension
+        run: npm ci
+      - name: Cache Roslyn downloads
+        uses: actions/cache@v4
+        with:
+          path: src/extension/.roslyn-downloads
+          key: roslyn-downloads-${{ runner.os }}-win32-x64-${{ hashFiles('src/extension/scripts/copy-roslyn-server.js') }}
+      - name: Bundle Roslyn (win-x64)
+        working-directory: src/extension
+        run: npm run bundle-roslyn:win32-x64
+      - name: Validate Roslyn bundle
+        working-directory: src/extension
+        run: npm run validate-roslyn

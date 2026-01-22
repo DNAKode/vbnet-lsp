@@ -299,6 +299,30 @@ The language server is organized into five distinct layers:
 - Test Explorer integration
 - Performance tuning and indexing improvements
 - Inlay hints (deferred pending stable Roslyn APIs)
+- TODO: Document the exact Roslyn package versions used by the extension in README.md for transparency.
+
+#### Phase 3 Extension UX Backlog (User-Facing Parity, Non-Razor/XAML/Blazor)
+
+High-impact, low/medium effort:
+- Add solution/project picker command for multi-solution workspaces (show active selection).
+- Add "Show Logs" and "Record/Toggle LSP Trace" commands for quick diagnostics capture.
+- Add restore commands (workspace or selected project) with clear status notifications.
+- Add activation for `.slnf` to match solution filter usage in large repos.
+- Add file nesting defaults for VB artifacts (e.g., `.Designer.vb`, `.g.vb`, `.g.i.vb`, `.generated.vb`, `.AssemblyInfo.vb`, `My*.vb`, `*.resx -> .Designer.vb`).
+
+High-impact, medium effort:
+- Add "Reanalyze / Reload Workspace" command to clear caches and re-open the solution.
+- Add attach-to-process picker command and richer debug configuration snippets (infer program via `projectPath`).
+- Add "Run Tests in Context" and "Debug Tests in Context" commands (initial implementation can call `dotnet test`).
+- Align package.json settings with documented options (e.g., `vbnet.msbuildPath`, `vbnet.maxMemoryMB`, etc.).
+
+SDK-style VB projects targeting .NET Framework 4.x (support + guidance):
+- Detect SDK-style `net4x` projects and validate environment prerequisites.
+- On non-Windows hosts, surface a clear "not supported" message for `net4x` targets.
+- On Windows, detect missing .NET Framework targeting packs/VS Build Tools and guide installation.
+- Prefer full MSBuild when `net4x` is detected; expose `vbnet.msbuildPath` override in settings.
+- If restore is missing, surface restore errors and provide a restore command shortcut.
+- Document `Microsoft.NETFramework.ReferenceAssemblies` as a fallback when targeting packs are absent.
 
 ### Phase 4
 **Goal:** Enterprise and complex scenarios

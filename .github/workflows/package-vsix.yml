@@ -37,12 +37,20 @@ jobs:
         working-directory: src/extension
         run: npm ci
 
+      - name: Cache Roslyn downloads
+        uses: actions/cache@v4
+        with:
+          path: src/extension/.roslyn-downloads
+          key: roslyn-downloads-${{ runner.os }}-${{ inputs.target }}-${{ hashFiles('src/extension/scripts/copy-roslyn-server.js') }}
+
       - name: Package VSIX
         working-directory: src/extension
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           npm run bundle-server
+          npm run bundle-roslyn:${{ inputs.target }}
+          npm run validate-roslyn
           npm run bundle-debugger -- --target "${{ inputs.target }}"
           npm run package
           $vsceArgs = @("package", "--target", "${{ inputs.target }}", "--out", "vbnet-language-support-${{ inputs.target }}.vsix")
@@ -50,6 +58,23 @@ jobs:
             $vsceArgs += "--pre-release"
           }
           npx vsce @vsceArgs
+
+      - name: Validate VSIX contains Roslyn bundles
+        working-directory: src/extension
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vsix = "vbnet-language-support-${{ inputs.target }}.vsix"
+          if (-not (Test-Path $vsix)) { throw "VSIX not found at $vsix" }
+          $extract = Join-Path $env:TEMP ("vbnet-vsix-" + [guid]::NewGuid().ToString("N"))
+          Expand-Archive -Path $vsix -DestinationPath $extract -Force
+          $root = Join-Path $extract "extension"
+          if (-not (Test-Path (Join-Path $root ".roslyn"))) { throw "Missing .roslyn in VSIX" }
+          if (-not (Test-Path (Join-Path $root ".roslyn-vb"))) { throw "Missing .roslyn-vb in VSIX" }
+          if (-not (Test-Path (Join-Path $root ".roslyn\\Microsoft.CodeAnalysis.LanguageServer.dll")) -and -not (Test-Path (Join-Path $root ".roslyn\\Microsoft.CodeAnalysis.LanguageServer.exe"))) {
+            throw "Roslyn LSP server binary missing from VSIX"
+          }
+          Remove-Item -Recurse -Force $extract
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4

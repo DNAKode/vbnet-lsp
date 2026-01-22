@@ -15,6 +15,7 @@ import { DotnetRuntimeResolver, HostExecutableInfo } from './dotnetRuntime';
  * Transport type for language server communication.
  */
 export type TransportType = 'auto' | 'namedPipe' | 'stdio';
+export type ServerBackend = 'vbnet' | 'roslyn';
 
 /**
  * Result of starting the language server.
@@ -42,7 +43,8 @@ export class ServerLauncher {
     constructor(
         private readonly channel: vscode.OutputChannel,
         private readonly platformInfo: PlatformInformation,
-        private readonly extensionPath: string
+        private readonly extensionPath: string,
+        private readonly logRoot: string
     ) {
         this.runtimeResolver = new DotnetRuntimeResolver(channel, platformInfo);
     }
@@ -50,9 +52,9 @@ export class ServerLauncher {
     /**
      * Starts the language server with the specified transport type.
      */
-    public async startServer(transportType: TransportType): Promise<ServerStartResult> {
-        const serverPath = this.getServerPath();
-        this.channel.appendLine(`Starting VB.NET Language Server at: ${serverPath}`);
+    public async startServer(transportType: TransportType, backend: ServerBackend): Promise<ServerStartResult> {
+        const serverPath = this.getServerPath(backend);
+        this.channel.appendLine(`Starting ${backend} language server at: ${serverPath}`);
 
         const hostInfo = await this.runtimeResolver.getHostExecutableInfo();
 
@@ -61,9 +63,9 @@ export class ServerLauncher {
         this.channel.appendLine(`Using transport: ${actualTransport}`);
 
         if (actualTransport === 'namedPipe') {
-            return await this.startWithNamedPipe(serverPath, hostInfo);
+            return await this.startWithNamedPipe(serverPath, hostInfo, backend);
         } else {
-            return await this.startWithStdio(serverPath, hostInfo);
+            return await this.startWithStdio(serverPath, hostInfo, backend);
         }
     }
 
@@ -81,7 +83,14 @@ export class ServerLauncher {
     /**
      * Gets the path to the language server executable.
      */
-    private getServerPath(): string {
+    private getServerPath(backend: ServerBackend): string {
+        if (backend === 'roslyn') {
+            return this.getRoslynServerPath();
+        }
+        return this.getVbNetServerPath();
+    }
+
+    private getVbNetServerPath(): string {
         // Check for environment variable override
         const envPath = process.env.VBNET_SERVER_PATH;
         if (envPath) {
@@ -136,14 +145,63 @@ export class ServerLauncher {
         return serverPath;
     }
 
+    private getRoslynServerPath(): string {
+        const envPath = process.env.VBNET_ROSLYN_SERVER_PATH;
+        if (envPath) {
+            const normalizedEnvPath = path.normalize(envPath.trim());
+            if (fs.existsSync(normalizedEnvPath)) {
+                this.channel.appendLine(`Using Roslyn server path from VBNET_ROSLYN_SERVER_PATH: ${normalizedEnvPath}`);
+                return normalizedEnvPath;
+            }
+            this.channel.appendLine(
+                `Configured VBNET_ROSLYN_SERVER_PATH does not exist: ${normalizedEnvPath}. Falling back to bundled Roslyn server.`
+            );
+        }
+
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const configPath = config.get<string>('roslyn.server.path');
+        if (configPath && configPath.trim() !== '') {
+            const normalizedConfigPath = path.normalize(configPath.trim());
+            if (fs.existsSync(normalizedConfigPath)) {
+                this.channel.appendLine(`Using Roslyn server path from settings: ${normalizedConfigPath}`);
+                return normalizedConfigPath;
+            }
+            this.channel.appendLine(
+                `Configured vbnet.roslyn.server.path does not exist: ${normalizedConfigPath}. Falling back to bundled Roslyn server.`
+            );
+        }
+
+        const serverDir = path.join(this.extensionPath, '.roslyn');
+        let serverPath = path.join(serverDir, 'Microsoft.CodeAnalysis.LanguageServer');
+        if (this.platformInfo.isWindows()) {
+            serverPath += '.exe';
+        } else if (this.platformInfo.isMacOS()) {
+            serverPath += '.dll';
+        }
+
+        if (!fs.existsSync(serverPath)) {
+            serverPath = path.join(serverDir, 'Microsoft.CodeAnalysis.LanguageServer.dll');
+        }
+
+        if (!fs.existsSync(serverPath)) {
+            throw new Error(
+                `Cannot find Roslyn language server. Expected at: ${serverPath}\n` +
+                `Please set 'vbnet.roslyn.server.path' in settings or the VBNET_ROSLYN_SERVER_PATH environment variable.`
+            );
+        }
+
+        return serverPath;
+    }
+
     /**
      * Starts the server with named pipe transport.
      */
     private async startWithNamedPipe(
         serverPath: string,
-        hostInfo: HostExecutableInfo
+        hostInfo: HostExecutableInfo,
+        backend: ServerBackend
     ): Promise<ServerStartResult> {
-        const args = ['--pipe'];
+        const args = this.buildServerArgs(backend, 'namedPipe');
         const childProcess = this.spawnServer(serverPath, args, hostInfo);
 
         // Wait for the server to output the pipe name
@@ -164,9 +222,10 @@ export class ServerLauncher {
      */
     private async startWithStdio(
         serverPath: string,
-        hostInfo: HostExecutableInfo
+        hostInfo: HostExecutableInfo,
+        backend: ServerBackend
     ): Promise<ServerStartResult> {
-        const args = ['--stdio'];
+        const args = this.buildServerArgs(backend, 'stdio');
         const childProcess = this.spawnServer(serverPath, args, hostInfo);
 
         this.channel.appendLine('Server started with stdio transport');
@@ -223,6 +282,68 @@ export class ServerLauncher {
         });
 
         return childProcess;
+    }
+
+    private buildServerArgs(backend: ServerBackend, transport: 'namedPipe' | 'stdio'): string[] {
+        if (backend === 'roslyn') {
+            const logLevel = this.getRoslynLogLevel();
+            const logDir = this.getRoslynLogDirectory();
+            const args = ['--logLevel', logLevel, '--extensionLogDirectory', logDir];
+
+            const extensions = this.getRoslynExtensionAssemblies();
+            if (extensions.length === 0) {
+                this.channel.appendLine('No Roslyn VB extension assemblies found. VB support may be unavailable.');
+            } else {
+                for (const extensionPath of extensions) {
+                    args.push('--extension', extensionPath);
+                }
+            }
+
+            args.push(transport === 'namedPipe' ? '--pipe' : '--stdio');
+            return args;
+        }
+
+        return [transport === 'namedPipe' ? '--pipe' : '--stdio'];
+    }
+
+    private getRoslynLogLevel(): string {
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const traceLevel = config.get<string>('trace.server', 'off');
+        if (traceLevel === 'verbose') {
+            return 'Trace';
+        }
+        if (traceLevel === 'messages') {
+            return 'Information';
+        }
+        return 'Error';
+    }
+
+    private getRoslynLogDirectory(): string {
+        const dir = path.join(this.logRoot, 'roslyn-ls');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        return dir;
+    }
+
+    private getRoslynExtensionAssemblies(): string[] {
+        const envPath = process.env.VBNET_ROSLYN_EXTENSION_PATH;
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const configPath = config.get<string>('roslyn.server.extensionPath');
+        const extensionDir = envPath?.trim()
+            ? path.normalize(envPath.trim())
+            : (configPath && configPath.trim() !== '')
+                ? path.normalize(configPath.trim())
+                : path.join(this.extensionPath, '.roslyn-vb');
+
+        if (!fs.existsSync(extensionDir)) {
+            this.channel.appendLine(`Roslyn extension directory not found: ${extensionDir}`);
+            return [];
+        }
+
+        return fs.readdirSync(extensionDir)
+            .filter((entry) => entry.startsWith('Microsoft.CodeAnalysis.VisualBasic') && entry.endsWith('.dll'))
+            .map((entry) => path.join(extensionDir, entry));
     }
 
     /**

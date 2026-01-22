@@ -77,6 +77,19 @@
             "default": "",
             "description": "Path to the VB.NET language server executable. Leave empty to use the bundled server."
           },
+          "vbnet.server.backend": {
+            "type": "string",
+            "enum": [
+              "vbnet",
+              "roslyn"
+            ],
+            "default": "vbnet",
+            "enumDescriptions": [
+              "Use the bundled VB.NET language server",
+              "Use the Roslyn language server (VB assemblies loaded via extension path)"
+            ],
+            "description": "Select which language server backend to use."
+          },
           "vbnet.server.transportType": {
             "type": "string",
             "enum": [
@@ -101,6 +114,16 @@
             ],
             "default": "off",
             "description": "Traces the communication between VS Code and the VB.NET language server."
+          },
+          "vbnet.roslyn.server.path": {
+            "type": "string",
+            "default": "",
+            "description": "Path to the Roslyn language server executable or DLL. Leave empty to use the bundled Roslyn server."
+          },
+          "vbnet.roslyn.server.extensionPath": {
+            "type": "string",
+            "default": "",
+            "description": "Directory containing Roslyn VB extension assemblies (Microsoft.CodeAnalysis.VisualBasic*)."
           },
           "vbnet.diagnostics.enable": {
             "type": "boolean",
@@ -355,16 +378,22 @@
     "copy-changelog": "node scripts/copy-changelog.js",
     "package": "npm run copy-changelog && npm run compile && node esbuild.js --production",
     "bundle-server": "node scripts/copy-server.js --build",
+    "bundle-roslyn": "node scripts/copy-roslyn-server.js",
+    "bundle-roslyn:win32-x64": "node scripts/copy-roslyn-server.js --rid win-x64",
+    "bundle-roslyn:linux-x64": "node scripts/copy-roslyn-server.js --rid linux-x64",
+    "bundle-roslyn:darwin-x64": "node scripts/copy-roslyn-server.js --rid osx-x64",
+    "bundle-roslyn:darwin-arm64": "node scripts/copy-roslyn-server.js --rid osx-arm64",
+    "validate-roslyn": "node scripts/validate-roslyn-bundle.js",
     "bundle-debugger": "node scripts/copy-debugger.js",
     "bundle-debugger:win32-x64": "node scripts/copy-debugger.js --target win32-x64",
     "bundle-debugger:linux-x64": "node scripts/copy-debugger.js --target linux-x64",
     "bundle-debugger:darwin-x64": "node scripts/copy-debugger.js --target darwin-x64",
     "bundle-debugger:darwin-arm64": "node scripts/copy-debugger.js --target darwin-arm64",
-    "package:vsix:win32-x64": "npm run bundle-server && npm run bundle-debugger:win32-x64 && npm run package && vsce package --target win32-x64 --out vbnet-language-support-win32-x64.vsix",
-    "package:vsix:linux-x64": "npm run bundle-server && npm run bundle-debugger:linux-x64 && npm run package && vsce package --target linux-x64 --out vbnet-language-support-linux-x64.vsix",
-    "package:vsix:darwin-x64": "npm run bundle-server && npm run bundle-debugger:darwin-x64 && npm run package && vsce package --target darwin-x64 --out vbnet-language-support-darwin-x64.vsix",
-    "package:vsix:darwin-arm64": "npm run bundle-server && npm run bundle-debugger:darwin-arm64 && npm run package && vsce package --target darwin-arm64 --out vbnet-language-support-darwin-arm64.vsix",
-    "package:vsix": "npm run bundle-server && npm run bundle-debugger && npm run package && vsce package --out vbnet-language-support.vsix",
+    "package:vsix:win32-x64": "npm run bundle-server && npm run bundle-roslyn:win32-x64 && npm run bundle-debugger:win32-x64 && npm run package && vsce package --target win32-x64 --out vbnet-language-support-win32-x64.vsix",
+    "package:vsix:linux-x64": "npm run bundle-server && npm run bundle-roslyn:linux-x64 && npm run bundle-debugger:linux-x64 && npm run package && vsce package --target linux-x64 --out vbnet-language-support-linux-x64.vsix",
+    "package:vsix:darwin-x64": "npm run bundle-server && npm run bundle-roslyn:darwin-x64 && npm run bundle-debugger:darwin-x64 && npm run package && vsce package --target darwin-x64 --out vbnet-language-support-darwin-x64.vsix",
+    "package:vsix:darwin-arm64": "npm run bundle-server && npm run bundle-roslyn:darwin-arm64 && npm run bundle-debugger:darwin-arm64 && npm run package && vsce package --target darwin-arm64 --out vbnet-language-support-darwin-arm64.vsix",
+    "package:vsix": "npm run bundle-server && npm run bundle-roslyn && npm run bundle-debugger && npm run package && vsce package --out vbnet-language-support.vsix",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
   },
