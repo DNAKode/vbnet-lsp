@@ -2,6 +2,7 @@
 ' Follows the architecture defined in docs/architecture.md
 
 Imports System.Text.Json
+Imports System.Diagnostics
 Imports Microsoft.Extensions.Logging
 Imports VbNet.LanguageServer.Protocol
 Imports VbNet.LanguageServer.Services
@@ -52,6 +53,10 @@ Namespace Core
         Private _shutdownRequested As TaskCompletionSource
         Private _diagnosticsEnabled As Boolean = True
         Private _completionEnabled As Boolean = True
+        Private _formattingEnabled As Boolean = True
+        Private _codeActionsEnabled As Boolean = True
+        Private _semanticTokensEnabled As Boolean = True
+        Private _loadProjectsOnStart As Boolean = True
         Private _workspaceRootUri As String
         Private _workspaceSolutionPathOverride As String
         Private _workspaceProjectPathsOverride As String()
@@ -59,6 +64,10 @@ Namespace Core
         Private _workspaceProjectSearchPaths As String()
         Private _workspaceExcludePaths As String()
         Private _workspaceMaxProjectResults As Integer = 250
+        Private _workspaceMaxProjectCount As Integer = 100
+        Private _maxMemoryMb As Integer = 2048
+        Private _memoryWarningSent As Boolean
+        Private _projectCountWarningSent As Boolean
         Private Const MaxAncestorSearchDepth As Integer = 4
         Private ReadOnly _reportedNetFxProjects As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
         Private _netFxWarningSent As Boolean
@@ -472,6 +481,12 @@ Namespace Core
             _logger.LogInformation("Server initialized and running")
 
             _workspaceManager.Initialize()
+            ApplyInitializationOptions()
+
+            If Not _loadProjectsOnStart Then
+                _logger.LogInformation("Project load deferred (vbnet.loadProjectsOnStart = false).")
+                Return
+            End If
 
             If _initializeParams?.RootUri IsNot Nothing Then
                 _workspaceRootUri = _initializeParams.RootUri
@@ -520,9 +535,15 @@ Namespace Core
                 If _workspaceProjectPathsOverride IsNot Nothing AndAlso _workspaceProjectPathsOverride.Length > 0 Then
                     Dim anyLoaded = False
                     Await ReportNetFxSupportWarningsAsync(_workspaceProjectPathsOverride, ct).ConfigureAwait(False)
+                    Dim loadedCount = 0
                     For Each projectPath In _workspaceProjectPathsOverride
                         If String.IsNullOrWhiteSpace(projectPath) OrElse Not projectPath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) Then
                             Continue For
+                        End If
+
+                        If _workspaceMaxProjectCount > 0 AndAlso loadedCount >= _workspaceMaxProjectCount Then
+                            _logger.LogWarning("Project load capped at {Max} projects (vbnet.maxProjectCount).", _workspaceMaxProjectCount)
+                            Exit For
                         End If
 
                         Dim resolved = ResolvePath(projectPath, rootPath)
@@ -530,13 +551,18 @@ Namespace Core
                             Continue For
                         End If
 
-                        anyLoaded = anyLoaded OrElse Await _workspaceManager.LoadProjectAsync(resolved, ct).ConfigureAwait(False)
+                        Dim loaded = Await _workspaceManager.LoadProjectAsync(resolved, ct).ConfigureAwait(False)
+                        anyLoaded = anyLoaded OrElse loaded
+                        If loaded Then
+                            loadedCount += 1
+                        End If
                     Next
 
                     loadSucceeded = anyLoaded
-                    If anyLoaded Then
-                        Return
+                    If Not anyLoaded Then
+                        _logger.LogWarning("No projects loaded from configured project paths.")
                     End If
+                    Return
                 End If
 
                 If Not _ignoreSolutionFiles Then
@@ -563,8 +589,14 @@ Namespace Core
                 End If
 
                 If vbprojFiles.Count > 0 Then
-                    _logger.LogInformation("No solution found, loading {Count} VB.NET project(s)", vbprojFiles.Count)
-                    For Each projectPath In vbprojFiles
+                    Dim projectsToLoad = vbprojFiles
+                    If _workspaceMaxProjectCount > 0 AndAlso projectsToLoad.Count > _workspaceMaxProjectCount Then
+                        _logger.LogWarning("Project load capped at {Max} projects (vbnet.maxProjectCount).", _workspaceMaxProjectCount)
+                        projectsToLoad = projectsToLoad.Take(_workspaceMaxProjectCount).ToList()
+                    End If
+
+                    _logger.LogInformation("No solution found, loading {Count} VB.NET project(s)", projectsToLoad.Count)
+                    For Each projectPath In projectsToLoad
                         Dim loaded = Await _workspaceManager.LoadProjectAsync(projectPath, ct).ConfigureAwait(False)
                         loadSucceeded = loadSucceeded OrElse loaded
                     Next
@@ -577,6 +609,9 @@ Namespace Core
             Finally
                 _workspaceManager.SignalInitialLoadCompleted(loadSucceeded)
             End Try
+
+            Await WarnIfProjectCountExceededAsync(ct).ConfigureAwait(False)
+            Await CheckMemoryBudgetAsync(ct).ConfigureAwait(False)
         End Function
 
         Private Function HandleShutdownAsync(parameters As Object, ct As CancellationToken) As Task(Of Object)
@@ -639,6 +674,89 @@ Namespace Core
 
 #Region "Workspace Notifications"
 
+        Private Sub ApplyInitializationOptions()
+            If _initializeParams?.InitializationOptions Is Nothing OrElse Not _initializeParams.InitializationOptions.HasValue Then
+                Return
+            End If
+
+            Dim optionsElement = _initializeParams.InitializationOptions.Value
+            ApplyFeatureSettings(optionsElement)
+
+            Dim solutionPathOverride = GetStringSetting(optionsElement, "workspace", "solutionPath")
+            If solutionPathOverride IsNot Nothing Then
+                _workspaceSolutionPathOverride = solutionPathOverride
+            End If
+
+            Dim projectPathsOverride = GetStringArraySetting(optionsElement, "workspace", "projectPaths")
+            If projectPathsOverride IsNot Nothing Then
+                _workspaceProjectPathsOverride = projectPathsOverride
+            End If
+
+            Dim projectSearchPaths = GetStringArraySetting(optionsElement, "workspace", "projectSearchPaths")
+            If projectSearchPaths IsNot Nothing Then
+                _workspaceProjectSearchPaths = projectSearchPaths
+            End If
+
+            Dim excludePaths = GetStringArraySetting(optionsElement, "workspace", "excludePaths")
+            If excludePaths IsNot Nothing Then
+                _workspaceExcludePaths = excludePaths
+            End If
+
+            Dim maxProjectResults = GetIntSetting(optionsElement, "workspace", "maxProjectResults")
+            If maxProjectResults.HasValue Then
+                _workspaceMaxProjectResults = maxProjectResults.Value
+            End If
+
+            Dim ignoreSolutionFiles = GetBoolSetting(optionsElement, "workspace", "ignoreSolutionFiles")
+            If ignoreSolutionFiles.HasValue Then
+                _ignoreSolutionFiles = ignoreSolutionFiles.Value
+            End If
+        End Sub
+
+        Private Sub ApplyFeatureSettings(settingsElement As JsonElement)
+            Dim enableDiagnostics = GetBoolSetting(settingsElement, "diagnostics", "enable")
+            If enableDiagnostics.HasValue Then
+                _diagnosticsEnabled = enableDiagnostics.Value
+            End If
+
+            Dim enableCompletion = GetBoolSetting(settingsElement, "completion", "enable")
+            If enableCompletion.HasValue Then
+                _completionEnabled = enableCompletion.Value
+            End If
+
+            Dim enableFormatting = GetRootBoolSetting(settingsElement, "enableFormatting")
+            If enableFormatting.HasValue Then
+                _formattingEnabled = enableFormatting.Value
+            End If
+
+            Dim enableCodeActions = GetRootBoolSetting(settingsElement, "enableCodeActions")
+            If enableCodeActions.HasValue Then
+                _codeActionsEnabled = enableCodeActions.Value
+            End If
+
+            Dim enableSemanticTokens = GetRootBoolSetting(settingsElement, "semanticTokens")
+            If enableSemanticTokens.HasValue Then
+                _semanticTokensEnabled = enableSemanticTokens.Value
+            End If
+
+            Dim loadProjectsOnStart = GetRootBoolSetting(settingsElement, "loadProjectsOnStart")
+            If loadProjectsOnStart.HasValue Then
+                _loadProjectsOnStart = loadProjectsOnStart.Value
+            End If
+
+            Dim maxProjectCount = GetRootIntSetting(settingsElement, "maxProjectCount")
+            If maxProjectCount.HasValue Then
+                _workspaceMaxProjectCount = Math.Max(0, maxProjectCount.Value)
+                _projectCountWarningSent = False
+            End If
+
+            Dim maxMemoryMb = GetRootIntSetting(settingsElement, "maxMemoryMB")
+            If maxMemoryMb.HasValue Then
+                _maxMemoryMb = Math.Max(0, maxMemoryMb.Value)
+                _memoryWarningSent = False
+            End If
+        End Sub
+
         Private Async Function HandleDidChangeConfigurationAsync(parameters As DidChangeConfigurationParams, ct As CancellationToken) As Task
             If parameters Is Nothing OrElse parameters.Settings Is Nothing Then
                 Return
@@ -651,19 +769,14 @@ Namespace Core
                 settingsElement = JsonSerializer.SerializeToElement(parameters.Settings, JsonSerializerOptionsProvider.Options)
             End If
 
-            Dim enableDiagnostics = GetRootStringSetting(settingsElement, "diagnostics.enable")
-            If enableDiagnostics IsNot Nothing Then
-                _diagnosticsEnabled = String.Equals(enableDiagnostics, "true", StringComparison.OrdinalIgnoreCase)
+            Dim diagnosticsEnabledBefore = _diagnosticsEnabled
+            ApplyFeatureSettings(settingsElement)
+            If _diagnosticsEnabled <> diagnosticsEnabledBefore Then
                 If _diagnosticsEnabled Then
                     TriggerDiagnosticsForOpenDocuments()
                 Else
                     Await ClearDiagnosticsForOpenDocumentsAsync(ct).ConfigureAwait(False)
                 End If
-            End If
-
-            Dim enableCompletion = GetRootStringSetting(settingsElement, "completion.enable")
-            If enableCompletion IsNot Nothing Then
-                _completionEnabled = String.Equals(enableCompletion, "true", StringComparison.OrdinalIgnoreCase)
             End If
 
             Dim solutionPathOverride = GetStringSetting(settingsElement, "workspace", "solutionPath")
@@ -675,7 +788,7 @@ Namespace Core
             Dim projectSearchPaths = GetStringArraySetting(settingsElement, "workspace", "projectSearchPaths")
             Dim excludePaths = GetStringArraySetting(settingsElement, "workspace", "excludePaths")
             Dim maxProjectResults = GetIntSetting(settingsElement, "workspace", "maxProjectResults")
-            Dim ignoreSolutionFiles = GetRootStringSetting(settingsElement, "workspace.ignoreSolutionFiles")
+            Dim ignoreSolutionFiles = GetBoolSetting(settingsElement, "workspace", "ignoreSolutionFiles")
 
             Dim needReload = False
             If solutionPathOverride IsNot Nothing AndAlso Not String.Equals(solutionPathOverride, _workspaceSolutionPathOverride, StringComparison.OrdinalIgnoreCase) Then
@@ -703,16 +816,20 @@ Namespace Core
                 needReload = True
             End If
 
-            If ignoreSolutionFiles IsNot Nothing Then
-                Dim ignoreValue = String.Equals(ignoreSolutionFiles, "true", StringComparison.OrdinalIgnoreCase)
-                If ignoreValue <> _ignoreSolutionFiles Then
-                    _ignoreSolutionFiles = ignoreValue
+            If ignoreSolutionFiles.HasValue Then
+                If ignoreSolutionFiles.Value <> _ignoreSolutionFiles Then
+                    _ignoreSolutionFiles = ignoreSolutionFiles.Value
                     needReload = True
                 End If
             End If
 
-            If needReload AndAlso _workspaceRootUri IsNot Nothing Then
+            If _loadProjectsOnStart AndAlso needReload AndAlso _workspaceRootUri IsNot Nothing Then
                 _logger.LogInformation("Workspace configuration changed; reloading workspace")
+                Await LoadWorkspaceAsync(_workspaceRootUri, ct).ConfigureAwait(False)
+            End If
+
+            If _loadProjectsOnStart AndAlso Not _workspaceManager.IsLoaded AndAlso _workspaceRootUri IsNot Nothing Then
+                _logger.LogInformation("Project loading enabled after configuration change; loading workspace")
                 Await LoadWorkspaceAsync(_workspaceRootUri, ct).ConfigureAwait(False)
             End If
         End Function
@@ -887,7 +1004,7 @@ Namespace Core
         End Function
 
         Private Async Function HandleDocumentFormattingAsync(parameters As DocumentFormattingParams, ct As CancellationToken) As Task(Of TextEdit())
-            If parameters Is Nothing Then
+            If parameters Is Nothing OrElse Not _formattingEnabled Then
                 Return Array.Empty(Of TextEdit)()
             End If
 
@@ -895,7 +1012,7 @@ Namespace Core
         End Function
 
         Private Async Function HandleDocumentRangeFormattingAsync(parameters As DocumentRangeFormattingParams, ct As CancellationToken) As Task(Of TextEdit())
-            If parameters Is Nothing Then
+            If parameters Is Nothing OrElse Not _formattingEnabled Then
                 Return Array.Empty(Of TextEdit)()
             End If
 
@@ -911,7 +1028,7 @@ Namespace Core
         End Function
 
         Private Async Function HandleSemanticTokensAsync(parameters As SemanticTokensParams, ct As CancellationToken) As Task(Of SemanticTokens)
-            If parameters Is Nothing Then
+            If parameters Is Nothing OrElse Not _semanticTokensEnabled Then
                 Return New SemanticTokens()
             End If
 
@@ -919,7 +1036,7 @@ Namespace Core
         End Function
 
         Private Async Function HandleSemanticTokensRangeAsync(parameters As SemanticTokensRangeParams, ct As CancellationToken) As Task(Of SemanticTokens)
-            If parameters Is Nothing Then
+            If parameters Is Nothing OrElse Not _semanticTokensEnabled Then
                 Return New SemanticTokens()
             End If
 
@@ -927,7 +1044,7 @@ Namespace Core
         End Function
 
         Private Async Function HandleCodeActionAsync(parameters As CodeActionParams, ct As CancellationToken) As Task(Of CodeAction())
-            If parameters Is Nothing Then
+            If parameters Is Nothing OrElse Not _codeActionsEnabled Then
                 Return Array.Empty(Of CodeAction)()
             End If
 
@@ -935,7 +1052,7 @@ Namespace Core
         End Function
 
         Private Async Function HandleCodeActionResolveAsync(parameters As CodeAction, ct As CancellationToken) As Task(Of CodeAction)
-            If parameters Is Nothing Then
+            If parameters Is Nothing OrElse Not _codeActionsEnabled Then
                 Return Nothing
             End If
 
@@ -1499,13 +1616,21 @@ Namespace Core
             Return candidates
         End Function
 
-        Private Shared Function ShouldExcludePath(pathValue As String, excludePaths As String()) As Boolean
+        Private Shared Function ShouldExcludePath(pathValue As String, excludePaths As String(), Optional rootPath As String = Nothing) As Boolean
             If excludePaths Is Nothing OrElse excludePaths.Length = 0 Then
                 Return False
             End If
 
             Dim fullPath = Path.GetFullPath(pathValue)
-            Dim segments = fullPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) _
+            Dim pathToCheck = fullPath
+            If Not String.IsNullOrWhiteSpace(rootPath) Then
+                Dim rootFull = Path.GetFullPath(rootPath)
+                If fullPath.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase) Then
+                    pathToCheck = fullPath.Substring(rootFull.Length)
+                End If
+            End If
+
+            Dim segments = pathToCheck.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) _
                 .Where(Function(segment) Not String.IsNullOrWhiteSpace(segment)) _
                 .ToArray()
 
@@ -1548,13 +1673,14 @@ Namespace Core
             End If
 
             Dim stack As New Stack(Of String)()
-            stack.Push(root)
+            Dim rootPath = Path.GetFullPath(root)
+            stack.Push(rootPath)
 
             While stack.Count > 0
                 cancellationToken.ThrowIfCancellationRequested()
 
                 Dim current = stack.Pop()
-                If ShouldExcludePath(current, excludePaths) Then
+                If ShouldExcludePath(current, excludePaths, rootPath) Then
                     Continue While
                 End If
 
@@ -1571,7 +1697,7 @@ Namespace Core
                 End Try
 
                 For Each file In files
-                    If Not ShouldExcludePath(file, excludePaths) Then
+                    If Not ShouldExcludePath(file, excludePaths, rootPath) Then
                         Yield file
                     End If
                 Next
@@ -1652,6 +1778,48 @@ Namespace Core
             If messageParts.Count > 0 Then
                 Await SendWindowMessageAsync(MessageType.Warning, String.Join(" ", messageParts), ct).ConfigureAwait(False)
             End If
+        End Function
+
+        Private Async Function CheckMemoryBudgetAsync(ct As CancellationToken) As Task
+            If _maxMemoryMb <= 0 OrElse _memoryWarningSent Then
+                Return
+            End If
+
+            Dim workingSetBytes = Process.GetCurrentProcess().WorkingSet64
+            Dim workingSetMb = workingSetBytes / (1024.0R * 1024.0R)
+
+            If workingSetMb < _maxMemoryMb Then
+                Return
+            End If
+
+            _memoryWarningSent = True
+            _logger.LogWarning("Memory usage {WorkingSetMb:n0} MB exceeds limit {LimitMb} MB.", workingSetMb, _maxMemoryMb)
+
+            Dim message = $"VB.NET Language Server memory usage is {Math.Round(workingSetMb)} MB (limit {_maxMemoryMb} MB)."
+            message &= " Consider reducing project count or restarting the server."
+            Await SendWindowMessageAsync(MessageType.Warning, message, ct).ConfigureAwait(False)
+        End Function
+
+        Private Async Function WarnIfProjectCountExceededAsync(ct As CancellationToken) As Task
+            If _projectCountWarningSent OrElse _workspaceMaxProjectCount <= 0 Then
+                Return
+            End If
+
+            If Not _workspaceManager.IsLoaded Then
+                Return
+            End If
+
+            Dim projectCount = _workspaceManager.GetVbNetProjects().Count()
+            If projectCount <= _workspaceMaxProjectCount Then
+                Return
+            End If
+
+            _projectCountWarningSent = True
+            _logger.LogWarning("Workspace contains {Count} VB.NET projects, exceeding vbnet.maxProjectCount={Limit}.", projectCount, _workspaceMaxProjectCount)
+
+            Dim message = $"Workspace contains {projectCount} VB.NET projects; vbnet.maxProjectCount is {_workspaceMaxProjectCount}."
+            message &= " Consider increasing the limit or using a smaller solution filter."
+            Await SendWindowMessageAsync(MessageType.Warning, message, ct).ConfigureAwait(False)
         End Function
 
         Private Shared Function HasNetFxReferenceAssemblies(targetFramework As String) As Boolean
@@ -1742,6 +1910,26 @@ Namespace Core
             Return Nothing
         End Function
 
+        Private Shared Function GetRootBoolSetting(settings As JsonElement, name As String) As Boolean?
+            Dim root = settings
+            Dim vbnetSettings As JsonElement
+            If settings.ValueKind = JsonValueKind.Object AndAlso settings.TryGetProperty("vbnet", vbnetSettings) AndAlso vbnetSettings.ValueKind = JsonValueKind.Object Then
+                root = vbnetSettings
+            End If
+
+            Dim valueElement As JsonElement
+            If root.ValueKind <> JsonValueKind.Object OrElse Not root.TryGetProperty(name, valueElement) Then
+                Return Nothing
+            End If
+
+            Dim value As Boolean
+            If TryGetBoolValue(valueElement, value) Then
+                Return value
+            End If
+
+            Return Nothing
+        End Function
+
         Private Shared Function GetIntSetting(settings As JsonElement, section As String, name As String) As Integer?
             Dim root = settings
             Dim vbnetSettings As JsonElement
@@ -1755,6 +1943,25 @@ Namespace Core
             End If
 
             If TryGetIntSetting(root, $"{section}.{name}", Nothing, value) Then
+                Return value
+            End If
+
+            Return Nothing
+        End Function
+
+        Private Shared Function GetBoolSetting(settings As JsonElement, section As String, name As String) As Boolean?
+            Dim root = settings
+            Dim vbnetSettings As JsonElement
+            If settings.ValueKind = JsonValueKind.Object AndAlso settings.TryGetProperty("vbnet", vbnetSettings) AndAlso vbnetSettings.ValueKind = JsonValueKind.Object Then
+                root = vbnetSettings
+            End If
+
+            Dim value As Boolean
+            If TryGetBoolSetting(root, section, name, value) Then
+                Return value
+            End If
+
+            If TryGetBoolSetting(root, $"{section}.{name}", Nothing, value) Then
                 Return value
             End If
 
@@ -1809,6 +2016,30 @@ Namespace Core
             Return TryGetIntValue(valueElement, value)
         End Function
 
+        Private Shared Function TryGetBoolSetting(root As JsonElement, section As String, name As String, ByRef value As Boolean) As Boolean
+            value = False
+
+            If root.ValueKind <> JsonValueKind.Object Then
+                Return False
+            End If
+
+            Dim sectionElement As JsonElement
+            If Not root.TryGetProperty(section, sectionElement) Then
+                Return False
+            End If
+
+            If name Is Nothing Then
+                Return TryGetBoolValue(sectionElement, value)
+            End If
+
+            Dim valueElement As JsonElement
+            If sectionElement.ValueKind <> JsonValueKind.Object OrElse Not sectionElement.TryGetProperty(name, valueElement) Then
+                Return False
+            End If
+
+            Return TryGetBoolValue(valueElement, value)
+        End Function
+
         Private Shared Function TryGetStringArrayValue(element As JsonElement, ByRef value As String()) As Boolean
             value = Nothing
 
@@ -1835,6 +2066,24 @@ Namespace Core
 
             If element.ValueKind = JsonValueKind.Number AndAlso element.TryGetInt32(value) Then
                 Return True
+            End If
+
+            Return False
+        End Function
+
+        Private Shared Function TryGetBoolValue(element As JsonElement, ByRef value As Boolean) As Boolean
+            value = False
+
+            If element.ValueKind = JsonValueKind.True OrElse element.ValueKind = JsonValueKind.False Then
+                value = element.GetBoolean()
+                Return True
+            End If
+
+            If element.ValueKind = JsonValueKind.String Then
+                Dim text = element.GetString()
+                If Boolean.TryParse(text, value) Then
+                    Return True
+                End If
             End If
 
             Return False

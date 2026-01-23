@@ -328,57 +328,62 @@ export class VbNetLanguageClient implements vscode.Disposable {
         const configuredSolution = (config.get<string>('workspace.solutionPath', '') || '').trim();
         const legacySolution = (config.get<string>('solutionPath', '') || '').trim();
         const ignoreSolutionFiles = config.get<boolean>('workspace.ignoreSolutionFiles', false);
+        const projectSearchPaths = config.get<string[]>('workspace.projectSearchPaths', []);
+        const excludePaths = config.get<string[]>('workspace.excludePaths', []);
+        const loadProjectsOnStart = config.get<boolean>('loadProjectsOnStart', true);
+        const maxProjectCount = config.get<number>('maxProjectCount', 100);
+        const maxMemoryMB = config.get<number>('maxMemoryMB', 2048);
+        const enableFormatting = config.get<boolean>('enableFormatting', true);
+        const enableCodeActions = config.get<boolean>('enableCodeActions', true);
+        const semanticTokens = config.get<boolean>('semanticTokens', true);
+        const diagnosticsEnabled = config.get<boolean>('diagnostics.enable', true);
+        const completionEnabled = config.get<boolean>('completion.enable', true);
+
+        const workspaceOptions: Record<string, unknown> = {
+            ignoreSolutionFiles,
+            projectSearchPaths,
+            excludePaths,
+            maxProjectResults
+        };
 
         const effectiveSolution = configuredSolution || legacySolution;
-
         if (effectiveSolution) {
             if (!configuredSolution && legacySolution) {
                 this.channel.appendLine('Using legacy vbnet.solutionPath; prefer vbnet.workspace.solutionPath.');
             }
-            return {
-                workspace: {
-                    solutionPath: effectiveSolution,
-                    ignoreSolutionFiles
+            workspaceOptions.solutionPath = effectiveSolution;
+        } else {
+            const resources = await vscode.workspace.findFiles(
+                '{**/*.sln,**/*.slnf,**/*.slnx,**/*.vbproj}',
+                `{${excludePattern}}`
+            );
+
+            const solutionCandidates = resources.filter((resource) => /\.(sln|slnf|slnx)$/i.test(resource.fsPath));
+            const vbProjectFiles = resources.filter((resource) => /\.vbproj$/i.test(resource.fsPath));
+
+            const solutionPath = await this.pickSolutionWithVbProjects(solutionCandidates);
+            if (solutionPath && !ignoreSolutionFiles) {
+                workspaceOptions.solutionPath = solutionPath;
+            } else {
+                const projectPaths = vbProjectFiles
+                    .map((resource) => resource.fsPath)
+                    .slice(0, Math.max(0, maxProjectResults));
+                if (projectPaths.length > 0) {
+                    workspaceOptions.projectPaths = projectPaths;
                 }
-            };
-        }
-
-        const resources = await vscode.workspace.findFiles(
-            '{**/*.sln,**/*.slnf,**/*.slnx,**/*.vbproj}',
-            `{${excludePattern}}`
-        );
-
-        const workspaceRoot = workspaceFolders[0].uri.fsPath;
-        const solutionCandidates = resources.filter((resource) => /\.(sln|slnf|slnx)$/i.test(resource.fsPath));
-        const vbProjectFiles = resources.filter((resource) => /\.vbproj$/i.test(resource.fsPath));
-
-        const solutionPath = await this.pickSolutionWithVbProjects(solutionCandidates);
-        if (solutionPath && !ignoreSolutionFiles) {
-            return {
-                workspace: {
-                    solutionPath,
-                    ignoreSolutionFiles
-                }
-            };
-        }
-
-        const projectPaths = vbProjectFiles
-            .map((resource) => resource.fsPath)
-            .slice(0, Math.max(0, maxProjectResults));
-
-        if (projectPaths.length === 0) {
-            return {
-                workspace: {
-                    ignoreSolutionFiles
-                }
-            };
+            }
         }
 
         return {
-            workspace: {
-                projectPaths,
-                ignoreSolutionFiles
-            }
+            diagnostics: { enable: diagnosticsEnabled },
+            completion: { enable: completionEnabled },
+            enableFormatting,
+            enableCodeActions,
+            semanticTokens,
+            loadProjectsOnStart,
+            maxProjectCount,
+            maxMemoryMB,
+            workspace: workspaceOptions
         };
     }
 

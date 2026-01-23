@@ -85,7 +85,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<VbNetE
         const platformInfo = await PlatformInformation.getCurrent();
         outputChannel.appendLine(`Platform: ${platformInfo.toString()}`);
 
-        // Create and start the language client
+        // Create the language client
         languageClient = new VbNetLanguageClient(
             outputChannel,
             traceChannel,
@@ -105,8 +105,46 @@ export async function activate(context: vscode.ExtensionContext): Promise<VbNetE
         // Register debugging integration
         activateDebugging(context, outputChannel, platformInfo);
 
-        // Start the language client
-        await languageClient.start();
+        const startLanguageClientIfEnabled = async () => {
+            const config = vscode.workspace.getConfiguration('vbnet');
+            const enabled = config.get<boolean>('enable', true);
+            if (!enabled) {
+                outputChannel?.appendLine('VB.NET language server is disabled (vbnet.enable = false).');
+                statusBar?.setStatus('stopped');
+                return;
+            }
+
+            await languageClient!.start();
+        };
+
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(async (event) => {
+                if (!event.affectsConfiguration('vbnet.enable')) {
+                    return;
+                }
+
+                const config = vscode.workspace.getConfiguration('vbnet');
+                const enabled = config.get<boolean>('enable', true);
+                try {
+                    if (enabled) {
+                        outputChannel?.appendLine('VB.NET language server enabled; starting.');
+                        statusBar?.setStatus('initializing');
+                        await startLanguageClientIfEnabled();
+                    } else {
+                        outputChannel?.appendLine('VB.NET language server disabled; stopping.');
+                        statusBar?.setStatus('stopped');
+                        await languageClient?.stop();
+                    }
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    outputChannel?.appendLine(`Failed to apply vbnet.enable change: ${message}`);
+                    vscode.window.showErrorMessage(`Failed to apply vbnet.enable change: ${message}`);
+                }
+            })
+        );
+
+        // Start the language client if enabled
+        await startLanguageClientIfEnabled();
 
         // Calculate activation time
         const elapsed = process.hrtime(startTime);
