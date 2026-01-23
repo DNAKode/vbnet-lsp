@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 - _None yet._
 
 ### Fixed
-- _None yet._
+- Linux/WSL debugger bundling now ensures `libdbgshim.so` is included with netcoredbg.
 
 ### Known issues
 - _None yet._

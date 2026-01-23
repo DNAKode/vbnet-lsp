@@ -55,6 +55,10 @@ const targetAsset = assets.targets?.[targetPlatform];
 const configuredDebuggerPath = resolveConfiguredPath(process.env.NETCOREDBG_PATH);
 const configuredLicensePath = resolveConfiguredPath(process.env.NETCOREDBG_LICENSE);
 const defaultExeName = targetPlatform.startsWith('win32') ? 'netcoredbg.exe' : 'netcoredbg';
+const requiredCompanion =
+    targetPlatform.startsWith('linux') ? 'libdbgshim.so'
+    : targetPlatform.startsWith('darwin') ? 'libdbgshim.dylib'
+    : '';
 const targetDir = path.join(extensionRoot, '.debugger');
 const targetExe = path.join(targetDir, defaultExeName);
 const targetLicense = path.join(targetDir, 'LICENSE.netcoredbg');
@@ -85,6 +89,13 @@ const findNetcoredbg = (root, exeName) => {
         }
     }
     return '';
+};
+
+const hasRequiredCompanion = (root) => {
+    if (!requiredCompanion) {
+        return true;
+    }
+    return fs.existsSync(path.join(root, requiredCompanion));
 };
 
 const downloadFile = (url, destination) =>
@@ -139,7 +150,13 @@ const resolveSourceExe = async () => {
 
     const localCandidate = path.join(sourceDir, defaultExeName);
     if (fs.existsSync(localCandidate)) {
-        return localCandidate;
+        if (!hasRequiredCompanion(path.dirname(localCandidate))) {
+            console.warn(
+                `Local netcoredbg at ${localCandidate} is missing ${requiredCompanion}; downloading target asset instead.`
+            );
+        } else {
+            return localCandidate;
+        }
     }
 
     if (!targetAsset?.url) {
