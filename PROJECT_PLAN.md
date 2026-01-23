@@ -291,38 +291,46 @@ The language server is organized into five distinct layers:
 ### Phase 3
 **Goal:** Advanced navigation and productivity
 
+**Status (2026-01-23):** Advanced navigation and pull diagnostics implemented. Extension UX backlog completed. Remaining focus: Test Explorer integration, performance tuning, and release polish.
+
+**Completed (LSP features):**
 - Call hierarchy
 - Type hierarchy
 - Type definition + implementation
 - Document highlights, selection ranges, and document links
 - Pull diagnostics (document + workspace)
-- Test Explorer integration
-- Performance tuning and indexing improvements
-- Inlay hints (deferred pending stable Roslyn APIs)
-- TODO: Document the exact Roslyn package versions used by the extension in README.md for transparency.
 
-#### Phase 3 Extension UX Backlog (User-Facing Parity, Non-Razor/XAML/Blazor)
+**Extension UX backlog (completed, non-Razor/XAML/Blazor):**
+- Solution/project picker command for multi-solution workspaces (active selection).
+- "Show Logs" and "Toggle LSP Trace" commands for quick diagnostics capture.
+- Restore commands (workspace or selected project) with clear status notifications.
+- Activation for `.slnf` and `.slnx` to match solution filter usage in large repos.
+- File nesting defaults for VB artifacts (e.g., `.Designer.vb`, `.g.vb`, `.g.i.vb`, `.generated.vb`, `.AssemblyInfo.vb`, `My*.vb`, `*.resx -> .Designer.vb`).
+- "Reload Workspace" command to clear caches and re-open the solution.
+- Attach-to-process picker command and richer debug configuration snippets (infer program via `projectPath`).
+- "Run Tests in Context" and "Debug Tests in Context" commands (debug uses `dotnet test` for now).
+- package.json settings aligned with documented options (e.g., `vbnet.logLevel`, `vbnet.msbuildPath`, `vbnet.maxMemoryMB`).
+- SDK-style `net4x` guidance (warnings + docs) and MSBuild override wiring.
 
-High-impact, low/medium effort:
-- Add solution/project picker command for multi-solution workspaces (show active selection).
-- Add "Show Logs" and "Record/Toggle LSP Trace" commands for quick diagnostics capture.
-- Add restore commands (workspace or selected project) with clear status notifications.
-- Add activation for `.slnf` to match solution filter usage in large repos.
-- Add file nesting defaults for VB artifacts (e.g., `.Designer.vb`, `.g.vb`, `.g.i.vb`, `.generated.vb`, `.AssemblyInfo.vb`, `My*.vb`, `*.resx -> .Designer.vb`).
+**Remaining / deferred in Phase 3:**
+- Test Explorer integration (VS Code Testing API).
+- Performance tuning and indexing improvements (ongoing).
+- Document the exact Roslyn package versions used by the extension in README.md.
+- Inlay hints (deferred pending stable Roslyn APIs).
 
-High-impact, medium effort:
-- Add "Reanalyze / Reload Workspace" command to clear caches and re-open the solution.
-- Add attach-to-process picker command and richer debug configuration snippets (infer program via `projectPath`).
-- Add "Run Tests in Context" and "Debug Tests in Context" commands (initial implementation can call `dotnet test`).
-- Align package.json settings with documented options (e.g., `vbnet.msbuildPath`, `vbnet.maxMemoryMB`, etc.).
+**Newly identified gaps to plan (extension settings wiring):**
+- Respect `vbnet.enable` to skip activation or stop the server.
+- Wire `vbnet.enableFormatting`, `vbnet.enableCodeActions`, and `vbnet.semanticTokens` toggles.
+- Implement `vbnet.loadProjectsOnStart`, `vbnet.maxProjectCount`, and `vbnet.maxMemoryMB` behavior.
 
-SDK-style VB projects targeting .NET Framework 4.x (support + guidance):
-- Detect SDK-style `net4x` projects and validate environment prerequisites.
-- On non-Windows hosts, surface a clear "not supported" message for `net4x` targets.
-- On Windows, detect missing .NET Framework targeting packs/VS Build Tools and guide installation.
-- Prefer full MSBuild when `net4x` is detected; expose `vbnet.msbuildPath` override in settings.
-- If restore is missing, surface restore errors and provide a restore command shortcut.
-- Document `Microsoft.NETFramework.ReferenceAssemblies` as a fallback when targeting packs are absent.
+#### Extension Release Readiness (candidate for first stable release)
+
+- Decide whether Test Explorer integration is required for 1.0 or deferred to 1.1.
+- Validate cross-platform VSIX packaging (Windows/macOS/Linux) with bundled netcoredbg.
+- Run DWSIM performance validation and document results.
+- Ensure docs/configuration and README accurately reflect shipped settings.
+- Verify extension commands + activation events in CI (manifest tests + VS Code harness).
+- Confirm Roslyn package versions in README for transparency.
 
 ### Phase 4
 **Goal:** Enterprise and complex scenarios
@@ -519,7 +527,7 @@ See `docs/development.md` Section 2.1 for setup instructions.
 
 ### Phase 1: MVP - ✅ Complete
 
-**All core language services implemented and tested (113 tests passing)**:
+**All core language services implemented and tested (as of 2026-01-23: 156 server tests + 7 extension manifest tests passing)**:
 
 1. ✅ Protocol Layer (JSON-RPC, LSP types, transports)
 2. ✅ Server Core (lifecycle, routing, state management)
@@ -539,10 +547,10 @@ See `docs/development.md` Section 2.1 for setup instructions.
 - LSP request cancellation (`$/cancelRequest`) should cancel in-flight handlers consistently (verify end-to-end).
 - Completion resolve uses an approximate position; align with Roslyn completion item resolution.
 - Completion items should apply Roslyn text changes (`TextEdit`/`AdditionalTextEdits`) instead of plain insert text.
-- Handle `workspace/didChangeWatchedFiles` to keep the workspace in sync with external edits.
 
 **Completed follow-ups**:
 - Honor `vbnet.diagnostics.enable` and `vbnet.completion.enable` settings in client/server behavior.
+- Handle `workspace/didChangeWatchedFiles` to keep the workspace in sync with external edits.
 
 ### Phase 2: Enhanced Editing - Complete
 
@@ -554,9 +562,8 @@ See `docs/development.md` Section 2.1 for setup instructions.
 - Folding ranges
 - Debugging integration (netcoredbg)
 
-**Planned extensions**:
-- Code action resolve
-- Diagnostic quick fixes
+**Remaining items**:
+- Diagnostic quick fixes (Roslyn analyzer fixes surfaced as code actions)
 
 ---
 
@@ -572,10 +579,10 @@ See `docs/development.md` Section 2.1 for setup instructions.
 
 ---
 
-**Plan Version:** 4.1 (Phase 3 in progress)
-**Last Updated:** 2026-01-20
+**Plan Version:** 4.2 (Phase 3 in progress)
+**Last Updated:** 2026-01-23
 **Status:** Phase 3 in progress
-**Key Change:** Advanced navigation features implemented; polish + test explorer integration next
+**Key Change:** Extension UX backlog completed; test explorer + performance + release polish next
 **License:** MIT (fully open source)
 
 
