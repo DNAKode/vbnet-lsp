@@ -55,6 +55,16 @@ Command:
 Outcome: PASS (14 passing, 5 pending; non-fatal DAP warnings)
 Notes:
 - DAP warnings: `Failed command 'threads' : 0x80004005`.
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-23T112606839Z.log`.
+
+### 2026-01-23 — VS Code harness (VB.NET server)
+
+Command:
+- `cd test-explore\\clients\\vscode; npm test`
+
+Outcome: PASS (14 passing, 5 pending; non-fatal DAP warnings)
+Notes:
+- DAP warnings: `Failed command 'threads' : 0x80004005`.
 - DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-23T090359809Z.log`.
 - Log bundle: `test-explore/clients/vscode/logs/20260123T110339`.
 

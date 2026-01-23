@@ -16,6 +16,17 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.8
+
+### Added
+- Initialization options now include feature toggles and workspace caps for diagnostics/completion/formatting/code actions/semantic tokens and project loading limits.
+
+### Changed
+- Explicit project paths now take precedence over ancestor solution discovery when configured.
+
+### Fixed
+- VS Code workspace initialization now honors configured project paths for loading.
+
 ## 0.1.7
 
 ### Added

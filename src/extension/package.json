@@ -1,7 +1,7 @@
 {
   "name": "vbnet-language-support",
   "publisher": "dnakode",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "First-class VB.NET language support for VS Code",
   "displayName": "VB.NET Language Support",
   "icon": "images/vbnet-icon.png",
