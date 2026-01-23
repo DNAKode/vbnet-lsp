@@ -47,6 +47,18 @@ Optional flags:
 
 ## Recent runs
 
+### 2026-01-23 — VS Code harness (WSL Ubuntu, Linux)
+
+Command:
+- `wsl -d Ubuntu -- bash -lc "cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode && npm test"`
+
+Outcome: FAIL (11 passing, 5 pending, 3 failing)
+Notes:
+- Debug suite failed to launch netcoredbg; LSP smoke passed.
+- Error: `Unexpected SIGPIPE` during debug session startup.
+- Root cause: `netcoredbg` failed to load `libdbgshim.so` (missing from the bundled debugger folder on WSL).
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-23T161312583Z.log`.
+
 ### 2026-01-23 — VS Code harness (VB.NET server)
 
 Command:

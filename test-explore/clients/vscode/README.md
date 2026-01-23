@@ -70,3 +70,8 @@ npm test
 - If extension installation fails with an EPERM rename, delete `clients/vscode/.vscode-test/extensions` and rerun.
 - LSP smoke tests expect files under `test-explore/vbnet-lsp/fixtures`; if you set `FIXTURE_WORKSPACE` elsewhere, keep `SKIP_VBNET_SMOKE=1` to avoid standalone-document failures.
 
+## WSL notes
+
+- The harness will download the Linux VS Code build into `clients/vscode/.vscode-test` on first run.
+- Debug tests require a Linux `netcoredbg` binary **and** its sibling `libdbgshim.so`. If these are not installed, set `SKIP_VBNET_DEBUG=1` or provide `NETCOREDBG_PATH` in WSL.
+
