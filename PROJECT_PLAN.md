@@ -317,11 +317,25 @@ The language server is organized into five distinct layers:
 - Performance tuning and indexing improvements (ongoing).
 - Document the exact Roslyn package versions used by the extension in README.md.
 - Inlay hints (deferred pending stable Roslyn APIs).
+- Multi-root workspace coverage (tests + UX).
+- Smarter MSBuild selection warnings for x64/arm64 mismatches (macOS/WSL guidance).
+- Workspace status surfacing (loaded project count, caps, and memory budget warnings).
+- Debounced workspace reloads for file watcher bursts.
+- Semantic tokens caching per document version.
+- Debugger startup diagnostics (surface stderr + targeted hints).
+- CI packaging validation: Linux netcoredbg bundle must include libdbgshim.so.
 
-**Newly identified gaps to plan (extension settings wiring):**
+**Recently completed (extension settings wiring):**
 - Respect `vbnet.enable` to skip activation or stop the server.
 - Wire `vbnet.enableFormatting`, `vbnet.enableCodeActions`, and `vbnet.semanticTokens` toggles.
 - Implement `vbnet.loadProjectsOnStart`, `vbnet.maxProjectCount`, and `vbnet.maxMemoryMB` behavior.
+
+**Testing backlog (planned additions):**
+- InitializationOptions unit coverage for feature toggles + workspace caps.
+- Workspace reload tests for didChangeConfiguration (solutionPath/projectPaths/search paths).
+- Large-solution/scale fixture to validate project caps + warnings.
+- Multi-root workspace harness coverage (server chooses correct root per folder).
+- Packaging tests for bundled debugger assets (libdbgshim present, executable bit set).
 
 #### Extension Release Readiness (candidate for first stable release)
 
