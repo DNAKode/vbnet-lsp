@@ -17,6 +17,8 @@ let languageClient: VbNetLanguageClient | undefined;
 let statusBar: VbNetStatusBar | undefined;
 let outputChannel: vscode.OutputChannel | undefined;
 let traceChannel: vscode.OutputChannel | undefined;
+let testController: vscode.TestController | undefined;
+let testRefreshTimer: NodeJS.Timeout | undefined;
 
 /**
  * Extension activation entry point.
@@ -104,6 +106,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<VbNetE
 
         // Register debugging integration
         activateDebugging(context, outputChannel, platformInfo);
+        activateTestExplorer(context);
 
         const startLanguageClientIfEnabled = async () => {
             const config = vscode.workspace.getConfiguration('vbnet');
@@ -357,6 +360,294 @@ interface ProcessPickItem extends vscode.QuickPickItem {
 
 interface TestPickItem extends vscode.QuickPickItem {
     targetPath?: string;
+}
+
+function activateTestExplorer(context: vscode.ExtensionContext): void {
+    if (testController) {
+        return;
+    }
+
+    testController = vscode.tests.createTestController('vbnetTests', 'VB.NET Tests');
+    context.subscriptions.push(testController);
+
+    const runProfile = testController.createRunProfile(
+        'Run Tests',
+        vscode.TestRunProfileKind.Run,
+        (request, token) => runTestRequest(request, token),
+        true
+    );
+    context.subscriptions.push(runProfile);
+
+    const watcherPatterns = [
+        '**/*.sln',
+        '**/*.slnf',
+        '**/*.slnx',
+        '**/*.vbproj'
+    ];
+    for (const pattern of watcherPatterns) {
+        const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+        watcher.onDidCreate(() => scheduleTestExplorerRefresh());
+        watcher.onDidChange(() => scheduleTestExplorerRefresh());
+        watcher.onDidDelete(() => scheduleTestExplorerRefresh());
+        context.subscriptions.push(watcher);
+    }
+
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleTestExplorerRefresh())
+    );
+
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration('vbnet.workspace.projectFilesExcludePattern')) {
+                scheduleTestExplorerRefresh();
+            }
+        })
+    );
+
+    scheduleTestExplorerRefresh();
+}
+
+function scheduleTestExplorerRefresh(): void {
+    if (!testController) {
+        return;
+    }
+
+    if (testRefreshTimer) {
+        clearTimeout(testRefreshTimer);
+    }
+
+    testRefreshTimer = setTimeout(() => {
+        refreshTestExplorer().catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            outputChannel?.appendLine(`Failed to refresh test explorer: ${message}`);
+        });
+    }, 300);
+}
+
+async function refreshTestExplorer(): Promise<void> {
+    if (!testController) {
+        return;
+    }
+
+    testController.items.forEach((item) => {
+        testController?.items.delete(item.id);
+    });
+
+    const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+    if (workspaceFolders.length === 0) {
+        return;
+    }
+
+    const excludePattern = getProjectExcludePattern();
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const maxProjectResults = config.get<number>('workspace.maxProjectResults', 250);
+
+    for (const folder of workspaceFolders) {
+        const workspaceItem = testController.createTestItem(
+            `workspace:${folder.uri.toString()}`,
+            folder.name,
+            folder.uri
+        );
+        testController.items.add(workspaceItem);
+
+        const solutions = await findWorkspaceSolutionsForFolder(folder, excludePattern);
+        for (const solutionPath of solutions) {
+            const relative = path.relative(folder.uri.fsPath, solutionPath);
+            const label = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+                ? relative
+                : path.basename(solutionPath);
+            const item = testController.createTestItem(
+                `solution:${solutionPath}`,
+                label,
+                vscode.Uri.file(solutionPath)
+            );
+            workspaceItem.children.add(item);
+        }
+
+        const projects = await findWorkspaceProjectsForFolder(folder, excludePattern, maxProjectResults);
+        for (const projectPath of projects) {
+            const relative = path.relative(folder.uri.fsPath, projectPath);
+            const label = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+                ? relative
+                : path.basename(projectPath);
+            const item = testController.createTestItem(
+                `project:${projectPath}`,
+                label,
+                vscode.Uri.file(projectPath)
+            );
+            workspaceItem.children.add(item);
+        }
+    }
+}
+
+async function runTestRequest(request: vscode.TestRunRequest, token: vscode.CancellationToken): Promise<void> {
+    if (!testController) {
+        return;
+    }
+
+    const run = testController.createTestRun(request);
+    try {
+        const queue = collectRunnableTestItems(request);
+        for (const item of queue) {
+            if (token.isCancellationRequested) {
+                run.skipped(item);
+                continue;
+            }
+
+            run.started(item);
+            try {
+                await runDotnetTestForItem(item, run, token);
+                run.passed(item);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                run.failed(item, new vscode.TestMessage(message));
+            }
+        }
+    } finally {
+        run.end();
+    }
+}
+
+function collectRunnableTestItems(request: vscode.TestRunRequest): vscode.TestItem[] {
+    if (!testController) {
+        return [];
+    }
+
+    const roots: vscode.TestItem[] = [];
+    const excludeIds = new Set((request.exclude ?? []).map((item) => item.id));
+
+    if (request.include && request.include.length > 0) {
+        roots.push(...request.include);
+    } else {
+        testController.items.forEach((item) => roots.push(item));
+    }
+
+    const result: vscode.TestItem[] = [];
+    const addRunnable = (item: vscode.TestItem, isExcluded: boolean) => {
+        const excluded = isExcluded || excludeIds.has(item.id);
+        if (excluded) {
+            return;
+        }
+
+        if (item.children.size === 0) {
+            result.push(item);
+            return;
+        }
+
+        item.children.forEach((child) => addRunnable(child, excluded));
+    };
+
+    for (const item of roots) {
+        addRunnable(item, false);
+    }
+
+    return result;
+}
+
+async function runDotnetTestForItem(
+    item: vscode.TestItem,
+    run: vscode.TestRun,
+    token: vscode.CancellationToken
+): Promise<void> {
+    const workspaceFolder = item.uri ? vscode.workspace.getWorkspaceFolder(item.uri) : undefined;
+    const workspaceRoot = workspaceFolder?.uri.fsPath
+        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+        ?? process.cwd();
+
+    const args = ['test'];
+    const targetPath = item.uri?.fsPath;
+    if (targetPath && fsPathExists(targetPath)) {
+        args.push(targetPath);
+    }
+
+    run.appendOutput(`[vbnet] dotnet ${args.join(' ')}\r\n`, undefined, item);
+    outputChannel?.show();
+    outputChannel?.appendLine(`Running: dotnet ${args.join(' ')}`);
+
+    await new Promise<void>((resolve, reject) => {
+        const child = cp.spawn('dotnet', args, { cwd: workspaceRoot, env: process.env });
+
+        const onExit = (code: number | null) => {
+            if (code === 0) {
+                resolve();
+                return;
+            }
+            reject(new Error(`dotnet test exited with code ${code}`));
+        };
+
+        child.stdout?.on('data', (data: Buffer) => {
+            const text = data.toString();
+            run.appendOutput(text, undefined, item);
+            outputChannel?.appendLine(text.trimEnd());
+        });
+
+        child.stderr?.on('data', (data: Buffer) => {
+            const text = data.toString();
+            run.appendOutput(text, undefined, item);
+            outputChannel?.appendLine(text.trimEnd());
+        });
+
+        child.on('error', (error) => {
+            reject(error);
+        });
+
+        child.on('exit', onExit);
+
+        token.onCancellationRequested(() => {
+            try {
+                child.kill();
+            } catch {
+                // Best-effort cancellation.
+            }
+        });
+    });
+}
+
+function getProjectExcludePattern(): string {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const defaultExclude = '**/node_modules/**,**/.git/**,**/bower_components/**';
+    const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
+    return `{${excludePattern}}`;
+}
+
+async function findWorkspaceSolutionsForFolder(
+    folder: vscode.WorkspaceFolder,
+    excludePattern: string
+): Promise<string[]> {
+    const patterns = ['**/*.sln', '**/*.slnf', '**/*.slnx'];
+    const results: vscode.Uri[] = [];
+
+    for (const pattern of patterns) {
+        const uris = await vscode.workspace.findFiles(
+            new vscode.RelativePattern(folder, pattern),
+            excludePattern
+        );
+        results.push(...uris);
+    }
+
+    const unique = new Map<string, string>();
+    for (const uri of results) {
+        unique.set(uri.fsPath, uri.fsPath);
+    }
+
+    return Array.from(unique.values());
+}
+
+async function findWorkspaceProjectsForFolder(
+    folder: vscode.WorkspaceFolder,
+    excludePattern: string,
+    maxProjectResults: number
+): Promise<string[]> {
+    const resources = await vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, '**/*.vbproj'),
+        excludePattern
+    );
+    const paths = resources.map((resource) => resource.fsPath);
+    if (maxProjectResults > 0 && paths.length > maxProjectResults) {
+        return paths.slice(0, maxProjectResults);
+    }
+
+    return paths;
 }
 
 async function selectWorkspaceSolution(): Promise<void> {

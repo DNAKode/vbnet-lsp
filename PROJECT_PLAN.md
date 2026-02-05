@@ -317,6 +317,7 @@ The language server is organized into five distinct layers:
 - Performance tuning and indexing improvements (ongoing).
 - Document the exact Roslyn package versions used by the extension in README.md.
 - Inlay hints (deferred pending stable Roslyn APIs).
+- Review activation events for overly aggressive activation (decision + follow-up).
 - Multi-root workspace coverage (tests + UX).
 - Smarter MSBuild selection warnings for x64/arm64 mismatches (macOS/WSL guidance).
 - Workspace status surfacing (loaded project count, caps, and memory budget warnings).

@@ -3,7 +3,7 @@
 **`VB.NET` Language Support - Developer Documentation**
 
 Version: 1.0
-Last Updated: 2026-01-21
+Last Updated: 2026-02-05
 
 ## Table of Contents
 
@@ -63,6 +63,8 @@ This policy is local to this repository and does not change machine-wide Git set
 - **Emacs** with eglot (current harness); lsp-mode optional for future coverage
   - Emacs: https://www.gnu.org/software/emacs/
   - lsp-mode: https://emacs-lsp.github.io/lsp-mode/
+- **Helix** (manual LSP smoke checks; no headless harness yet)
+  - Helix: https://helix-editor.com/
 
 ---
 
@@ -359,6 +361,20 @@ npm run bundle-debugger
 ./test-explore/clients/emacs/run-tests.ps1 -Suite vbnet
 ```
 
+### Helix Manual Smoke Check (stdio)
+
+Helix uses stdio for LSP. Use the project-local `languages.toml` template and the helper script:
+
+```powershell
+test-explore/clients/helix/run-helix.ps1
+```
+
+If `hx` is not on PATH, pass the path explicitly:
+
+```powershell
+test-explore/clients/helix/run-helix.ps1 -HelixExe C:\Tools\Helix\hx.exe -ServerExe C:\path\to\VbNet.LanguageServer.exe
+```
+
 ---
 
 ## WSL/Linux Test Notes
@@ -411,6 +427,7 @@ xvfb-run -a npm test
 ## Future Test-Explore Notes
 
 - Consider adding NeoVim coverage for `VB.NET` LSP + debugger integration (possibly with `neotest`), across all supported platforms.
+- Track Helix automation options; current coverage is manual only (stdio config under `test-explore/clients/helix`).
 
 ## 5. Debugging
 
@@ -832,7 +849,7 @@ dotnet test
 
 ---
 
-**Last Updated**: 2026-01-19
+**Last Updated**: 2026-02-05
 
 **Maintained by**: `VB.NET` Language Support Contributors
 

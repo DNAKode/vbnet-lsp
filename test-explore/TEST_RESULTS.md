@@ -47,6 +47,35 @@ Optional flags:
 
 ## Recent runs
 
+### 2026-02-05 — VS Code harness (VB.NET server)
+
+Command:
+- `cd test-explore\\clients\\vscode; $env:VSCODE_KILL_BEFORE_TESTS=1; npm test`
+
+Outcome: FAIL (VS Code download)
+Notes:
+- `@vscode/test-electron` download failed with `EBUSY` while writing `.vscode-test/vscode-win32-x64-archive-1.109.0`.
+- Rerun after clearing `.vscode-test` or ensuring no other VS Code test processes are running.
+
+### 2026-02-03 — Helix setup (manual)
+
+Command:
+- `test-explore\\clients\\helix\\run-helix.ps1`
+
+Outcome: NOT RUN (hx not on PATH in agent environment)
+Notes:
+- Helix manual config added at `test-explore/clients/helix` with a workspace-local `.helix/languages.toml` template.
+
+### 2026-01-23 — VS Code harness (VB.NET server)
+
+Command:
+- `cd test-explore\\clients\\vscode; npm test`
+
+Outcome: PASS (14 passing, 5 pending; non-fatal DAP warnings)
+Notes:
+- DAP warnings: `Failed command 'threads' : 0x80004005`.
+- DAP trace: `test-explore/clients/vscode/logs/dap-trace-2026-01-23T191200234Z.log`.
+
 ### 2026-01-23 — VS Code harness (WSL Ubuntu, Linux)
 
 Command:

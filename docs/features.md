@@ -3,14 +3,14 @@
 **`VB.NET` Language Support - LSP Features and Roadmap**
 
 Version: 2.6  
-Last Updated: 2026-01-20
+Last Updated: 2026-02-05
 
 ## 1. Overview
 
 This document provides a concise view of LSP features supported by `VB.NET` Language Support, their implementation status, and roadmap.
 
 **Current Phase**: Phase 3 (Advanced navigation complete; polish in progress)  
-**Test Coverage**: 150 tests passing
+**Test Coverage**: 156 language server tests + 7 extension manifest tests passing (latest recorded run: 2026-01-23)
 
 ## 2. Feature Status Legend
 
@@ -128,7 +128,13 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 |---------|--------|-------|
 | netcoredbg integration | Implemented | Bundled netcoredbg (override via settings) |
 
-## 5. Roadmap (Next)
+## 5. VS Code UX Features
 
-Phase 3 focuses on test explorer integration and performance tuning. Inlay hints and code lens are deferred pending stable Roslyn public APIs.
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Test Explorer integration | Implemented | Dotnet test runs for solution/project items (run profile only) |
+
+## 6. Roadmap (Next)
+
+Phase 3 focuses on performance tuning and release polish. Inlay hints and code lens are deferred pending stable Roslyn public APIs.
 

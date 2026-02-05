@@ -1,0 +1,18 @@
+# Helix project-local language server configuration for VB.NET.
+# Copy this .helix folder into the workspace you open with Helix.
+
+[language-server.vbnet-lsp]
+# Update this path to the VB.NET language server executable.
+command = "C:/path/to/VbNet.LanguageServer.exe"
+args = ["--stdio"]
+
+# Alternative: dotnet-hosted server
+# command = "dotnet"
+# args = ["C:/path/to/VbNet.LanguageServer.dll", "--stdio"]
+
+[[language]]
+name = "vb"
+scope = "source.vb"
+file-types = ["vb"]
+language-id = "vb"
+language-servers = ["vbnet-lsp"]

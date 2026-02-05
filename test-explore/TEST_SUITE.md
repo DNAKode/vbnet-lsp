@@ -27,7 +27,7 @@ Run via `test-explore/run-tests.ps1 -Theme <name>`:
 | Theme | Purpose | Suites |
 | --- | --- | --- |
 | `core` | Fast LSP protocol/regression sanity | `vbnet-lsp` |
-| `editors` | Client behavior validation | `emacs`, `vscode`, `nvim` |
+| `editors` | Client behavior validation | `emacs`, `vscode`, `nvim`, `helix` (manual) |
 | `scale` | Large-solution robustness/perf | `dwsim`, `vscode-dwsim` |
 | `all` | Full exploratory sweep | all of the above |
 
@@ -95,6 +95,8 @@ Targets:
 - Commands (restart server, select solution, show output, restore, reload, attach, test runs).
 - Configuration changes (debounce and diagnostics mode).
 - Workspace trust behavior (limited activation if applicable).
+- Test Explorer integration (controller creation + solution/project test items).
+  - Note: `createTestObserver` is a proposed API; automated assertions should use a manual verification note or a dev build with proposals enabled.
 
 Harness:
 - VS Code extension test runner (`@vscode/test-electron`) with scripted test fixtures.
@@ -121,6 +123,7 @@ Targets:
 Harness:
 - Emacs lsp-mode batch testing in CI (Phase 1 or Phase 2 depending on scope).
 - Optional future: Neovim LSP harness if adopted by users.
+- Helix manual smoke checks with `test-explore/clients/helix` (stdio only; no headless harness yet).
 
 ### 6) End-to-end tests (real-world projects)
 
