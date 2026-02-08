@@ -677,17 +677,17 @@ Current scope: Windows-only (multi-platform planned).
 - **emacs-lsp.yml**: Multi-editor protocol validation (Linux)
 - **integration.yml**: DWSIM validation
 - **performance.yml**: Nightly performance checks
-- **release.yml**: Package + publish workflows
 
-#### Manual VSIX Workflows (on-demand only)
+#### Packaging and Release Workflows
 
 Two workflows are available via `workflow_dispatch` (manual trigger):
 - **package-vsix.yml**: Build a VSIX artifact for a selected target.
 - **publish-vsix.yml**: Build and publish a VSIX to the Marketplace.
+- **release.yml**: Build standalone language server archives + VSIX files and publish a GitHub Release.
 
-Both workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`,
+All workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`,
 bundle Roslyn LSP assets via NuGet, and validate that `.roslyn` + `.roslyn-vb` are present in the VSIX.
-Publishing also requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
+`publish-vsix.yml` requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
 
 ### CI Duration Note (Tracking)
 
@@ -696,10 +696,11 @@ CI runs on GitHub Actions have been longer than expected in some recent runs. Tr
 ##### Running the workflows
 
 1. Open the GitHub Actions tab.
-2. Select either **package-vsix** or **publish-vsix**.
+2. Select **package-vsix**, **publish-vsix**, or **release**.
 3. Click **Run workflow** and set:
    - `target`: `win32-x64` (default) or one of the listed targets.
 4. For **publish-vsix**, ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
+5. For **release**, provide a `tag` (for example `v0.1.9`) and choose `pre_release`/`draft` flags.
 
 ### Running CI Locally
 
@@ -780,13 +781,15 @@ Follow Semantic Versioning (SemVer 2.0):
    git push origin main --tags
    ```
 
-4. **CI automatically publishes:**
-   - Builds release artifacts
-   - Packages extension
-   - Publishes to marketplaces
-   - Creates GitHub release
+4. **Run the release workflow**
+   - Push a tag (`v*`) to trigger `.github/workflows/release.yml`, or run it manually via `workflow_dispatch`.
+   - The workflow builds language server archives (`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`) and VSIX packages, then attaches them to a GitHub Release.
 
-5. **Announce release**
+5. **Optional: publish to Marketplace**
+   - Run `.github/workflows/publish-vsix.yml` for the target you want to publish.
+   - Ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
+
+6. **Announce release**
    - Update README.md
    - Post to discussions/announcements
 

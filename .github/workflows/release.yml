@@ -1,0 +1,233 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (example: v0.1.9)"
+        type: string
+        required: true
+      pre_release:
+        description: "Mark GitHub release + VSIX as pre-release"
+        type: boolean
+        required: true
+        default: true
+      draft:
+        description: "Create draft release"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      draft: ${{ steps.meta.outputs.draft }}
+    steps:
+      - name: Checkout (for tag validation)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+            PRERELEASE="${{ inputs.pre_release }}"
+            DRAFT="${{ inputs.draft }}"
+          else
+            TAG="${{ github.ref_name }}"
+            if [[ "$TAG" == *"-"* ]]; then
+              PRERELEASE="true"
+            else
+              PRERELEASE="false"
+            fi
+            DRAFT="false"
+          fi
+
+          if [[ -z "$TAG" ]]; then
+            echo "Release tag is required." >&2
+            exit 1
+          fi
+
+          if [[ ! "$TAG" =~ ^v ]]; then
+            echo "Release tag must start with 'v' (received: $TAG)." >&2
+            exit 1
+          fi
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+              echo "Tag '$TAG' does not exist in the repository. Create and push it before running this workflow." >&2
+              exit 1
+            fi
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
+
+  build-language-server:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            archive_ext: zip
+          - os: ubuntu-latest
+            rid: linux-x64
+            archive_ext: tar.gz
+          - os: macos-13
+            rid: osx-x64
+            archive_ext: tar.gz
+          - os: macos-14
+            rid: osx-arm64
+            archive_ext: tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish language server
+        run: dotnet publish src/VbNet.LanguageServer.Vb/VbNet.LanguageServer.Vb.vbproj -c Release -r ${{ matrix.rid }} --self-contained false -o out/lsp/${{ matrix.rid }}
+
+      - name: Archive language server (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path out/release -Force | Out-Null
+          $archive = "out/release/vbnet-language-server-${{ matrix.rid }}.zip"
+          Compress-Archive -Path "out/lsp/${{ matrix.rid }}/*" -DestinationPath $archive -Force
+
+      - name: Archive language server (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/release
+          tar -czf "out/release/vbnet-language-server-${{ matrix.rid }}.tar.gz" -C "out/lsp/${{ matrix.rid }}" .
+
+      - name: Upload language server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vbnet-language-server-${{ matrix.rid }}
+          path: out/release/vbnet-language-server-${{ matrix.rid }}.${{ matrix.archive_ext }}
+
+  build-vsix:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: src/extension/package-lock.json
+
+      - name: Install extension dependencies
+        working-directory: src/extension
+        run: npm ci
+
+      - name: Cache Roslyn downloads
+        uses: actions/cache@v4
+        with:
+          path: src/extension/.roslyn-downloads
+          key: roslyn-downloads-${{ runner.os }}-${{ hashFiles('src/extension/scripts/copy-roslyn-server.js') }}
+
+      - name: Package VSIX files
+        working-directory: src/extension
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          npm run bundle-server
+          npm run package
+
+          $targets = @("win32-x64", "linux-x64", "darwin-x64", "darwin-arm64")
+
+          foreach ($target in $targets) {
+            npm run "bundle-roslyn:$target"
+            npm run validate-roslyn
+            npm run bundle-debugger -- --target "$target"
+
+            $vsix = "vbnet-language-support-$target.vsix"
+            $vsceArgs = @("package", "--target", $target, "--out", $vsix)
+            if ('${{ needs.prepare.outputs.prerelease }}' -eq 'true') {
+              $vsceArgs += "--pre-release"
+            }
+            npx vsce @vsceArgs
+
+            if (-not (Test-Path $vsix)) {
+              throw "VSIX not found at $vsix"
+            }
+
+            $extract = Join-Path $env:TEMP ("vbnet-vsix-" + [guid]::NewGuid().ToString("N"))
+            Expand-Archive -Path $vsix -DestinationPath $extract -Force
+            $root = Join-Path $extract "extension"
+            if (-not (Test-Path (Join-Path $root ".roslyn"))) { throw "Missing .roslyn in $vsix" }
+            if (-not (Test-Path (Join-Path $root ".roslyn-vb"))) { throw "Missing .roslyn-vb in $vsix" }
+            Remove-Item -Recurse -Force $extract
+          }
+
+      - name: Upload VSIX artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-packages
+          path: src/extension/vbnet-language-support-*.vsix
+
+  publish-release:
+    needs:
+      - prepare
+      - build-language-server
+      - build-vsix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download language server artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vbnet-language-server-*
+          merge-multiple: true
+          path: out/release
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-packages
+          path: out/release
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: ${{ needs.prepare.outputs.tag }}
+          draft: ${{ needs.prepare.outputs.draft == 'true' }}
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          files: |
+            out/release/*

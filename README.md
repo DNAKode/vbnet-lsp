@@ -1,241 +1,154 @@
-# `VB.NET` Language Support
+# VB.NET Language Support
 
-**First-class `VB.NET` language support for VS Code and compatible editors**
+Open-source VB.NET language tooling built around Roslyn:
+
+- A VS Code extension: **VB.NET Language Support**
+- Standalone language server binaries for non-VS Code LSP clients
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Overview
+## Choose How To Use It
 
-`VB.NET` Language Support is a fully open-source extension providing first-class `VB.NET` language support for Visual Studio Code and compatible editors (Cursor, VSCodium, Emacs). Built on Microsoft's Roslyn compiler platform, it delivers modern IDE features through the Language Server Protocol (LSP).
+### 1. VS Code extension (recommended for most users)
 
-### Key Features
+- Marketplace: https://marketplace.visualstudio.com/items?itemName=dnakode.vbnet-language-support
+- VSIX packages are also attached to GitHub Releases for manual install
+- Includes:
+  - VB.NET language server backend (default)
+  - Optional Roslyn backend support
+  - Bundled netcoredbg for debugging
 
-- **Roslyn-powered** semantic analysis and compilation
-- **LSP architecture** mirroring the "C# for Visual Studio Code" extension
-- **Solution and project loading** for `.sln` and `.vbproj` files
-- **Core IDE features:**
-  - Real-time diagnostics and error detection
-  - IntelliSense completion
-  - Go to Definition and Find References
-  - Symbol navigation and search
-  - Code rename refactoring
-  - Hover information
-- Advanced navigation (type definition, implementation, call/type hierarchy)
-- Document highlights, selection ranges, and document links
-- **Open-source debugging** with bundled Samsung netcoredbg (Phase 2)
-- **100% MIT licensed** - no proprietary components
+### 2. Standalone language server binaries (non-VS Code clients)
 
-## Status
+Download from GitHub Releases:
 
-**Current Phase:** Phase 3 - Advanced Navigation & Polish (in progress)
-**Version:** 0.1.8 (preview)
-**Status:** In active development
+- Releases: https://github.com/DNAKode/vbnet-lsp/releases
+- Language server artifacts:
+  - `vbnet-language-server-win-x64.zip`
+  - `vbnet-language-server-linux-x64.tar.gz`
+  - `vbnet-language-server-osx-x64.tar.gz`
+  - `vbnet-language-server-osx-arm64.tar.gz`
+- VSIX artifacts:
+  - `vbnet-language-support-win32-x64.vsix`
+  - `vbnet-language-support-linux-x64.vsix`
+  - `vbnet-language-support-darwin-x64.vsix`
+  - `vbnet-language-support-darwin-arm64.vsix`
 
-### Implemented Features
+Use these with any LSP client that supports stdio or named pipes.
 
-| Feature | Status |
-|---------|--------|
-| Text Synchronization | Implemented |
-| Diagnostics (real-time errors) | Implemented |
-| Completion (IntelliSense) | Implemented |
-| Hover (symbol info) | Implemented |
-| Go to Definition | Implemented |
-| Find All References | Implemented |
-| Rename Symbol | Implemented |
-| Document Symbols (outline) | Implemented |
-| Workspace Symbols (search) | Implemented |
-| Solution/Project Loading | Implemented |
-| Formatting (document + range) | Implemented |
-| Code Actions (baseline) | Implemented |
-| Semantic Tokens (full + range) | Implemented |
-| Signature Help | Implemented |
-| Folding Ranges | Implemented |
-| Type Definition | Implemented |
-| Implementation | Implemented |
-| Document Highlight | Implemented |
-| Selection Range | Implemented |
-| Document Links | Implemented |
-| Call/Type Hierarchy | Implemented |
-| Pull Diagnostics (document/workspace) | Implemented |
-| Debugging (netcoredbg integration) | Implemented (bundled netcoredbg) |
+## What You Get
 
-**Test Coverage:** 150 tests passing
+- Roslyn-backed semantic analysis and project loading (`.sln`, `.slnf`, `.slnx`, `.vbproj`)
+- Core language features: diagnostics, completion, hover, definition, references, rename, symbols
+- Advanced navigation: type definition, implementation, call hierarchy, type hierarchy
+- Editing support: formatting, semantic tokens, signature help, folding ranges
+- Debugger integration in the VS Code extension via bundled netcoredbg
 
-See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete roadmap.
-## Installation
-
-### Prerequisites
-
-- [.NET 10.0 SDK](https://dotnet.microsoft.com/download) or later
-- [Visual Studio Code](https://code.visualstudio.com/) 1.80.0 or later
-- [Node.js](https://nodejs.org/) 18.0 or later (for extension development)
-
-The debugger is bundled with the extension; no separate install is required. Advanced users can override it via settings if needed.
-
-### Remote + Web Notes
-
-- **Dev containers/SSH/WSL:** Supported as long as the remote environment has the .NET SDK installed.
-- **VS Code Web (vscode.dev/github.dev):** Not supported because the language server requires a .NET runtime and local project system access.
-- **Dev container config:** See `.devcontainer/devcontainer.json` for a repeatable setup with .NET + Node.js.
-
-### WSL Quickstart (Testing)
-
-For WSL-based testing, use the Linux VSIX and ensure the bundled debugger is available for the harness:
-
-```bash
-export PATH="$HOME/.dotnet:$PATH"
-export DOTNET_ROOT="$HOME/.dotnet"
-cd /mnt/c/Work/vbnet-lsp/src/extension
-npm run bundle-debugger -- --target linux-x64
-cd /mnt/c/Work/vbnet-lsp/test-explore/clients/vscode
-export CODE_DISABLE_WSL=1
-export VSCODE_CLI=1
-export DONT_PROMPT_WSL_INSTALL=1
-export NO_AT_BRIDGE=1
-export DBUS_SESSION_BUS_ADDRESS="unix:path=/dev/null"
-xvfb-run -a npm test
-```
-
-See [docs/development.md](docs/development.md) for full setup details.
-
-### From Source (Development)
-
-Currently, `VB.NET` Language Support is in early development. To build from source:
-
-```bash
-# Clone the repository
-git clone https://github.com/DNAKode/vbnet-lsp.git
-cd vbnet-lsp
-
-# Build the language server
-dotnet build src/VbNet.LanguageServer.Vb
-
-# Run tests
-dotnet test
-```
-
-See [docs/development.md](docs/development.md) for detailed setup instructions.
+Current implementation details and roadmap are tracked in [PROJECT_PLAN.md](PROJECT_PLAN.md) and [docs/features.md](docs/features.md).
 
 ## Quick Start
 
-Once installed, the extension automatically activates when you open a \`.vb\` file or a folder containing `VB.NET` projects.
+### VS Code
 
-### Opening a `VB.NET` Project
+1. Install the extension from the Marketplace.
+2. Open a folder containing a `.sln` or `.vbproj`.
+3. Start coding in `.vb` files.
 
-1. Open VS Code
-2. Open a folder containing a \`.sln\` or \`.vbproj\` file
-3. The extension will automatically discover and load your `VB.NET` projects
-4. Start coding with full IntelliSense support
+Useful commands:
 
-If you have multiple solutions, use the Command Palette action **"VB.NET: Select Workspace Solution"** to choose the active \`.sln/.slnf/.slnx\`.
-For diagnostics, use **"VB.NET: Show Logs"** and **"VB.NET: Toggle LSP Trace"**.
-If assets are missing, run **"VB.NET: Restore Workspace"** or **"VB.NET: Restore Project"**.
-To run tests scoped to the active file, solution, or project, use **"VB.NET: Run Tests"** (or **"VB.NET: Debug Tests (Preview)"**).
-To force a reanalysis without restarting VS Code, use **"VB.NET: Reload Workspace"**.
-For attaching to a running .NET process, use **"VB.NET: Attach Debugger to Process"**.
+- `VB.NET: Select Workspace Solution`
+- `VB.NET: Show Logs`
+- `VB.NET: Toggle LSP Trace`
+- `VB.NET: Reload Workspace`
 
-## Architecture
+### Non-VS Code (LSP client)
 
-`VB.NET` Language Support follows the architecture of the "C# for Visual Studio Code" extension:
+1. Download and extract the server artifact for your platform from [Releases](https://github.com/DNAKode/vbnet-lsp/releases).
+2. Configure your editor/client to launch the server with `--stdio`.
 
-- **VS Code Extension (TypeScript)** - Extension activation, LSP client, UI integration
-- **Language Server (VB.NET/.NET)** - Roslyn workspace, LSP protocol, language services
-- **Samsung netcoredbg** - Open-source .NET debugger (bundled in platform-specific VSIX packages)
+Examples:
 
-See [docs/architecture.md](docs/architecture.md) for detailed architectural information.
+```bash
+# Linux/macOS (app host)
+./VbNet.LanguageServer --stdio
+
+# Linux/macOS/Windows (dotnet host)
+dotnet VbNet.LanguageServer.dll --stdio
+
+# Windows (app host)
+VbNet.LanguageServer.exe --stdio
+```
+
+The server also supports `--pipe` (named pipe transport), `--logLevel`, and `--msbuildPath`.
+
+## Prerequisites
+
+- .NET SDK 10.0 or later
+- For VS Code extension development: Node.js 18+
+- For VS Code users: VS Code 1.80+
+
+Notes:
+
+- Dev containers / SSH / WSL are supported if .NET SDK is available in the runtime environment.
+- VS Code Web (`vscode.dev` / `github.dev`) is not supported.
+
+## Release Automation
+
+GitHub Actions release automation is available in `.github/workflows/release.yml` and publishes:
+
+- Platform-specific standalone language server archives
+- Platform-specific VSIX packages
+- A GitHub Release containing all artifacts
+
+The release workflow runs on tag push (`v*`) and can also be run manually with `workflow_dispatch`.
+
+## Backend Model
+
+The extension supports backend selection:
+
+- `vbnet` (default)
+- `roslyn`
+
+Only one backend is active at a time by design (single active backend) to reduce regression risk.
+
+For Roslyn packaging constraints (`.roslyn` + `.roslyn-vb` split), see [docs/roslyn-packaging.md](docs/roslyn-packaging.md).
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) - System architecture and design decisions
-- [Development Guide](docs/development.md) - Building, testing, and contributing
-- [Configuration](docs/configuration.md) - Settings and customization
-- [Roslyn Packaging](docs/roslyn-packaging.md) - Roslyn LSP packaging and layout
-- [Feature Support](docs/features.md) - LSP feature matrix and roadmap
+- [Architecture](docs/architecture.md)
+- [Development Guide](docs/development.md)
+- [Configuration](docs/configuration.md)
+- [Feature Matrix](docs/features.md)
+- [Roslyn Packaging](docs/roslyn-packaging.md)
+- [Roslyn Comparison Notes](docs/roslyn-lsp-comparison.md)
+- [Release Artifacts](RELEASE_ARTIFACTS.md)
 
-## Project Goals
+## Development and Testing
 
-`VB.NET` Language Support aims to provide:
+Build from source:
 
-1. **Feature parity** with the "C# for Visual Studio Code" extension
-2. **Performance** validated against large real-world codebases (DWSIM)
-3. **Stability** through comprehensive testing and validation
-4. **Community focus** - welcoming issues, feedback, and contributions
+```bash
+dotnet build src/VbNet.LanguageServer.Vb
+dotnet test
+cd src/extension && npm ci && npm run compile
+```
 
-### Key Differentiators
+For full workflows and exploratory harnesses, see:
 
-- **100% open source** under MIT license
-- **`VB.NET` focused** - optimized specifically for `VB.NET` development
-- **Open-source debugger** - Samsung netcoredbg bundled for all supported platforms
-- **No proprietary components** - fully transparent and community-driven
+- [docs/development.md](docs/development.md)
+- [test-explore/TEST_SUITE.md](test-explore/TEST_SUITE.md)
+- [test-explore/TEST_RESULTS.md](test-explore/TEST_RESULTS.md)
 
-## Roadmap
-
-### Phase 1 (MVP) - Complete
-- Core language server with essential LSP features
-- Solution and project loading
-- Diagnostics, completion, navigation
-- Symbol search and rename
-
-### Phase 2 (Complete)
-- Code formatting
-- Code actions (baseline)
-- Semantic tokens (enhanced syntax highlighting)
-- Signature help
-- Folding ranges
-- Debugging integration with bundled netcoredbg
-
-### Phase 3 (Next)
-- Test explorer integration
-- Performance optimization
-- Inlay hints (deferred pending stable Roslyn APIs)
-
-### Phase 4
-- Mixed-language solution support
-- Advanced refactorings
-- Multi-root workspace handling
-
-See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete implementation roadmap.
 ## Contributing
 
-We welcome contributions, especially:
+Issues, bug reports, docs improvements, and code contributions are welcome.
 
-- **Issue reports** - bug reports, feature requests, performance issues
-- **Testing** - real-world usage feedback and edge case discovery
-- **Documentation** - improvements and clarifications
-- **Code contributions** - bug fixes and feature implementations
-
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Testing
-
-`VB.NET` Language Support is tested against:
-
-- **Small projects** (~10 files) - unit test validation
-- **Medium projects** (~50 files) - integration testing
-- **DWSIM** (100+ files) - large real-world `VB.NET` codebase for performance validation
-- **Multiple editors** - VS Code (automated) and Emacs (eglot) smoke coverage; Cursor/VSCodium planned
+- Issues: https://github.com/DNAKode/vbnet-lsp/issues
+- Discussions: https://github.com/DNAKode/vbnet-lsp/discussions
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- **Microsoft Roslyn team** - for the amazing .NET compiler platform
-- **Microsoft C# extension team** - for the open-source LSP architecture reference
-- **Samsung netcoredbg team** - for the open-source .NET debugger
-- **Cliffback** - for macOS arm64 netcoredbg community builds
-- **DWSIM project** - for providing a large real-world `VB.NET` codebase for testing
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/DNAKode/vbnet-lsp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/DNAKode/vbnet-lsp/discussions)
-- **Documentation**: [docs/](docs/)
-
----
-
-**Built with focus on the `VB.NET` community. Designed for lasting infrastructure.**
+MIT - see [LICENSE](LICENSE).
 
 
 
