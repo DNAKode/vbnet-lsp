@@ -35,6 +35,7 @@ This document tracks our systematic examination of reference repositories and te
 | Repository | Local Path | Purpose |
 |------------|------------|---------|
 | vscode-csharp | `_external/vscode-csharp/` | Primary architecture reference |
+| csharp-language-server | `_external/csharp-language-server/` | Standalone C# LSP parity reference (CLI + editor wrappers) |
 | netcoredbg | `_external/netcoredbg/` | Debugger integration reference |
 | DWSIM | `_external/dwsim/` | Performance validation |
 
@@ -169,6 +170,29 @@ vscode-csharp/
 ```
 
 **Action**: Fill in actual structure after cloning.
+
+### 2.5 Standalone C# LSP Parity Reference (`csharp-ls`)
+
+**Repository**: https://github.com/razzmatazz/csharp-language-server  
+**Local Path**: `_external/csharp-language-server/`
+
+Use this repository as a secondary parity reference specifically for standalone
+LSP behavior and editor integration patterns (outside the VS Code extension
+architecture in `vscode-csharp`).
+
+Focus areas:
+- Command-line contract in README + `--help` output:
+  - `--loglevel`, `--solution`, `--debug`, `--diagnose`, `--features`
+- Stdio-first launch model and global-tool install UX
+- Editor wrapper ecosystem and conventions:
+  - Neovim plugin references
+  - Emacs/lsp-mode references
+  - VS Code wrapper extension references
+
+Action items:
+- [ ] Keep `vbnet-ls --help` and docs similarly clear and explicit.
+- [ ] Compare editor-wrapper guidance (Neovim/Emacs) and align adapter docs where practical.
+- [ ] Track feature/config parity opportunities between `csharp-ls` and `vbnet-ls`.
 
 ---
 

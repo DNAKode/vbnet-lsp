@@ -21,7 +21,13 @@ Open-source VB.NET language tooling built around Roslyn:
 
 ### 2. Standalone language server binaries (non-VS Code clients)
 
-Download from GitHub Releases:
+Install as a global .NET tool (recommended):
+
+```bash
+dotnet tool install --global DNAKode.VbNet.Lsp
+```
+
+Or download from GitHub Releases:
 
 - Releases: https://github.com/DNAKode/vbnet-lsp/releases
 - Language server artifacts:
@@ -74,12 +80,15 @@ Useful commands:
 
 ### Non-VS Code (LSP client)
 
-1. Download and extract the server artifact for your platform from [Releases](https://github.com/DNAKode/vbnet-lsp/releases).
+1. Install the global tool (`dotnet tool install --global DNAKode.VbNet.Lsp`) or download and extract the server artifact for your platform from [Releases](https://github.com/DNAKode/vbnet-lsp/releases).
 2. Configure your editor/client to launch the server with `--stdio`.
 
 Examples:
 
 ```bash
+# Global tool
+vbnet-ls --stdio
+
 # Linux/macOS (app host)
 ./VbNet.LanguageServer --stdio
 
@@ -111,6 +120,10 @@ GitHub Actions release automation is available in `.github/workflows/release.yml
 - Platform-specific VSIX packages
 - A GitHub Release containing all artifacts
 
+The dotnet tool package (`DNAKode.VbNet.Lsp`, command: `vbnet-ls`) is built in
+`.github/workflows/publish-dotnet-tool.yml` and published to NuGet when
+`NUGET_API_KEY` is configured.
+
 Editor adapters are validated separately in `.github/workflows/editor-adapters.yml`
 and are intended for editor-native distribution channels (for example, Neovim
 plugin managers and MELPA/package-vc for Emacs).
@@ -138,6 +151,7 @@ For Roslyn packaging constraints (`.roslyn` + `.roslyn-vb` split), see [docs/ros
 - [Roslyn Comparison Notes](docs/roslyn-lsp-comparison.md)
 - [Editor Adapter Packaging](docs/editor-packaging.md)
 - [Adapter Release Checklist](docs/adapter-release-checklist.md)
+- [Claude Plugin Marketplace Plan](docs/claude-plugin-marketplace.md)
 - [Release Artifacts](RELEASE_ARTIFACTS.md)
 
 ## Development and Testing

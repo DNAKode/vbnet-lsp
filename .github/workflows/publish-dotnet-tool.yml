@@ -1,0 +1,78 @@
+name: publish-dotnet-tool
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to publish (defaults to tag without leading v)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  pack-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Resolve package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION_INPUT="${{ inputs.version }}"
+          REF_TAG="${{ github.ref_name }}"
+
+          if [[ -n "$VERSION_INPUT" ]]; then
+            VERSION="$VERSION_INPUT"
+          elif [[ -n "$REF_TAG" && "$REF_TAG" == v* ]]; then
+            VERSION="${REF_TAG#v}"
+          else
+            echo "Could not determine package version. Provide workflow_dispatch input 'version' or run from a v* tag." >&2
+            exit 1
+          fi
+
+          echo "Using package version: $VERSION"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Pack dotnet tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/nuget
+          dotnet pack src/VbNet.LanguageServer.Vb/VbNet.LanguageServer.Vb.vbproj \
+            -c Release \
+            -p:PackageVersion=${{ steps.version.outputs.value }} \
+            -o out/nuget
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dnakode-vbnet-lsp-nuget
+          path: out/nuget/*.nupkg
+
+      - name: Publish package to NuGet
+        if: ${{ secrets.NUGET_API_KEY != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet nuget push out/nuget/*.nupkg \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source "https://api.nuget.org/v3/index.json" \
+            --skip-duplicate
+
+      - name: Skip publish (missing NUGET_API_KEY)
+        if: ${{ secrets.NUGET_API_KEY == '' }}
+        run: echo "NUGET_API_KEY is not configured; package was built and uploaded as an artifact only."

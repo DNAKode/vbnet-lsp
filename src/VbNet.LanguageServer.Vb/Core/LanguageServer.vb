@@ -81,7 +81,7 @@ Namespace Core
         ''' <summary>
         ''' Server version reported in initialize response.
         ''' </summary>
-        Public Const ServerVersion As String = "0.1.8"
+        Public Const ServerVersion As String = "0.1.9"
 
         Public Sub New(transport As ITransport, loggerFactory As ILoggerFactory)
             If transport Is Nothing Then

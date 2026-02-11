@@ -131,6 +131,12 @@ cd _external
 git clone https://github.com/dotnet/vscode-csharp.git
 # Size: ~200MB, Clone time: 2-5 minutes
 
+# csharp-ls (standalone C# LSP reference)
+# CLI surface, stdio startup conventions, and editor-wrapper patterns
+# (Neovim/Emacs/VS Code plugin ecosystem)
+git clone https://github.com/razzmatazz/csharp-language-server.git
+# Size: ~20MB, Clone time: <1 minute
+
 # netcoredbg (DNAKode fork) - Open-source .NET debugger
 # DAP protocol reference, debugger integration patterns, macOS arm64 investigation
 git clone https://github.com/DNAKode/netcoredbg.git
@@ -152,7 +158,7 @@ cd ..
 **Verification**:
 ```bash
 ls _external/
-# Should show: vscode-csharp/  netcoredbg/
+# Should show: vscode-csharp/  csharp-language-server/  netcoredbg/
 ```
 
 ### _external/ - Test Inputs (DWSIM)
@@ -205,6 +211,7 @@ find _external/dwsim -name "*.vb" | head -20
 vbnet-lsp/
 |-- _external/                    # Gitignored - reference repos + large inputs
 |   |-- vscode-csharp/           # C# extension (primary reference)
+|   |-- csharp-language-server/  # Standalone C# LSP reference (CLI + editor wrappers)
 |   |-- netcoredbg/              # netcoredbg fork (macOS arm64 builds)
 |   |-- netcoredbg-macOS-arm64.nvim/ # netcoredbg macOS arm64 community build
 |   |-- roslyn/                  # Roslyn source (optional)
@@ -229,6 +236,9 @@ Periodically update to get latest changes:
 ```bash
 # Update C# extension reference
 cd _external/vscode-csharp && git pull && cd ../..
+
+# Update standalone C# language server reference
+cd _external/csharp-language-server && git pull && cd ../..
 
 # Update netcoredbg reference (DNAKode fork)
 cd _external/netcoredbg && git pull && cd ../..
@@ -688,6 +698,7 @@ Workflows available via `workflow_dispatch` (manual trigger):
 - **package-vsix.yml**: Build a VSIX artifact for a selected target.
 - **publish-vsix.yml**: Build and publish a VSIX to the Marketplace.
 - **release.yml**: Build standalone language server archives + VSIX files and publish a GitHub Release.
+- **publish-dotnet-tool.yml**: Pack and publish the `DNAKode.VbNet.Lsp` global tool package (command: `vbnet-ls`) to NuGet.
 
 Adapter repo sync/publish guidance:
 - `adapters/scripts/export-adapter-repos.ps1`
@@ -696,6 +707,7 @@ Adapter repo sync/publish guidance:
 All workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`,
 bundle Roslyn LSP assets via NuGet, and validate that `.roslyn` + `.roslyn-vb` are present in the VSIX.
 `publish-vsix.yml` requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
+`publish-dotnet-tool.yml` publishes only when `NUGET_API_KEY` is configured.
 
 ### CI Duration Note (Tracking)
 
@@ -704,11 +716,12 @@ CI runs on GitHub Actions have been longer than expected in some recent runs. Tr
 ##### Running the workflows
 
 1. Open the GitHub Actions tab.
-2. Select **editor-adapters**, **package-vsix**, **publish-vsix**, or **release**.
+2. Select **editor-adapters**, **package-vsix**, **publish-vsix**, **release**, or **publish-dotnet-tool**.
 3. Click **Run workflow** and set:
    - `target`: `win32-x64` (default) or one of the listed targets.
 4. For **publish-vsix**, ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
 5. For **release**, provide a `tag` (for example `v0.1.9`) and choose `pre_release`/`draft` flags.
+6. For **publish-dotnet-tool**, provide `version` only when running manually without a `v*` tag context.
 
 ### Running CI Locally
 
@@ -757,8 +770,8 @@ Follow Semantic Versioning (SemVer 2.0):
 1. **Update version number**
    ```bash
    # Update version in:
-   # - src/VbNet.LanguageServer.Vb/VbNet.LanguageServer.Vb.vbproj
    # - src/extension/package.json
+   # Dotnet tool package version comes from the git tag (vX.Y.Z -> X.Y.Z)
    ```
 
 2. **Update CHANGELOG.md**
@@ -793,11 +806,15 @@ Follow Semantic Versioning (SemVer 2.0):
    - Push a tag (`v*`) to trigger `.github/workflows/release.yml`, or run it manually via `workflow_dispatch`.
    - The workflow builds language server archives (`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`) and VSIX packages, then attaches them to a GitHub Release.
 
-5. **Optional: publish to Marketplace**
+5. **Optional: publish dotnet tool package**
+   - Run `.github/workflows/publish-dotnet-tool.yml`, or rely on the same `v*` tag trigger.
+   - Ensure `NUGET_API_KEY` is configured to publish to NuGet.
+
+6. **Optional: publish to Marketplace**
    - Run `.github/workflows/publish-vsix.yml` for the target you want to publish.
    - Ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
 
-6. **Announce release**
+7. **Announce release**
    - Update README.md
    - Post to discussions/announcements
 
@@ -855,6 +872,7 @@ dotnet test
 - [Feature Support Matrix](features.md)
 - [Project Plan](../PROJECT_PLAN.md)
 - [C# Extension Reference](https://github.com/dotnet/vscode-csharp)
+- [csharp-ls Reference](https://github.com/razzmatazz/csharp-language-server)
 - [LSP Specification](https://microsoft.github.io/language-server-protocol/)
 - [Roslyn API Documentation](https://github.com/dotnet/roslyn/tree/main/docs)
 
