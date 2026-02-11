@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Validate plugin manifest contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest_path = Path(".claude-plugin/plugin.json")
+          data = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+          assert data["name"] == "vbnet-lsp"
+          assert "lspServers" in data
+          server = data["lspServers"]["vbnet-ls"]
+          assert server["command"] == "vbnet-ls"
+          assert server["args"] == ["--stdio"]
+          assert server["extensionToLanguage"][".vb"] == "vb"
+          PY
+
+      - name: Install vbnet tool from NuGet
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool install --tool-path ./.tools DNAKode.VbNet.Lsp
+
+      - name: Verify server command
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.tools/vbnet-ls --version
+          ./.tools/vbnet-ls --help | grep -q -- "--stdio"

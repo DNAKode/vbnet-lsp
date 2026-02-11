@@ -1,0 +1,32 @@
+{
+  "name": "vbnet-lsp",
+  "version": "1.0.0",
+  "description": "VB.NET language server integration for Claude Code using vbnet-ls over stdio.",
+  "author": {
+    "name": "DNAKode",
+    "email": "govert@dnakode.com",
+    "url": "https://dnakode.com"
+  },
+  "homepage": "https://github.com/DNAKode/vbnet-lsp-claude-plugin",
+  "repository": "https://github.com/DNAKode/vbnet-lsp-claude-plugin",
+  "license": "MIT",
+  "keywords": [
+    "vbnet",
+    "visual-basic",
+    "lsp",
+    "claude-code",
+    "roslyn"
+  ],
+  "lspServers": {
+    "vbnet-ls": {
+      "command": "vbnet-ls",
+      "args": [
+        "--stdio"
+      ],
+      "extensionToLanguage": {
+        ".vb": "vb"
+      },
+      "startupTimeout": 120000
+    }
+  }
+}

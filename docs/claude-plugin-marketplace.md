@@ -24,6 +24,21 @@ For language servers, the plugin entry includes:
   - optional `args`
   - `extensionToLanguage`
 
+## 2.1 Plugin Repository Layout
+
+Standalone plugin repository target:
+
+- `https://github.com/DNAKode/vbnet-lsp-claude-plugin`
+
+Source-of-truth snapshot in this monorepo:
+
+- `integrations/claude/vbnet-lsp`
+
+Sync mechanism:
+
+- `integrations/scripts/export-integration-repos.ps1`
+- `docs/downstream-repositories.md`
+
 ## 3. Proposed Marketplace Entry
 
 ```json

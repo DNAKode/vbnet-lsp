@@ -128,6 +128,9 @@ Editor adapters are validated separately in `.github/workflows/editor-adapters.y
 and are intended for editor-native distribution channels (for example, Neovim
 plugin managers and MELPA/package-vc for Emacs).
 
+Downstream snapshot sync guidance (adapters + Claude plugin) is documented in
+[docs/downstream-repositories.md](docs/downstream-repositories.md).
+
 The release workflow runs on tag push (`v*`) and can also be run manually with `workflow_dispatch`.
 
 ## Backend Model
@@ -152,6 +155,7 @@ For Roslyn packaging constraints (`.roslyn` + `.roslyn-vb` split), see [docs/ros
 - [Editor Adapter Packaging](docs/editor-packaging.md)
 - [Adapter Release Checklist](docs/adapter-release-checklist.md)
 - [Claude Plugin Marketplace Plan](docs/claude-plugin-marketplace.md)
+- [Downstream Repositories](docs/downstream-repositories.md)
 - [Release Artifacts](RELEASE_ARTIFACTS.md)
 
 ## Development and Testing

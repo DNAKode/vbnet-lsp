@@ -219,6 +219,7 @@ vbnet-lsp/
 |-- test-explore/           # Tracked - exploratory harnesses (logs excluded)
 |-- src/                         # Tracked - our source code
 |-- test/                        # Tracked - our test code (USE THIS!)
+|-- integrations/                # Tracked - downstream integration snapshots
 `-- docs/                        # Tracked - documentation
 ```
 
@@ -703,6 +704,8 @@ Workflows available via `workflow_dispatch` (manual trigger):
 Adapter repo sync/publish guidance:
 - `adapters/scripts/export-adapter-repos.ps1`
 - `docs/adapter-release-checklist.md`
+- `integrations/scripts/export-integration-repos.ps1`
+- `docs/downstream-repositories.md`
 
 All workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`,
 bundle Roslyn LSP assets via NuGet, and validate that `.roslyn` + `.roslyn-vb` are present in the VSIX.
@@ -873,6 +876,7 @@ dotnet test
 - [Project Plan](../PROJECT_PLAN.md)
 - [C# Extension Reference](https://github.com/dotnet/vscode-csharp)
 - [csharp-ls Reference](https://github.com/razzmatazz/csharp-language-server)
+- [Downstream Repositories](downstream-repositories.md)
 - [LSP Specification](https://microsoft.github.io/language-server-protocol/)
 - [Roslyn API Documentation](https://github.com/dotnet/roslyn/tree/main/docs)
 
