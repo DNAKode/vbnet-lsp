@@ -16,6 +16,20 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.9
+
+### Added
+- `vbnet.debugger.workarounds.stackTraceNoInterfaceFallback` setting (enabled by default) to keep debug sessions usable when netcoredbg returns `stackTrace` `0x80004002`.
+
+### Changed
+- VS Code debug adapter launch now uses a lightweight netcoredbg DAP proxy to apply a targeted fallback for `stackTrace` `E_NOINTERFACE` responses.
+
+### Fixed
+- WinForms/debugger flows no longer hard-fail stack expansion on the known upstream netcoredbg `0x80004002` bug path; the adapter now returns an empty stack as a temporary mitigation.
+
+### Known issues
+- Upstream netcoredbg tracking: issue https://github.com/Samsung/netcoredbg/issues/215, fix PR https://github.com/Samsung/netcoredbg/pull/216 (remove workaround after fix is merged and released in bundled binaries).
+
 ## 0.1.8
 
 ### Added

@@ -326,6 +326,22 @@ class NetCoreDbgAdapterFactory implements vscode.DebugAdapterDescriptorFactory {
         const config = vscode.workspace.getConfiguration('vbnet');
         const extraArgs = config.get<string[]>('debugger.args', []);
         const args = ['--interpreter=vscode', ...extraArgs];
+        const useStackTraceFallback = config.get<boolean>('debugger.workarounds.stackTraceNoInterfaceFallback', true);
+
+        if (useStackTraceFallback) {
+            const proxyScriptPath = path.join(this.extensionPath, 'scripts', 'netcoredbg-proxy.js');
+            if (fs.existsSync(proxyScriptPath)) {
+                const proxyArgs = [proxyScriptPath, '--debugger', debuggerPath, '--', ...args];
+                this.outputChannel.appendLine(
+                    `Starting netcoredbg via proxy fallback: ${debuggerPath} ${args.join(' ')}`
+                );
+                return new vscode.DebugAdapterExecutable(process.execPath, proxyArgs);
+            }
+
+            this.outputChannel.appendLine(
+                `netcoredbg proxy script was not found at ${proxyScriptPath}; starting netcoredbg directly.`
+            );
+        }
 
         this.outputChannel.appendLine(`Starting netcoredbg: ${debuggerPath} ${args.join(' ')}`);
 

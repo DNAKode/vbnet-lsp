@@ -13,6 +13,10 @@ This file tracks reported issues to revisit later. No fixes are applied here.
 
 ## Debugging
 - Debugging does not appear to work (details to capture later).
+- Track upstream netcoredbg stackTrace `0x80004002` bug/fix weekly:
+  - issue: https://github.com/Samsung/netcoredbg/issues/215
+  - PR: https://github.com/Samsung/netcoredbg/pull/216
+  - action: drop `vbnet` proxy workaround once a fixed netcoredbg release is available and bundled.
 
 ## Release notes
 - Start a published changelog and include a "Known Issues" section.

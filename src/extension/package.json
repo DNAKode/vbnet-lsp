@@ -1,7 +1,7 @@
 {
   "name": "vbnet-language-support",
   "publisher": "dnakode",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "First-class VB.NET language support for VS Code",
   "displayName": "VB.NET Language Support",
   "icon": "images/vbnet-icon.png",
@@ -201,6 +201,11 @@
             },
             "default": [],
             "description": "Extra command line arguments passed to netcoredbg (for example, --engineLogging=/path/to/log.txt)."
+          },
+          "vbnet.debugger.workarounds.stackTraceNoInterfaceFallback": {
+            "type": "boolean",
+            "default": true,
+            "description": "When netcoredbg returns stackTrace failure 0x80004002, return an empty stack instead of surfacing a hard adapter error."
           },
           "vbnet.workspace.solutionPath": {
             "type": "string",
