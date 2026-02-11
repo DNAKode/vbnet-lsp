@@ -11,7 +11,11 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,6 +24,19 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+
+      - name: Install Claude Code CLI (npm)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Validate plugin with Claude CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          claude --version
+          claude plugin validate .
 
       - name: Validate plugin manifest contract
         shell: bash
