@@ -67,6 +67,9 @@ function Invoke-EmacsSuite {
     param([string]$RunSuite)
     $env:CODEX_SUITE = $RunSuite
     & $emacsExe --batch -l $scriptPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Emacs eglot smoke test failed (exit code $LASTEXITCODE)."
+    }
 }
 
 Invoke-EmacsSuite -RunSuite 'vbnet'
