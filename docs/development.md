@@ -672,18 +672,26 @@ Current scope: Windows-only (multi-platform planned).
 - Bundle Roslyn LSP (win-x64) and validate `.roslyn` + `.roslyn-vb` layout
 ```
 
+#### Editor Adapter Validation
+
+- **editor-adapters.yml**: Multi-editor smoke validation (Neovim + Emacs harnesses on Windows)
+
 #### Planned (not yet in repo)
 
-- **emacs-lsp.yml**: Multi-editor protocol validation (Linux)
 - **integration.yml**: DWSIM validation
 - **performance.yml**: Nightly performance checks
 
 #### Packaging and Release Workflows
 
-Two workflows are available via `workflow_dispatch` (manual trigger):
+Workflows available via `workflow_dispatch` (manual trigger):
+- **editor-adapters.yml**: Run Neovim + Emacs smoke tests against current server build.
 - **package-vsix.yml**: Build a VSIX artifact for a selected target.
 - **publish-vsix.yml**: Build and publish a VSIX to the Marketplace.
 - **release.yml**: Build standalone language server archives + VSIX files and publish a GitHub Release.
+
+Adapter repo sync/publish guidance:
+- `adapters/scripts/export-adapter-repos.ps1`
+- `docs/adapter-release-checklist.md`
 
 All workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`,
 bundle Roslyn LSP assets via NuGet, and validate that `.roslyn` + `.roslyn-vb` are present in the VSIX.
@@ -696,7 +704,7 @@ CI runs on GitHub Actions have been longer than expected in some recent runs. Tr
 ##### Running the workflows
 
 1. Open the GitHub Actions tab.
-2. Select **package-vsix**, **publish-vsix**, or **release**.
+2. Select **editor-adapters**, **package-vsix**, **publish-vsix**, or **release**.
 3. Click **Run workflow** and set:
    - `target`: `win32-x64` (default) or one of the listed targets.
 4. For **publish-vsix**, ensure the `marketplace` environment is approved and `VSCE_PAT` is set.

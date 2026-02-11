@@ -5,6 +5,10 @@ This repository publishes two artifact families in GitHub Releases:
 - Standalone VB.NET language server archives (for non-VS Code LSP clients)
 - VSIX extension packages (for VS Code/Cursor/VSCodium manual install)
 
+Editor adapters are maintained in-repo but are distributed through editor-native
+channels rather than bundled as GitHub Release artifacts. See
+`docs/editor-packaging.md`.
+
 ## Artifact Names
 
 ### Language Server Archives
@@ -91,3 +95,8 @@ Behavior:
 - Triggered by tag push matching `v*`, or manual `workflow_dispatch`.
 - Builds all language server archives and VSIX packages.
 - Publishes all artifacts to a GitHub Release for the selected tag.
+
+Adapter validation workflow:
+
+- `.github/workflows/editor-adapters.yml`
+- Runs Neovim and Emacs smoke tests against the built language server.

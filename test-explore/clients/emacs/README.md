@@ -32,3 +32,9 @@ Environment variables:
 - Emacs 29.4 portable is downloaded into `clients/emacs/emacs` when missing (do not commit).
 - The VB.NET test uses `fundamental-mode` to avoid requiring extra VB major-mode packages.
 
+## Adapter Package Snapshot
+
+The thin Emacs adapter package source now lives at:
+
+- `adapters/emacs/vbnet-eglot`
+

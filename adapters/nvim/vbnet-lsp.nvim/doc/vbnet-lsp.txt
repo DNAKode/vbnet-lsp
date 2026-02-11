@@ -1,0 +1,40 @@
+*vbnet-lsp.txt*  VB.NET LSP Neovim adapter
+
+OVERVIEW
+
+  Thin Neovim adapter for the VB.NET language server.
+
+USAGE
+
+  require('vbnet_lsp').setup({
+    backend = 'vbnet',
+    vbnet = {
+      cmd = { 'dotnet', '/path/to/VbNet.LanguageServer.dll', '--stdio' },
+    },
+  })
+
+ROSLYN BACKEND
+
+  require('vbnet_lsp').setup({
+    backend = 'roslyn',
+    roslyn = {
+      cmd = { 'dotnet', '/path/to/Microsoft.CodeAnalysis.LanguageServer.dll', '--stdio', '--logLevel', 'Information', '--extensionLogDirectory', '/path/to/logs' },
+      args = {
+        '--extension', '/path/to/roslyn-vb/Microsoft.CodeAnalysis.VisualBasic.Workspaces.dll',
+        '--extension', '/path/to/roslyn-vb/Microsoft.CodeAnalysis.VisualBasic.Features.dll',
+      },
+      solution = '/path/to/YourSolution.sln',
+      filewatching = 'off',
+    },
+  })
+
+COMMANDS
+
+  :VbNetSelectSolution  Prompt for a .sln path and send solution/open.
+  :VbNetPickSolution    Search root_dir for .sln/.slnx and pick one.
+
+SOURCE-GENERATED DOCUMENTS
+
+  Buffers like `roslyn-source-generated://...` are populated via
+  `sourceGeneratedDocument/_roslyn_getText`.
+

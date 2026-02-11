@@ -65,11 +65,14 @@ Compared to `roslyn.nvim`, it does **not** cover:
 
 We keep the harness small on purpose; plugin UX work belongs in a dedicated Neovim plugin.
 
-## Plugin Prototype
+## Adapter Package Snapshot
 
-A minimal Neovim plugin skeleton lives under `test-explore/clients/nvim/plugin/`. It starts either
-our VB.NET server or the Roslyn LSP backend and includes a `:VbNetSelectSolution` command to
-retarget Roslyn solutions. This is a starting point for a publishable plugin.
+The publishable Neovim adapter snapshot now lives at:
+
+- `adapters/nvim/vbnet-lsp.nvim`
+
+The harness here remains focused on smoke coverage and does not replace a full
+plugin UX package lifecycle.
 
 ## Source Generators (VB status)
 

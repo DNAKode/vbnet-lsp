@@ -1,0 +1,4 @@
+(vbnet-eglot
+ :fetcher github
+ :repo "DNAKode/vbnet-eglot"
+ :files ("vbnet-eglot.el"))

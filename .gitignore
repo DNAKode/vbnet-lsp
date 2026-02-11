@@ -501,6 +501,7 @@ $RECYCLE.BIN/
 ## Local Development (not tracked - see docs/development.md for setup)
 # External reference repositories (C# extension, netcoredbg, roslyn)
 _external/
+AGENTS.md
 
 # Exploratory harness artifacts (logs, downloaded runtimes, caches)
 test-explore/clients/emacs/emacs/

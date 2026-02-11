@@ -4,6 +4,7 @@ Open-source VB.NET language tooling built around Roslyn:
 
 - A VS Code extension: **VB.NET Language Support**
 - Standalone language server binaries for non-VS Code LSP clients
+- Thin editor adapters for non-VS Code clients (Neovim, Emacs)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -35,6 +36,16 @@ Download from GitHub Releases:
   - `vbnet-language-support-darwin-arm64.vsix`
 
 Use these with any LSP client that supports stdio or named pipes.
+
+### 3. Editor adapters (thin wrappers)
+
+Use editor-native adapters that launch the standalone language server:
+
+- Neovim adapter source: `adapters/nvim/vbnet-lsp.nvim`
+- Emacs `eglot` adapter source: `adapters/emacs/vbnet-eglot`
+
+Packaging guidance for native channels is documented in
+[docs/editor-packaging.md](docs/editor-packaging.md).
 
 ## What You Get
 
@@ -100,6 +111,10 @@ GitHub Actions release automation is available in `.github/workflows/release.yml
 - Platform-specific VSIX packages
 - A GitHub Release containing all artifacts
 
+Editor adapters are validated separately in `.github/workflows/editor-adapters.yml`
+and are intended for editor-native distribution channels (for example, Neovim
+plugin managers and MELPA/package-vc for Emacs).
+
 The release workflow runs on tag push (`v*`) and can also be run manually with `workflow_dispatch`.
 
 ## Backend Model
@@ -121,6 +136,8 @@ For Roslyn packaging constraints (`.roslyn` + `.roslyn-vb` split), see [docs/ros
 - [Feature Matrix](docs/features.md)
 - [Roslyn Packaging](docs/roslyn-packaging.md)
 - [Roslyn Comparison Notes](docs/roslyn-lsp-comparison.md)
+- [Editor Adapter Packaging](docs/editor-packaging.md)
+- [Adapter Release Checklist](docs/adapter-release-checklist.md)
 - [Release Artifacts](RELEASE_ARTIFACTS.md)
 
 ## Development and Testing

@@ -1,0 +1,48 @@
+name: editor-adapters
+
+on:
+  push:
+    branches: ["master", "main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  nvim-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Cache Neovim portable bundle
+        uses: actions/cache@v4
+        with:
+          path: test-explore/clients/nvim/nvim
+          key: nvim-win64-v0.11.0
+      - name: Build language server (Debug)
+        run: dotnet build src/VbNet.LanguageServer.Vb/VbNet.LanguageServer.Vb.vbproj -c Debug
+      - name: Run Neovim smoke tests (VB.NET backend)
+        shell: pwsh
+        run: |
+          test-explore/clients/nvim/run-tests.ps1 -Suite vbnet `
+            -VbNetLspDll src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll
+
+  emacs-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Cache Emacs portable bundle
+        uses: actions/cache@v4
+        with:
+          path: test-explore/clients/emacs/emacs
+          key: emacs-win64-v29.4
+      - name: Build language server (Debug)
+        run: dotnet build src/VbNet.LanguageServer.Vb/VbNet.LanguageServer.Vb.vbproj -c Debug
+      - name: Run Emacs eglot smoke tests (VB.NET backend)
+        shell: pwsh
+        run: |
+          test-explore/clients/emacs/run-tests.ps1 -Suite vbnet `
+            -VbNetLspDll src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll

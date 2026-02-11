@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  byte-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Emacs
+        uses: purcell/setup-emacs@master
+        with:
+          version: "29.4"
+      - name: Byte compile package
+        run: emacs -Q --batch -L . -f batch-byte-compile vbnet-eglot.el
+      - name: Load package
+        run: emacs -Q --batch -L . --eval "(progn (require 'vbnet-eglot) (princ \"vbnet-eglot loaded\"))"

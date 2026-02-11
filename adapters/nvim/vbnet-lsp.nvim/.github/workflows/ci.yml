@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lua-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua compiler
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Validate Lua syntax
+        run: |
+          luac5.4 -p lua/vbnet_lsp/init.lua
+          luac5.4 -p plugin/vbnet_lsp.lua
+      - name: Validate docs
+        run: test -f doc/vbnet-lsp.txt
