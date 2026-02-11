@@ -150,7 +150,7 @@ function main() {
             if (isNoInterfaceStackTraceFailure(message) && originalRequest?.command === 'stackTrace') {
                 logWarningOnce(
                     workaroundState,
-                    '[vbnet] netcoredbg stackTrace workaround applied (0x80004002); returning empty stack.'
+                    '[vbnet] netcoredbg stackTrace workaround applied (0x80004002); returning empty stack. Execution is still paused at a breakpoint. Press Continue (F5) to resume the app UI.'
                 );
 
                 message.success = true;
