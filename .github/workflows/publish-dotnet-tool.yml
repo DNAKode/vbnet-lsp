@@ -63,16 +63,31 @@ jobs:
           name: dnakode-vbnet-lsp-nuget
           path: out/nuget/*.nupkg
 
-      - name: Publish package to NuGet
-        if: ${{ secrets.NUGET_API_KEY != '' }}
+      - name: Check NuGet key availability
+        id: nuget_key
         shell: bash
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${NUGET_API_KEY:-}" ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish package to NuGet
+        if: ${{ steps.nuget_key.outputs.present == 'true' }}
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           dotnet nuget push out/nuget/*.nupkg \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${NUGET_API_KEY}" \
             --source "https://api.nuget.org/v3/index.json" \
             --skip-duplicate
 
       - name: Skip publish (missing NUGET_API_KEY)
-        if: ${{ secrets.NUGET_API_KEY == '' }}
+        if: ${{ steps.nuget_key.outputs.present != 'true' }}
         run: echo "NUGET_API_KEY is not configured; package was built and uploaded as an artifact only."
