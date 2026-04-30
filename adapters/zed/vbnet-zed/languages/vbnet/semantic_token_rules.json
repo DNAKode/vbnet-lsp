@@ -1,0 +1,38 @@
+[
+  {
+    "token_type": "keyword",
+    "style": ["keyword"]
+  },
+  {
+    "token_type": "class",
+    "style": ["type"]
+  },
+  {
+    "token_type": "interface",
+    "style": ["type"]
+  },
+  {
+    "token_type": "enum",
+    "style": ["type"]
+  },
+  {
+    "token_type": "delegate",
+    "style": ["type"]
+  },
+  {
+    "token_type": "module",
+    "style": ["type"]
+  },
+  {
+    "token_type": "method",
+    "style": ["function"]
+  },
+  {
+    "token_type": "property",
+    "style": ["property"]
+  },
+  {
+    "token_type": "event",
+    "style": ["property"]
+  }
+]

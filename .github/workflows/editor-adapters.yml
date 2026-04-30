@@ -46,3 +46,21 @@ jobs:
         run: |
           test-explore/clients/emacs/run-tests.ps1 -Suite vbnet `
             -VbNetLspDll src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll
+
+  zed-static:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+      - name: Verify Zed extension scaffold
+        shell: pwsh
+        run: scripts/verify-zed-extension.ps1
+      - name: Export Zed adapter dry run
+        shell: pwsh
+        run: |
+          adapters/scripts/export-adapter-repos.ps1 `
+            -ZedRepoPath "$env:RUNNER_TEMP\vbnet-zed" `
+            -Clean `
+            -DryRun

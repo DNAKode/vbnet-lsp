@@ -1,6 +1,7 @@
 param(
     [string]$NvimRepoPath = '',
     [string]$EmacsRepoPath = '',
+    [string]$ZedRepoPath = '',
     [switch]$Clean,
     [switch]$DryRun
 )
@@ -57,7 +58,14 @@ function Copy-DirectoryContents {
         [switch]$DryRun
     )
 
+    $excludedNames = @('.git', 'target', 'node_modules', '.zed', 'work')
+
     Get-ChildItem -LiteralPath $Source -Force | ForEach-Object {
+        if ($excludedNames -contains $_.Name) {
+            Write-Host "  Skipping generated/cache path: $($_.FullName)"
+            return
+        }
+
         $target = Join-Path $Destination $_.Name
         if ($DryRun) {
             Write-Host "DRY-RUN copy: $($_.FullName) -> $target"
@@ -114,8 +122,16 @@ if ($EmacsRepoPath -ne '') {
     }
 }
 
+if ($ZedRepoPath -ne '') {
+    $tasks += @{
+        Name = 'vbnet-zed'
+        Source = Get-FullPath (Join-Path $repoRoot 'adapters\zed\vbnet-zed')
+        Destination = Get-FullPath $ZedRepoPath
+    }
+}
+
 if ($tasks.Count -eq 0) {
-    throw "No destination provided. Set -NvimRepoPath and/or -EmacsRepoPath."
+    throw "No destination provided. Set -NvimRepoPath, -EmacsRepoPath, and/or -ZedRepoPath."
 }
 
 foreach ($task in $tasks) {

@@ -5,6 +5,7 @@ VB.NET language server.
 
 - `nvim/vbnet-lsp.nvim`: Neovim adapter package snapshot
 - `emacs/vbnet-eglot`: Emacs `eglot` adapter package snapshot
+- `zed/vbnet-zed`: Zed extension package snapshot
 
 These adapters are validated in `.github/workflows/editor-adapters.yml` and are
 intended for editor-native distribution channels.
@@ -17,6 +18,7 @@ Use the export script to mirror snapshots into standalone repositories:
 powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-adapter-repos.ps1 `
   -NvimRepoPath ../vbnet-lsp.nvim `
   -EmacsRepoPath ../vbnet-eglot `
+  -ZedRepoPath ../vbnet-zed `
   -Clean
 ```
 

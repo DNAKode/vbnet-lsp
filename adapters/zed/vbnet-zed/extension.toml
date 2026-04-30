@@ -1,0 +1,21 @@
+id = "vbnet"
+name = "VB.NET"
+version = "0.1.9"
+schema_version = 1
+authors = ["DNA Kode"]
+description = "First-class VB.NET language support for Zed"
+repository = "https://github.com/DNAKode/vbnet-zed"
+
+[grammars.vbnet]
+repository = "https://github.com/CodeAnt-AI/tree-sitter-vb-dotnet"
+rev = "cfca210ce8fdcb5245bd9cd5c47ce0a21a8488d5"
+
+[language_servers.vbnet-ls]
+name = "VB.NET Language Server"
+languages = ["VB.NET"]
+language_ids = { "VB.NET" = "vb" }
+
+[debug_adapters.netcoredbg]
+schema_path = "debug_adapter_schemas/netcoredbg.json"
+
+[debug_locators.vbnet]

@@ -1,0 +1,4 @@
+name = "VB.NET"
+grammar = "vbnet"
+path_suffixes = ["vb"]
+line_comments = ["' "]

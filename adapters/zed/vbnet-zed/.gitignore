@@ -1,0 +1,6 @@
+/target/
+/.zed/
+/work/
+*.wasm
+*.log
+*.tmp

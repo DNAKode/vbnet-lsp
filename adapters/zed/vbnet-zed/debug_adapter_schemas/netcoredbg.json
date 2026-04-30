@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VB.NET netcoredbg debug configuration",
+  "type": "object",
+  "required": ["request"],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "const": "netcoredbg"
+    },
+    "request": {
+      "type": "string",
+      "enum": ["launch", "attach"]
+    },
+    "program": {
+      "type": "string",
+      "description": "Path to the compiled .NET assembly to launch."
+    },
+    "projectPath": {
+      "type": "string",
+      "description": "Path to a .vbproj or project directory used by VB.NET tooling to infer the program."
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "stopAtEntry": {
+      "type": "boolean",
+      "default": false
+    },
+    "processId": {
+      "type": "integer"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "request": {
+            "const": "launch"
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": ["program"]
+          },
+          {
+            "required": ["projectPath"]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "request": {
+            "const": "attach"
+          }
+        }
+      },
+      "then": {
+        "required": ["processId"]
+      }
+    }
+  ]
+}
