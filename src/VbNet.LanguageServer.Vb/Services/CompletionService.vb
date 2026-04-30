@@ -18,7 +18,7 @@ Namespace Services
     ''' Uses Roslyn's CompletionService for accurate suggestions.
     ''' </summary>
     Public NotInheritable Class CompletionService
-        Friend Shared TestDelayAsync As Func(Of CancellationToken, Task)
+        Friend Property TestDelayAsync As Func(Of CancellationToken, Task)
 
         Private ReadOnly _workspaceManager As WorkspaceManager
         Private ReadOnly _documentManager As DocumentManager
@@ -50,8 +50,8 @@ Namespace Services
         ''' Gets completion items for a document at the specified position.
         ''' </summary>
         Public Async Function GetCompletionAsync(parameters As CompletionParams, cancellationToken As CancellationToken) As Task(Of CompletionList)
-            If TestDelayAsync IsNot Nothing Then
-                Await TestDelayAsync(cancellationToken).ConfigureAwait(False)
+            If Me.TestDelayAsync IsNot Nothing Then
+                Await Me.TestDelayAsync(cancellationToken).ConfigureAwait(False)
             End If
 
             If parameters Is Nothing OrElse parameters.TextDocument Is Nothing Then

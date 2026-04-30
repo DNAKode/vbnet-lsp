@@ -166,6 +166,8 @@ Namespace VbNet.LanguageServer.Tests.Workspace
                 Return
             End If
 
+            Dim originalDiskText = Await File.ReadAllTextAsync(module1Path).ConfigureAwait(False)
+
             Await _workspaceManager.LoadProjectAsync(projectPath).ConfigureAwait(False)
 
             Dim document = _workspaceManager.GetDocumentByPath(module1Path)
@@ -179,6 +181,9 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
             Dim updatedText = Await updatedDoc.GetTextAsync().ConfigureAwait(False)
             Assert.Contains("Modified", updatedText.ToString())
+
+            Dim diskText = Await File.ReadAllTextAsync(module1Path).ConfigureAwait(False)
+            Assert.Equal(originalDiskText, diskText)
         End Function
 
         <Fact>

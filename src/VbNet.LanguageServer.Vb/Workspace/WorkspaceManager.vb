@@ -22,6 +22,7 @@ Namespace Workspace
         Private _initialLoadSignaled As Integer
 
         Private _workspace As MSBuildWorkspace
+        Private _currentSolution As Solution
         Private _loadedSolutionPath As String
         Private ReadOnly _loadedProjectPaths As New List(Of String)()
 
@@ -48,7 +49,7 @@ Namespace Workspace
         ''' </summary>
         Public ReadOnly Property CurrentSolution As Solution
             Get
-                Return If(_workspace?.CurrentSolution, Nothing)
+                Return If(_currentSolution, _workspace?.CurrentSolution)
             End Get
         End Property
 
@@ -57,7 +58,7 @@ Namespace Workspace
         ''' </summary>
         Public ReadOnly Property IsLoaded As Boolean
             Get
-                Dim solution = If(_workspace Is Nothing, Nothing, _workspace.CurrentSolution)
+                Dim solution = CurrentSolution
                 Return solution IsNot Nothing AndAlso solution.ProjectIds.Count > 0
             End Get
         End Property
@@ -105,6 +106,7 @@ Namespace Workspace
             End If
 
             _workspace = MSBuildWorkspace.Create(properties)
+            _currentSolution = _workspace.CurrentSolution
             AddHandler _workspace.WorkspaceFailed, AddressOf OnWorkspaceFailed
 
             _logger.LogInformation("MSBuildWorkspace created successfully")
@@ -128,6 +130,7 @@ Namespace Workspace
                 _logger.LogInformation("Loading solution: {Path}", solutionPath)
 
                 Dim solution = Await _workspace.OpenSolutionAsync(solutionPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
+                _currentSolution = solution
 
                 _loadedSolutionPath = solutionPath
                 _loadedProjectPaths.Clear()
@@ -148,7 +151,7 @@ Namespace Workspace
                     _logger.LogInformation("Note: C# projects loaded but not served (VB.NET only in current phase)")
                 End If
 
-                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(solution, changeKind))
+                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(_currentSolution, changeKind))
 
                 Return vbProjects.Count > 0
             Catch ex As Exception
@@ -177,7 +180,7 @@ Namespace Workspace
                 If IsProjectLoaded(projectPath) Then
                     _logger.LogDebug("Project already loaded, skipping: {Path}", projectPath)
                     If changeKind = SolutionChangeKind.Reloaded Then
-                        RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(_workspace.CurrentSolution, changeKind))
+                        RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, changeKind))
                     End If
                     Return True
                 End If
@@ -185,6 +188,7 @@ Namespace Workspace
                 _logger.LogInformation("Loading project: {Path}", projectPath)
 
                 Dim project = Await _workspace.OpenProjectAsync(projectPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
+                _currentSolution = _workspace.CurrentSolution
 
                 If project.Language <> LanguageNames.VisualBasic Then
                     _logger.LogWarning("Project is not VB.NET: {Name} ({Language})", project.Name, project.Language)
@@ -197,7 +201,7 @@ Namespace Workspace
 
                 _logger.LogInformation("Project loaded: {Name} ({DocumentCount} documents)", project.Name, project.DocumentIds.Count)
 
-                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(_workspace.CurrentSolution, changeKind))
+                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, changeKind))
 
                 Return True
             Catch ex As Exception
@@ -263,7 +267,7 @@ Namespace Workspace
                 Return Nothing
             End If
 
-            Dim solution = _workspace.CurrentSolution
+            Dim solution = CurrentSolution
             Dim normalizedPath = Path.GetFullPath(filePath)
 
             For Each projectId In solution.ProjectIds
@@ -292,7 +296,7 @@ Namespace Workspace
                 Return Nothing
             End If
 
-            Dim solution = _workspace.CurrentSolution
+            Dim solution = CurrentSolution
             Dim normalizedPath = Path.GetFullPath(projectPath)
 
             For Each projectId In solution.ProjectIds
@@ -314,7 +318,7 @@ Namespace Workspace
                 Return Enumerable.Empty(Of Project)()
             End If
 
-            Return _workspace.CurrentSolution.Projects.Where(Function(p) p.Language = LanguageNames.VisualBasic)
+            Return CurrentSolution.Projects.Where(Function(p) p.Language = LanguageNames.VisualBasic)
         End Function
 
         ''' <summary>
@@ -325,20 +329,15 @@ Namespace Workspace
                 Return Nothing
             End If
 
-            Dim solution = _workspace.CurrentSolution
+            Dim solution = CurrentSolution
             Dim document = solution.GetDocument(documentId)
             If document Is Nothing Then
                 Return Nothing
             End If
 
-            Dim newSolution = solution.WithDocumentText(documentId, newText)
-
-            If _workspace.TryApplyChanges(newSolution) Then
-                Return _workspace.CurrentSolution.GetDocument(documentId)
-            End If
-
-            _logger.LogWarning("Failed to apply text change to document: {Id}", documentId)
-            Return Nothing
+            ' Keep editor buffer changes in-memory. MSBuildWorkspace.TryApplyChanges can write back to disk.
+            _currentSolution = solution.WithDocumentText(documentId, newText)
+            Return _currentSolution.GetDocument(documentId)
         End Function
 
         ''' <summary>
@@ -385,8 +384,8 @@ Namespace Workspace
                 reloadedAny = reloadedAny OrElse reloaded
             Next
 
-            If Not reloadedAny AndAlso _workspace?.CurrentSolution.ProjectIds.Count > 0 Then
-                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(_workspace.CurrentSolution, SolutionChangeKind.Reloaded))
+            If Not reloadedAny AndAlso CurrentSolution?.ProjectIds.Count > 0 Then
+                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, SolutionChangeKind.Reloaded))
             End If
 
             Return reloadedAny
@@ -411,6 +410,7 @@ Namespace Workspace
                 _workspace.Dispose()
                 _workspace = Nothing
             End If
+            _currentSolution = Nothing
             Return ValueTask.CompletedTask
         End Function
     End Class

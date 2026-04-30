@@ -23,10 +23,10 @@ Namespace VbNet.LanguageServer.Tests.Integration
         <Fact>
         Public Async Function CompletionRequest_CanBeCancelled() As Task
             Dim handlerStarted As New TaskCompletionSource(Of Boolean)(TaskCreationOptions.RunContinuationsAsynchronously)
-            CompletionService.TestDelayAsync = Function(ct)
-                                                   handlerStarted.TrySetResult(True)
-                                                   Return Task.Delay(TimeSpan.FromSeconds(30), ct)
-                                               End Function
+            _server.CompletionService.TestDelayAsync = Function(ct)
+                                                           handlerStarted.TrySetResult(True)
+                                                           Return Task.Delay(TimeSpan.FromSeconds(30), ct)
+                                                       End Function
 
             Using runCts As New CancellationTokenSource()
                 Dim runTask = _server.RunAsync(runCts.Token)
@@ -52,7 +52,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
         End Function
 
         Public Function DisposeAsync() As ValueTask Implements IAsyncDisposable.DisposeAsync
-            CompletionService.TestDelayAsync = Nothing
+            _server.CompletionService.TestDelayAsync = Nothing
             Return _server.DisposeAsync()
         End Function
 
