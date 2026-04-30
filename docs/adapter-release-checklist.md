@@ -1,7 +1,8 @@
 # Adapter Release Checklist
 
-Use this checklist when publishing adapter repositories (`vbnet-lsp.nvim` and
-`vbnet-eglot`) from the snapshots in this monorepo.
+Use this checklist when publishing adapter repositories (`vbnet-lsp.nvim`,
+`vbnet-eglot`, and future adapters such as `vbnet-zed`) from the snapshots in
+this monorepo.
 
 ## 1. Sync Snapshots To Adapter Repos
 
@@ -41,6 +42,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-ad
 2. Confirm GitHub release workflows completed.
 3. For Emacs, submit/update MELPA recipe as needed:
    - `adapters/emacs/vbnet-eglot/melpa-recipe`
+
+### Zed Publishing Notes
+
+For Zed, use the same version as the server release. The release source should
+be the adapter snapshot from the matching `vbnet-lsp` tag, not whatever happens
+to be on a downstream development branch.
+
+Initial Zed publishing can use a manual approval step:
+
+1. Confirm the `vbnet-lsp` GitHub release exists for `vX.Y.Z`.
+2. Confirm all platform language-server artifacts are present.
+3. Mirror `adapters/zed/vbnet-zed` from `vbnet-lsp@vX.Y.Z` to
+   `vbnet-zed/main`.
+4. Pin the Zed adapter default server download to `vX.Y.Z`.
+5. Tag `vbnet-zed` as `vX.Y.Z`.
+
+After the first stable Zed publishing cycle, revisit this checklist and the
+release workflows. The desired long-term direction is a single `vbnet-lsp`
+release that publishes server artifacts and updates downstream editor
+repositories for all supported platforms when validation passes.
 
 ## 5. Post-Release
 

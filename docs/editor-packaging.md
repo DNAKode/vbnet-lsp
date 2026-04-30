@@ -31,6 +31,13 @@ This project separates server distribution from editor integration:
 - Distribution target: dedicated adapter repository, then MELPA/package-vc
 - MELPA recipe template: `adapters/emacs/vbnet-eglot/melpa-recipe`
 
+### Zed adapter
+
+- Planned source snapshot: `adapters/zed/vbnet-zed`
+- Planned downstream repository: `DNAKode/vbnet-zed`
+- Distribution target: Zed extension registry
+- Detailed plan: `docs/zed-support-plan.md`
+
 ## Thin Adapter Rules
 
 - Keep editor code limited to startup/configuration concerns.
