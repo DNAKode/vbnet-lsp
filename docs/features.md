@@ -77,7 +77,7 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 
 | Feature | Status | Phase | Notes |
 |---------|--------|-------|-------|
-| `textDocument/codeAction` | Implemented | Phase 2 | Source actions (Option Strict/Explicit/Infer) |
+| `textDocument/codeAction` | Implemented | Phase 2 | Source actions + extract-function refactor (`refactor.extract`) |
 | `codeAction/resolve` | Implemented | Phase 2 | Lazy compute edit |
 | Quick fixes (diagnostics) | Planned | Phase 2 | Fix errors/warnings |
 
@@ -137,4 +137,3 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 ## 6. Roadmap (Next)
 
 Phase 3 focuses on performance tuning and release polish. Inlay hints and code lens are deferred pending stable Roslyn public APIs.
-

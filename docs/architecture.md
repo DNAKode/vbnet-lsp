@@ -1098,6 +1098,36 @@ Phase 1 follow-ups require honoring feature toggles (`vbnet.diagnostics.enable`,
 
 ---
 
+### 14.20 Decision: Recompute extract actions on resolve
+
+**Date**: 2026-05-12
+**Status**: Accepted
+
+**Context**:
+`textDocument/codeAction` and `codeAction/resolve` are separate requests. Document state can change between requests, so cached edits can become stale.
+
+**Decision**:
+- Carry stable resolve payload data (document URI, selection range, action identity path, payload version).
+- Recompute candidate actions at resolve time against the current snapshot.
+- If the action no longer exists, return unchanged/no-op behavior instead of applying stale edits.
+
+**Rationale**:
+- Prevents stale edit application when users continue typing before resolve.
+- Aligns with Roslyn/C# LSP handler behavior (recompute-on-resolve pattern).
+- Keeps initial codeAction responses lightweight and deterministic.
+
+**Chesterton fences**:
+- **RoslynRefactoringDiscoveryBoundary**: isolate Roslyn/reflection discovery from LSP mapping.
+  - Invalidate when stable public APIs replace reflection-based service access.
+- **ResolvePayloadStabilityContract**: preserve payload versioning + identity-path semantics.
+  - Invalidate if protocol introduces stronger negotiated version contracts for action identities.
+- **SilentUnsupportedSelection**: unsupported selections return no action instead of noisy UX.
+  - Invalidate if product policy explicitly mandates visible unsupported-selection messaging.
+- **RecomputeOnResolve**: resolve recomputes action availability before edit materialization.
+  - Invalidate only if runtime guarantees immutable snapshot pinning across discovery and resolve.
+
+---
+
 ## 15. Reference Implementations
 
 ### 15.1 Primary Reference: C# Extension
@@ -1295,4 +1325,3 @@ Located in `test/TestProjects/`:
 ---
 
 **This document is a living document. Update with every architectural change.**
-

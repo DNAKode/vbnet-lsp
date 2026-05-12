@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### Added
-- _None yet._
+- Extract-function code actions (`refactor.extract`) for VB selections, including deferred resolve payloads and workspace edit materialization.
 
 ### Changed
 - _None yet._

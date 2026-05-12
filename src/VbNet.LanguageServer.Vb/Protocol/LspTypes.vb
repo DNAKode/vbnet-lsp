@@ -1102,6 +1102,7 @@ Namespace Protocol
         Public Const Empty As String = ""
         Public Const QuickFix As String = "quickfix"
         Public Const Refactor As String = "refactor"
+        Public Const RefactorExtract As String = "refactor.extract"
         Public Const Source As String = "source"
     End Class
 
