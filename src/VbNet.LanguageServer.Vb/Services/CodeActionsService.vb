@@ -38,7 +38,27 @@ Namespace Services
 
         ' ─── Simple-extraction analysis helpers ─────────────────────────────
         Private Shared ReadOnly _dimDeclRe As New Regex(
-            "(?m)^\s*Dim\s+(\w+)\s+As\s+(\w+(?:\(\s*\))?)",
+            "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
+            RegexOptions.IgnoreCase)
+
+        Private Shared ReadOnly _forEachDeclRe As New Regex(
+            "(?m)For\s+Each\s+(\w+)\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
+            RegexOptions.IgnoreCase)
+
+        Private Shared ReadOnly _forLoopDeclRe As New Regex(
+            "(?m)For\s+(\w+)\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)\s*=",
+            RegexOptions.IgnoreCase)
+
+        Private Shared ReadOnly _catchDeclRe As New Regex(
+            "(?m)Catch\s+(\w+)\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
+            RegexOptions.IgnoreCase)
+
+        Private Shared ReadOnly _methodSigRe As New Regex(
+            "(?m)(?:Sub|Function|Property)\s+\w+\s*\(([^)]*)\)",
+            RegexOptions.IgnoreCase)
+
+        Private Shared ReadOnly _paramNameRe As New Regex(
+            "(\w+)\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
             RegexOptions.IgnoreCase)
 
         Private Shared ReadOnly _identRe As New Regex("\b([A-Za-z_]\w*)\b")
@@ -416,23 +436,38 @@ Namespace Services
         End Function
 
         ''' <summary>
-        ''' Parses "Dim name As Type" declarations from VB.NET source text.
+        ''' Parses all typed local bindings from VB.NET source text:
+        ''' Dim, For Each, For, and Catch declarations.
         ''' Returns a case-insensitive map of variable name to declared type name.
         ''' </summary>
         Private Shared Function ParseLocalDims(text As String) As Dictionary(Of String, String)
             Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+
+            Dim addIfAbsent = Sub(name As String, typeName As String)
+                                  If Not result.ContainsKey(name) Then result.Add(name, typeName)
+                              End Sub
+
             For Each m As Match In _dimDeclRe.Matches(text)
-                Dim name = m.Groups(1).Value
-                If Not result.ContainsKey(name) Then
-                    result.Add(name, m.Groups(2).Value)
-                End If
+                addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
             Next
+            For Each m As Match In _forEachDeclRe.Matches(text)
+                addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
+            Next
+            For Each m As Match In _forLoopDeclRe.Matches(text)
+                addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
+            Next
+            For Each m As Match In _catchDeclRe.Matches(text)
+                addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
+            Next
+
             Return result
         End Function
 
         ''' <summary>
-        ''' Finds identifiers used in the selection that are declared (via Dim) only in
+        ''' Finds identifiers used in the selection that are declared only in
         ''' the pre-selection text — these are captured from the outer scope and become parameters.
+        ''' Covers: Dim, For Each, For, Catch bindings, and enclosing method parameters.
+        ''' Only scans the enclosing method body to avoid picking up bindings from other methods.
         ''' </summary>
         Private Shared Function FindCapturedParams(
             selectedText As String,
@@ -440,9 +475,32 @@ Namespace Services
             preText As String) As Dictionary(Of String, String)
 
             Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
-            Dim preDims = ParseLocalDims(preText)
 
-            For Each m As Match In _identRe.Matches(selectedText)
+            ' Scope the search to only the enclosing method body.
+            ' Find the last Sub/Function/Property signature before the selection.
+            Dim lastSig As Match = Nothing
+            For Each m As Match In _methodSigRe.Matches(preText)
+                lastSig = m
+            Next
+
+            ' Only scan from the enclosing method declaration onward (not the whole file).
+            Dim scopedPre = If(lastSig IsNot Nothing, preText.Substring(lastSig.Index), preText)
+            Dim preDims = ParseLocalDims(scopedPre)
+
+            ' Also include the enclosing method's own parameters.
+            If lastSig IsNot Nothing Then
+                For Each pm As Match In _paramNameRe.Matches(lastSig.Groups(1).Value)
+                    Dim pName = pm.Groups(1).Value
+                    If Not _vbKeywords.Contains(pName) AndAlso Not preDims.ContainsKey(pName) Then
+                        preDims.Add(pName, pm.Groups(2).Value)
+                    End If
+                Next
+            End If
+
+            ' Strip string literals and comments before scanning for identifiers to avoid
+            ' false positives from identifier-like words inside strings or comments.
+            Dim strippedSelected = StripStringsAndComments(selectedText)
+            For Each m As Match In _identRe.Matches(strippedSelected)
                 Dim name = m.Groups(1).Value
                 If _vbKeywords.Contains(name) Then Continue For
                 If localDims.ContainsKey(name) Then Continue For
@@ -457,21 +515,68 @@ Namespace Services
         ''' <summary>
         ''' Finds variables declared inside the selection whose names also appear after the
         ''' selection — these escape and must be returned or passed ByRef.
+        ''' Only scans within the current method body (stops at the next method declaration)
+        ''' to avoid false positives from identically-named vars in other methods.
         ''' </summary>
         Private Shared Function FindEscapedVars(
             localDims As Dictionary(Of String, String),
             postText As String) As Dictionary(Of String, String)
+
+            ' Scope to the current method only: stop at the next Sub/Function/Property declaration.
+            Dim nextSig = _methodSigRe.Match(postText)
+            Dim scopedPost = If(nextSig.Success, postText.Substring(0, nextSig.Index), postText)
+            ' Also strip string literals and comments from the scope.
+            scopedPost = StripStringsAndComments(scopedPost)
 
             Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
             For Each kvp In localDims
                 Dim pattern As New Regex(
                     "\b" & Regex.Escape(kvp.Key) & "\b",
                     RegexOptions.IgnoreCase)
-                If pattern.IsMatch(postText) Then
+                If pattern.IsMatch(scopedPost) Then
                     result.Add(kvp.Key, kvp.Value)
                 End If
             Next
             Return result
+        End Function
+
+        ''' <summary>
+        ''' Returns a copy of <paramref name="text"/> with string literal contents
+        ''' and line comments replaced by spaces, so that identifier scanning does
+        ''' not produce false positives from text inside literals or comments.
+        ''' </summary>
+        Private Shared Function StripStringsAndComments(text As String) As String
+            Dim sb As New System.Text.StringBuilder(text.Length)
+            Dim i = 0
+            While i < text.Length
+                Dim c = text(i)
+                If c = """"c Then
+                    ' String literal: skip content until closing quote.
+                    i += 1
+                    While i < text.Length
+                        If text(i) = """"c Then
+                            If i + 1 < text.Length AndAlso text(i + 1) = """"c Then
+                                i += 2 ' skip "" escape inside string
+                            Else
+                                i += 1 ' skip closing quote
+                                Exit While
+                            End If
+                        Else
+                            sb.Append(" "c)
+                            i += 1
+                        End If
+                    End While
+                ElseIf c = "'"c Then
+                    ' Line comment: skip to end of line, preserving newline chars.
+                    While i < text.Length AndAlso text(i) <> ChrW(13) AndAlso text(i) <> ChrW(10)
+                        i += 1
+                    End While
+                Else
+                    sb.Append(c)
+                    i += 1
+                End If
+            End While
+            Return sb.ToString()
         End Function
 
         ''' <summary>
@@ -746,8 +851,10 @@ Namespace Services
 
             Dim startLine = sourceText.Lines([range].Start.Line)
             Dim endLine = sourceText.Lines([range].End.Line)
-            Dim startPosition = startLine.Start + Math.Max(0, [range].Start.Character)
-            Dim endPosition = endLine.Start + Math.Max(0, [range].End.Character)
+            ' Clip character offsets to the line boundary so that large sentinel values
+            ' (e.g. character=99 meaning "end of line") do not overrun into the next line.
+            Dim startPosition = Math.Min(startLine.Start + Math.Max(0, [range].Start.Character), startLine.EndIncludingLineBreak)
+            Dim endPosition = Math.Min(endLine.Start + Math.Max(0, [range].End.Character), endLine.EndIncludingLineBreak)
 
             startPosition = Math.Min(startPosition, sourceText.Length)
             endPosition = Math.Min(endPosition, sourceText.Length)
