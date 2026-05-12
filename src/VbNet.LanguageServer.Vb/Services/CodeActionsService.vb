@@ -3,6 +3,7 @@
 
 Imports System.Collections
 Imports System.Text.Json
+Imports System.Text.RegularExpressions
 Imports System.Text.Json.Serialization
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Text
@@ -34,6 +35,38 @@ Namespace Services
         Private Const ActionTypeExtract As String = "extract"
         Private Const ExtractStrategyRoslyn As String = "roslyn"
         Private Const ExtractStrategySimple As String = "simple"
+
+        ' ─── Simple-extraction analysis helpers ─────────────────────────────
+        Private Shared ReadOnly _dimDeclRe As New Regex(
+            "(?m)^\s*Dim\s+(\w+)\s+As\s+(\w+(?:\(\s*\))?)",
+            RegexOptions.IgnoreCase)
+
+        Private Shared ReadOnly _identRe As New Regex("\b([A-Za-z_]\w*)\b")
+
+        Private Shared ReadOnly _vbKeywords As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
+            "And", "AndAlso", "As", "Boolean", "ByRef", "ByVal", "Byte", "Catch",
+            "CBool", "CByte", "CChar", "CDate", "CDbl", "CDec", "Char", "CInt",
+            "Class", "CLng", "CObj", "Const", "CShort", "CSng", "CStr", "CType",
+            "CUInt", "CULng", "CUShort", "Date", "Decimal", "Dim", "DirectCast",
+            "Do", "Double", "Each", "Else", "ElseIf", "End", "Enum", "Exit",
+            "False", "Finally", "For", "Friend", "Function", "Get", "GetType",
+            "Global", "GoTo", "Handles", "If", "Implements", "Imports", "In",
+            "Inherits", "Integer", "Interface", "Is", "IsNot", "Let", "Like",
+            "Long", "Loop", "Me", "Mod", "Module", "MustInherit", "MustOverride",
+            "MyBase", "MyClass", "Namespace", "NameOf", "New", "Next", "Not",
+            "Nothing", "Object", "Of", "On", "Option", "Optional", "Or", "OrElse",
+            "Overloads", "Overridable", "Overrides", "ParamArray", "Partial",
+            "Private", "Property", "Protected", "Public", "RaiseEvent",
+            "ReadOnly", "ReDim", "Return", "SByte", "Select", "Set", "Shadows",
+            "Shared", "Short", "Single", "Static", "Step", "Stop", "String",
+            "Structure", "Sub", "SyncLock", "Then", "Throw", "To", "True",
+            "Try", "TryCast", "TypeOf", "UInteger", "ULong", "UShort", "Using",
+            "While", "With", "WriteOnly", "Xor",
+            "Math", "Environment", "Console", "ControlChars",
+            "Abs", "Asc", "AscW", "Ceiling", "Chr", "ChrW", "Floor", "Format",
+            "InStr", "Left", "Len", "LTrim", "Max", "Mid", "Min", "Pow", "Replace",
+            "Right", "Round", "RTrim", "Sign", "Split", "Sqrt", "ToString", "Trim"
+        }
 
         Public Sub New(workspaceManager As WorkspaceManager, documentManager As DocumentManager, logger As ILogger(Of CodeActionsService))
             If workspaceManager Is Nothing Then
@@ -266,34 +299,95 @@ Namespace Services
             End If
 
             Dim span = selection.Value
-            Dim startLine = sourceText.Lines(data.StartLine.GetValueOrDefault())
-            Dim startLineText = startLine.ToString()
-            Dim statementIndentSize = startLineText.Length - startLineText.TrimStart().Length
-            Dim statementIndent = New String(" "c, Math.Max(statementIndentSize, 0))
-            Dim methodIndent = New String(" "c, Math.Max(statementIndentSize - 4, 0))
-
-            Dim callText = statementIndent & "ExtractedMethod()" & Environment.NewLine
             Dim selectedText = source.Substring(span.Start, span.Length).TrimEnd(ControlChars.Cr, ControlChars.Lf)
-            Dim replaced = source.Substring(0, span.Start) & callText & source.Substring(span.End)
+            Dim preText = source.Substring(0, span.Start)
+            Dim postText = source.Substring(span.End)
 
+            ' Find indent from first non-blank line in the selection
+            Dim statementIndentSize = 0
+            For lineIndex = data.StartLine.GetValueOrDefault() To data.EndLine.GetValueOrDefault()
+                If lineIndex >= sourceText.Lines.Count Then Exit For
+                Dim lineText = sourceText.Lines(lineIndex).ToString()
+                If lineText.Trim().Length > 0 Then
+                    statementIndentSize = lineText.Length - lineText.TrimStart().Length
+                    Exit For
+                End If
+            Next
+            Dim statementIndent = New String(" "c, Math.Max(statementIndentSize, 0))
+
+            ' Use the enclosing End Sub/Function indent as the method declaration indent
             Dim endSubLine = FindEnclosingEndSubLine(data.EndLine.GetValueOrDefault(), sourceText)
             If endSubLine < 0 Then
                 Return Nothing
             End If
 
-            Dim endSubPosition = sourceText.Lines(endSubLine).Start
+            Dim endSubLineText = sourceText.Lines(endSubLine).ToString()
+            Dim methodIndentSize = endSubLineText.Length - endSubLineText.TrimStart().Length
+            Dim methodIndent = New String(" "c, Math.Max(methodIndentSize, 0))
+            Dim methodBodyIndentSize = methodIndentSize + 2
+
+            ' Analyse variable flow
+            Dim localDims = ParseLocalDims(selectedText)
+            Dim capturedParams = FindCapturedParams(selectedText, localDims, preText)
+            Dim escapedVars = FindEscapedVars(localDims, postText)
+
+            Dim paramList = String.Join(", ", capturedParams.Select(Function(kvp) kvp.Key & " As " & kvp.Value))
+            Dim argList = String.Join(", ", capturedParams.Keys)
+
+            Dim normalizedBody = NormalizeIndent(selectedText, statementIndentSize, methodBodyIndentSize)
+            Dim nl = Environment.NewLine
+            Dim methodName = "ExtractedMethod"
+
+            Dim callText As String
+            Dim methodText As String
+
+            If escapedVars.Count = 0 Then
+                callText = statementIndent & methodName & "(" & argList & ")" & nl
+                methodText =
+                    nl &
+                    methodIndent & "Private Sub " & methodName & "(" & paramList & ")" & nl &
+                    normalizedBody & nl &
+                    methodIndent & "End Sub" & nl
+
+            ElseIf escapedVars.Count = 1 Then
+                Dim esc = escapedVars.First()
+                callText = statementIndent & "Dim " & esc.Key & " As " & esc.Value &
+                           " = " & methodName & "(" & argList & ")" & nl
+                Dim returnLine = New String(" "c, methodBodyIndentSize) & "Return " & esc.Key & nl
+                methodText =
+                    nl &
+                    methodIndent & "Private Function " & methodName & "(" & paramList & ") As " & esc.Value & nl &
+                    normalizedBody & nl &
+                    returnLine &
+                    methodIndent & "End Function" & nl
+
+            Else
+                ' Multiple escaped vars: use ByRef parameters
+                Dim byRefParts = escapedVars.Select(Function(kvp) "ByRef " & kvp.Key & " As " & kvp.Value)
+                Dim fullParamList = If(paramList.Length > 0,
+                    paramList & ", " & String.Join(", ", byRefParts),
+                    String.Join(", ", byRefParts))
+                Dim escapedArgInit = String.Join(nl,
+                    escapedVars.Select(Function(kvp) statementIndent & "Dim " & kvp.Key & " As " & kvp.Value))
+                Dim escapedArgNames = String.Join(", ", escapedVars.Keys)
+                Dim fullArgList = If(argList.Length > 0, argList & ", " & escapedArgNames, escapedArgNames)
+                callText = escapedArgInit & nl & statementIndent & methodName & "(" & fullArgList & ")" & nl
+                methodText =
+                    nl &
+                    methodIndent & "Private Sub " & methodName & "(" & fullParamList & ")" & nl &
+                    normalizedBody & nl &
+                    methodIndent & "End Sub" & nl
+            End If
+
+            ' Stitch: replace selected span with callText, insert method AFTER End Sub
+            Dim replaced = source.Substring(0, span.Start) & callText & source.Substring(span.End)
             Dim delta = callText.Length - span.Length
-            Dim insertionPosition = Math.Max(0, Math.Min(replaced.Length, endSubPosition + delta))
+            ' Use SpanIncludingLineBreak so we insert after the End Sub line (including its newline)
+            Dim endSubSpan = sourceText.Lines(endSubLine).SpanIncludingLineBreak
+            Dim insertionPosition = Math.Max(0, Math.Min(replaced.Length, endSubSpan.Start + endSubSpan.Length + delta))
+            Dim finalText = replaced.Insert(insertionPosition, methodText)
 
-            Dim extractedMethodText =
-                Environment.NewLine &
-                methodIndent & "Private Sub ExtractedMethod()" & Environment.NewLine &
-                selectedText & Environment.NewLine &
-                methodIndent & "End Sub" & Environment.NewLine
-
-            Dim finalText = replaced.Insert(insertionPosition, extractedMethodText)
             Dim lastLine = sourceText.Lines(sourceText.Lines.Count - 1)
-
             Return New WorkspaceEdit With {
                 .Changes = New Dictionary(Of String, TextEdit()) From {
                     {data.Uri, New TextEdit() {
@@ -319,6 +413,94 @@ Namespace Services
             Next
 
             Return -1
+        End Function
+
+        ''' <summary>
+        ''' Parses "Dim name As Type" declarations from VB.NET source text.
+        ''' Returns a case-insensitive map of variable name to declared type name.
+        ''' </summary>
+        Private Shared Function ParseLocalDims(text As String) As Dictionary(Of String, String)
+            Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+            For Each m As Match In _dimDeclRe.Matches(text)
+                Dim name = m.Groups(1).Value
+                If Not result.ContainsKey(name) Then
+                    result.Add(name, m.Groups(2).Value)
+                End If
+            Next
+            Return result
+        End Function
+
+        ''' <summary>
+        ''' Finds identifiers used in the selection that are declared (via Dim) only in
+        ''' the pre-selection text — these are captured from the outer scope and become parameters.
+        ''' </summary>
+        Private Shared Function FindCapturedParams(
+            selectedText As String,
+            localDims As Dictionary(Of String, String),
+            preText As String) As Dictionary(Of String, String)
+
+            Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+            Dim preDims = ParseLocalDims(preText)
+
+            For Each m As Match In _identRe.Matches(selectedText)
+                Dim name = m.Groups(1).Value
+                If _vbKeywords.Contains(name) Then Continue For
+                If localDims.ContainsKey(name) Then Continue For
+                If result.ContainsKey(name) Then Continue For
+                If preDims.ContainsKey(name) Then
+                    result.Add(name, preDims(name))
+                End If
+            Next
+            Return result
+        End Function
+
+        ''' <summary>
+        ''' Finds variables declared inside the selection whose names also appear after the
+        ''' selection — these escape and must be returned or passed ByRef.
+        ''' </summary>
+        Private Shared Function FindEscapedVars(
+            localDims As Dictionary(Of String, String),
+            postText As String) As Dictionary(Of String, String)
+
+            Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+            For Each kvp In localDims
+                Dim pattern As New Regex(
+                    "\b" & Regex.Escape(kvp.Key) & "\b",
+                    RegexOptions.IgnoreCase)
+                If pattern.IsMatch(postText) Then
+                    result.Add(kvp.Key, kvp.Value)
+                End If
+            Next
+            Return result
+        End Function
+
+        ''' <summary>
+        ''' Re-indents each line of <paramref name="text"/> from <paramref name="fromSize"/>
+        ''' leading spaces to <paramref name="toSize"/> leading spaces.
+        ''' Blank lines are preserved as-is.
+        ''' </summary>
+        Private Shared Function NormalizeIndent(text As String, fromSize As Integer, toSize As Integer) As String
+            If fromSize = toSize Then Return text
+
+            Dim strip = Math.Max(0, fromSize - toSize)
+            Dim addCount = Math.Max(0, toSize - fromSize)
+            Dim prefix = New String(" "c, addCount)
+            Dim separator = If(text.Contains(vbCrLf), vbCrLf, vbLf)
+            Dim lines = text.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.None)
+
+            For i = 0 To lines.Length - 1
+                Dim line = lines(i)
+                If line.Length = 0 Then Continue For
+                If strip > 0 Then
+                    Dim stripped = line.TrimStart()
+                    Dim actualIndent = line.Length - stripped.Length
+                    Dim toRemove = Math.Min(strip, actualIndent)
+                    lines(i) = prefix & line.Substring(toRemove)
+                Else
+                    lines(i) = prefix & line
+                End If
+            Next
+            Return String.Join(separator, lines)
         End Function
 
         Private Async Function DiscoverExtractRoslynActionsAsync(document As Document, selectionRange As Protocol.Range, selection As TextSpan, cancellationToken As CancellationToken) As Task(Of List(Of (Title As String, Path As String(), RoslynAction As RoslynCodeAction)))
