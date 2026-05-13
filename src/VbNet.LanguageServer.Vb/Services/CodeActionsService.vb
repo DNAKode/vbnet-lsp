@@ -188,8 +188,7 @@ Namespace Services
             Dim uri = parameters.TextDocument.Uri
             Dim document = _documentManager.GetRoslynDocument(uri)
             If document Is Nothing Then
-                _logger.LogTrace("Extract skipped: no Roslyn document for {Uri}", uri)
-                Return Array.Empty(Of CodeAction)()
+                _logger.LogTrace("Extract: no Roslyn document for {Uri}, will attempt simple strategy only", uri)
             End If
 
             Dim selection = TryGetTextSpan(parameters.Range, sourceText)
@@ -206,32 +205,38 @@ Namespace Services
             End If
 
             _logger.LogTrace("Extract discovery start: {Uri}, span=[{Start},{End}]", uri, selection.Value.Start, selection.Value.End)
-            Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, selection.Value, cancellationToken).ConfigureAwait(False)
-            _logger.LogTrace("Extract discovery complete: {Count} Roslyn actions for {Uri}", discovered.Count, uri)
-            If discovered.Count > 0 Then
-                Return discovered.Select(Function(x) New CodeAction With {
-                    .Title = x.Title,
-                    .Kind = CodeActionKind.RefactorExtract,
-                    .Data = New CodeActionResolveData With {
-                        .PayloadVersion = ResolvePayloadVersion,
-                        .ActionType = ActionTypeExtract,
-                        .Strategy = ExtractStrategyRoslyn,
-                        .Uri = uri,
-                        .StartLine = parameters.Range.Start.Line,
-                        .StartCharacter = parameters.Range.Start.Character,
-                        .EndLine = parameters.Range.End.Line,
-                        .EndCharacter = parameters.Range.End.Character,
-                        .ActionPath = x.Path
-                    }
-                })
+
+            ' Try Roslyn extraction if document is available
+            Dim discovered As New List(Of (Title As String, Path As String(), RoslynAction As RoslynCodeAction))()
+            If document IsNot Nothing Then
+                discovered = Await DiscoverExtractRoslynActionsAsync(document, selection.Value, cancellationToken).ConfigureAwait(False)
+                _logger.LogTrace("Extract discovery complete: {Count} Roslyn actions for {Uri}", discovered.Count, uri)
+                If discovered.Count > 0 Then
+                    Return discovered.Select(Function(x) New CodeAction With {
+                        .Title = x.Title,
+                        .Kind = CodeActionKind.RefactorExtract,
+                        .Data = New CodeActionResolveData With {
+                            .PayloadVersion = ResolvePayloadVersion,
+                            .ActionType = ActionTypeExtract,
+                            .Strategy = ExtractStrategyRoslyn,
+                            .Uri = uri,
+                            .StartLine = parameters.Range.Start.Line,
+                            .StartCharacter = parameters.Range.Start.Character,
+                            .EndLine = parameters.Range.End.Line,
+                            .EndCharacter = parameters.Range.End.Character,
+                            .ActionPath = x.Path
+                        }
+                    })
+                End If
             End If
 
+            ' Fall back to simple strategy regardless of Roslyn availability
             If Not CanApplySimpleExtract(parameters.Range, sourceText) Then
                 _logger.LogTrace("Extract skipped: simple strategy not applicable for {Uri}", uri)
                 Return Array.Empty(Of CodeAction)()
             End If
 
-            _logger.LogTrace("Extract: falling back to simple strategy for {Uri}", uri)
+            _logger.LogTrace("Extract: offering simple strategy for {Uri}", uri)
             Return {New CodeAction With {
                 .Title = "Extract Method",
                 .Kind = CodeActionKind.RefactorExtract,
@@ -251,32 +256,33 @@ Namespace Services
 
         Private Async Function ResolveExtractActionAsync(action As CodeAction, data As CodeActionResolveData, cancellationToken As CancellationToken) As Task(Of CodeAction)
             _logger.LogTrace("Resolving extract action: strategy={Strategy} for {Uri}", data.Strategy, data.Uri)
-            Dim document = _documentManager.GetRoslynDocument(data.Uri)
-            If document Is Nothing Then
-                _logger.LogTrace("Resolve extract miss: no Roslyn document for {Uri}", data.Uri)
-                Return action
-            End If
-
-            Dim sourceText = Await document.GetTextAsync(cancellationToken).ConfigureAwait(False)
-            Dim range = New Protocol.Range With {
-                .Start = New Position(data.StartLine.GetValueOrDefault(), data.StartCharacter.GetValueOrDefault()),
-                .End = New Position(data.EndLine.GetValueOrDefault(), data.EndCharacter.GetValueOrDefault())
-            }
-
-            Dim selection = TryGetTextSpan(range, sourceText)
-            If selection Is Nothing OrElse selection.Value.Length = 0 Then
-                _logger.LogTrace("Resolve extract miss: selection span is empty for {Uri}", data.Uri)
-                Return action
-            End If
-
-            Dim syntaxTree = VisualBasicSyntaxTree.ParseText(sourceText, cancellationToken:=cancellationToken)
-            Dim root = Await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(False)
-            If Not IsSelectionLexicallySafe(selection.Value, root) Then
-                _logger.LogTrace("Resolve extract miss: selection crosses a lexical boundary for {Uri}", data.Uri)
-                Return action
-            End If
-
+            
+            ' For simple extraction, we don't need Roslyn document
             If StringComparer.Ordinal.Equals(data.Strategy, ExtractStrategySimple) Then
+                Dim sourceText = Await _documentManager.GetSourceTextAsync(data.Uri, cancellationToken).ConfigureAwait(False)
+                If sourceText Is Nothing Then
+                    _logger.LogTrace("Resolve extract miss: could not read source text for {Uri}", data.Uri)
+                    Return action
+                End If
+
+                Dim range = New Protocol.Range With {
+                    .Start = New Position(data.StartLine.GetValueOrDefault(), data.StartCharacter.GetValueOrDefault()),
+                    .End = New Position(data.EndLine.GetValueOrDefault(), data.EndCharacter.GetValueOrDefault())
+                }
+
+                Dim selection = TryGetTextSpan(range, sourceText)
+                If selection Is Nothing OrElse selection.Value.Length = 0 Then
+                    _logger.LogTrace("Resolve extract miss: selection span is empty for {Uri}", data.Uri)
+                    Return action
+                End If
+
+                Dim syntaxTree = VisualBasicSyntaxTree.ParseText(sourceText, cancellationToken:=cancellationToken)
+                Dim root = Await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(False)
+                If Not IsSelectionLexicallySafe(selection.Value, root) Then
+                    _logger.LogTrace("Resolve extract miss: selection crosses a lexical boundary for {Uri}", data.Uri)
+                    Return action
+                End If
+
                 _logger.LogTrace("Resolve extract: applying simple strategy for {Uri}", data.Uri)
                 Dim simpleEdit = BuildSimpleExtractEdit(data, sourceText)
                 If simpleEdit IsNot Nothing Then
@@ -285,11 +291,37 @@ Namespace Services
                 Return action
             End If
 
+            ' For Roslyn strategy, we require a Document
+            Dim document = _documentManager.GetRoslynDocument(data.Uri)
+            If document Is Nothing Then
+                _logger.LogTrace("Resolve extract miss: no Roslyn document for {Uri}", data.Uri)
+                Return action
+            End If
+
+            Dim sourceTextForRoslyn = Await document.GetTextAsync(cancellationToken).ConfigureAwait(False)
+            Dim rangeForRoslyn = New Protocol.Range With {
+                .Start = New Position(data.StartLine.GetValueOrDefault(), data.StartCharacter.GetValueOrDefault()),
+                .End = New Position(data.EndLine.GetValueOrDefault(), data.EndCharacter.GetValueOrDefault())
+            }
+
+            Dim selectionForRoslyn = TryGetTextSpan(rangeForRoslyn, sourceTextForRoslyn)
+            If selectionForRoslyn Is Nothing OrElse selectionForRoslyn.Value.Length = 0 Then
+                _logger.LogTrace("Resolve extract miss: selection span is empty for {Uri}", data.Uri)
+                Return action
+            End If
+
+            Dim syntaxTreeForRoslyn = VisualBasicSyntaxTree.ParseText(sourceTextForRoslyn, cancellationToken:=cancellationToken)
+            Dim rootForRoslyn = Await syntaxTreeForRoslyn.GetRootAsync(cancellationToken).ConfigureAwait(False)
+            If Not IsSelectionLexicallySafe(selectionForRoslyn.Value, rootForRoslyn) Then
+                _logger.LogTrace("Resolve extract miss: selection crosses a lexical boundary for {Uri}", data.Uri)
+                Return action
+            End If
+
             If data.ActionPath Is Nothing OrElse data.ActionPath.Length = 0 Then
                 Return action
             End If
 
-            Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, selection.Value, cancellationToken).ConfigureAwait(False)
+            Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, selectionForRoslyn.Value, cancellationToken).ConfigureAwait(False)
             Dim selected = discovered.FirstOrDefault(Function(x) PathsEqual(x.Path, data.ActionPath)).RoslynAction
             If selected Is Nothing Then
                 _logger.LogTrace("Extract action no longer available for {Uri}", data.Uri)
@@ -314,7 +346,32 @@ Namespace Services
                 Return False
             End If
 
-            Return FindEnclosingEndSubLine([range].End.Line, sourceText) >= 0
+            Dim endSubLine = FindEnclosingEndSubLine([range].End.Line, sourceText)
+            If endSubLine < 0 Then
+                Return False
+            End If
+
+            ' Ensure selection is inside a method body: find matching Sub/Function header
+            ' by searching backward from selection start for 'Sub' or 'Function' declaration
+            Dim subLine = -1
+            For i = [range].Start.Line To 0 Step -1
+                Dim line = sourceText.Lines(i).ToString()
+                Dim trimmed = line.TrimStart()
+                If trimmed.StartsWith("Private Sub ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Public Sub ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Protected Sub ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Friend Sub ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Private Function ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Public Function ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Protected Function ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Friend Function ", StringComparison.OrdinalIgnoreCase) Then
+                    subLine = i
+                    Exit For
+                End If
+            Next
+
+            ' Selection must be inside a method body (between Sub/Function and End Sub/Function)
+            Return subLine >= 0 AndAlso subLine <= [range].Start.Line AndAlso endSubLine > [range].End.Line
         End Function
 
         Friend Shared Function IsSelectionLexicallySafe(selection As TextSpan, root As SyntaxNode) As Boolean
@@ -513,10 +570,12 @@ Namespace Services
                 Dim escapedArgNames = String.Join(", ", escapedVars.Keys)
                 Dim fullArgList = If(argList.Length > 0, argList & ", " & escapedArgNames, escapedArgNames)
                 callText = escapedArgInit & nl & statementIndent & methodName & "(" & fullArgList & ")" & nl
+                ' Remove conflicting Dim declarations from method body (they're now ByRef parameters)
+                Dim cleanedBody = RemoveConflictingDimDeclarations(normalizedBody, escapedVars.Keys)
                 methodText =
                     nl &
                     methodIndent & "Private Sub " & methodName & "(" & fullParamList & ")" & nl &
-                    normalizedBody & nl &
+                    cleanedBody & nl &
                     methodIndent & "End Sub" & nl
             End If
 
@@ -554,6 +613,32 @@ Namespace Services
             Next
 
             Return -1
+        End Function
+
+        ''' <summary>
+        ''' Removes Dim declarations for variables that are being passed as ByRef parameters.
+        ''' This prevents duplicate variable declarations in the extracted method body.
+        ''' </summary>
+        Private Shared Function RemoveConflictingDimDeclarations(body As String, byRefVariables As IEnumerable(Of String)) As String
+            If body Is Nothing OrElse byRefVariables Is Nothing Then
+                Return body
+            End If
+
+            Dim result = body
+            For Each varName In byRefVariables
+                ' Match "Dim varName As ..." pattern (case-insensitive), capturing optional full line for removal
+                Dim pattern = "^\s*Dim\s+" & System.Text.RegularExpressions.Regex.Escape(varName) & "\s+As\s+.*?$"
+                result = System.Text.RegularExpressions.Regex.Replace(
+                    result,
+                    pattern,
+                    "",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase Or System.Text.RegularExpressions.RegexOptions.Multiline)
+            Next
+
+            ' Remove any blank lines that were left behind
+            result = System.Text.RegularExpressions.Regex.Replace(result, "^\s*" & Environment.NewLine, "", System.Text.RegularExpressions.RegexOptions.Multiline)
+
+            Return result
         End Function
 
         ''' <summary>
@@ -1113,7 +1198,12 @@ Namespace Services
         Private Shared Function ReadNullableInt(element As JsonElement, propertyName As String) As Integer?
             Dim propertyValue As JsonElement
             If element.TryGetProperty(propertyName, propertyValue) AndAlso propertyValue.ValueKind = JsonValueKind.Number Then
-                Return propertyValue.GetInt32()
+                Try
+                    Return propertyValue.GetInt32()
+                Catch ex As OverflowException
+                    ' JSON number is out of Int32 range; return Nothing instead of crashing
+                    Return Nothing
+                End Try
             End If
 
             Return Nothing
