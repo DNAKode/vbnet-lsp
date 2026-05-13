@@ -39,18 +39,28 @@ Namespace Services
 
         ' ─── Simple-extraction analysis helpers ─────────────────────────────
         Private Shared ReadOnly _dimDeclRe As New Regex(
-            "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
+            "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(?!New\b)(\w+(?:\.\w+)*(?:\(\s*\))?)",
             RegexOptions.IgnoreCase)
 
-        ' Matches implicit-type "Dim x = expr" declarations (no As clause).
+        ' Matches "Dim x = expr" declarations (no As clause).
         ' Type falls back to Object since no annotation is present.
         Private Shared ReadOnly _dimImplicitRe As New Regex(
             "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s*=",
             RegexOptions.IgnoreCase)
 
+        ' Captures name + full "As New T(...)" expression from "Dim x As New T(...)" declarations.
+        Private Shared ReadOnly _dimAsNewRe As New Regex(
+            "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(New\s+.+?)\s*$",
+            RegexOptions.IgnoreCase)
+
         ' Captures the initializer expression from "Dim x As Type = <expr>" declarations.
         Private Shared ReadOnly _dimInitializerRe As New Regex(
             "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+\w+(?:\.\w+)*(?:\(\s*\))?\s*=\s*(.+?)\s*$",
+            RegexOptions.IgnoreCase)
+
+        ' Captures name + initializer from "Dim x = expr" (implicit-type, no As clause).
+        Private Shared ReadOnly _dimImplicitInitRe As New Regex(
+            "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s*=\s*(.+?)\s*$",
             RegexOptions.IgnoreCase)
 
         Private Shared ReadOnly _forEachDeclRe As New Regex(
@@ -717,9 +727,10 @@ Namespace Services
         ''' a numeric suffix if the base name already exists.
         ''' </summary>
         Private Shared Function GenerateUniqueMethodName(baseName As String, sourceText As String) As String
-            ' Pattern handles zero or more modifiers (Private, Public, Async, Shared, Overrides, etc.)
-            ' before Sub/Function, so "Private Async Sub Foo(" and "Public Shared Function Bar(" are both matched.
-            Dim methodPattern = "^\s*(?:(?:Private|Public|Protected|Friend|Async|Shared|Overrides|Overloads|MustOverride|NotOverridable|Overridable|Shadows)\s+)*(?:Sub|Function)\s+(?<name>\w+)\s*\("
+            ' Allow any number of leading word tokens as modifiers (Private, Public, Async, Iterator,
+            ' Shared, Overrides, etc.) before Sub/Function, so all valid VB modifier combinations
+            ' are detected regardless of which specific modifiers are present.
+            Dim methodPattern = "^\s*(?:\w+\s+)*(?:Sub|Function)\s+(?<name>\w+)\s*\("
             Dim existingNames = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
 
             For Each m As Match In System.Text.RegularExpressions.Regex.Matches(
@@ -758,6 +769,11 @@ Namespace Services
             For Each m As Match In _dimDeclRe.Matches(text)
                 addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
             Next
+            ' "Dim x As New T(...)" — store full "New T(...)" as the type so DimDecl
+            ' generates "Dim x As New T(...)" at the call site.
+            For Each m As Match In _dimAsNewRe.Matches(text)
+                addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
+            Next
             ' Implicit-type: "Dim x = expr" — no As clause; type inferred at compile time.
             ' Store as empty string so downstream code can omit "As Object" in generated code,
             ' avoiding spurious Option Strict On violations when the inferred type is not Object.
@@ -780,11 +796,20 @@ Namespace Services
         ''' <summary>
         ''' Parses initializer expressions from Dim declarations in the given text.
         ''' Returns a case-insensitive map of variable name to initializer expression string.
-        ''' Only captures declarations of the form "Dim x As Type = expr".
+        ''' Covers "Dim x As Type = expr" and "Dim x = expr" (implicit-type) forms.
+        ''' "Dim x As New T(...)" is handled by ParseLocalDims (type carries the full "New T(...)" expression).
         ''' </summary>
         Private Shared Function ParseLocalDimInitializers(text As String) As Dictionary(Of String, String)
             Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
             For Each m As Match In _dimInitializerRe.Matches(text)
+                Dim name = m.Groups(1).Value
+                Dim initializer = m.Groups(2).Value.Trim()
+                If Not result.ContainsKey(name) Then
+                    result.Add(name, initializer)
+                End If
+            Next
+            ' Implicit-type "Dim x = expr" — no As clause; also preserve the initializer.
+            For Each m As Match In _dimImplicitInitRe.Matches(text)
                 Dim name = m.Groups(1).Value
                 Dim initializer = m.Groups(2).Value.Trim()
                 If Not result.ContainsKey(name) Then
