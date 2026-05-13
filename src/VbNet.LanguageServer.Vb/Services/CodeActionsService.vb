@@ -119,6 +119,20 @@ Namespace Services
             }
         End Function
 
+        ''' <summary>
+        ''' Returns True when <paramref name="actionKind"/> satisfies a client-requested <paramref name="requestedKind"/>
+        ''' per the LSP code action kind hierarchy:
+        ''' an action matches if its kind equals the requested kind or is a more-specific child
+        ''' (e.g. "refactor.extract" satisfies a request for "refactor").
+        ''' </summary>
+        Private Shared Function MatchesCodeActionKind(requestedKind As String, actionKind As String) As Boolean
+            If String.IsNullOrEmpty(requestedKind) Then
+                Return True
+            End If
+            Return String.Equals(actionKind, requestedKind, StringComparison.Ordinal) OrElse
+                   actionKind.StartsWith(requestedKind & ".", StringComparison.Ordinal)
+        End Function
+
         Public Async Function GetCodeActionsAsync(parameters As CodeActionParams, cancellationToken As CancellationToken) As Task(Of CodeAction())
             If parameters Is Nothing OrElse parameters.TextDocument Is Nothing Then
                 Return Array.Empty(Of CodeAction)()
@@ -134,8 +148,18 @@ Namespace Services
             cancellationToken.ThrowIfCancellationRequested()
 
             Dim actions As New List(Of CodeAction)()
-            actions.AddRange(GetOptionActions(uri, sourceText))
-            actions.AddRange(Await GetExtractActionsAsync(parameters, sourceText, cancellationToken).ConfigureAwait(False))
+            Dim onlyKinds = If(parameters.Context IsNot Nothing, parameters.Context.Only, Nothing)
+            Dim includeSource = onlyKinds Is Nothing OrElse onlyKinds.Length = 0 OrElse
+                onlyKinds.Any(Function(k) MatchesCodeActionKind(k, CodeActionKind.Source))
+            Dim includeRefactor = onlyKinds Is Nothing OrElse onlyKinds.Length = 0 OrElse
+                onlyKinds.Any(Function(k) MatchesCodeActionKind(k, CodeActionKind.RefactorExtract))
+
+            If includeSource Then
+                actions.AddRange(GetOptionActions(uri, sourceText))
+            End If
+            If includeRefactor Then
+                actions.AddRange(Await GetExtractActionsAsync(parameters, sourceText, cancellationToken).ConfigureAwait(False))
+            End If
 
             Return actions.ToArray()
         End Function
@@ -244,7 +268,7 @@ Namespace Services
             End If
 
             ' Fall back to simple strategy regardless of Roslyn availability
-            If Not CanApplySimpleExtract(parameters.Range, sourceText) Then
+            If Not CanApplySimpleExtract(parameters.Range, sourceText, root) Then
                 _logger.LogTrace("Extract skipped: simple strategy not applicable for {Uri}", uri)
                 Return Array.Empty(Of CodeAction)()
             End If
@@ -346,7 +370,7 @@ Namespace Services
             Return action
         End Function
 
-        Private Shared Function CanApplySimpleExtract([range] As Protocol.Range, sourceText As SourceText) As Boolean
+        Private Shared Function CanApplySimpleExtract([range] As Protocol.Range, sourceText As SourceText, Optional root As SyntaxNode = Nothing) As Boolean
             If [range] Is Nothing OrElse sourceText Is Nothing Then
                 Return False
             End If
@@ -364,20 +388,29 @@ Namespace Services
                 Return False
             End If
 
-            ' Ensure selection is inside a method body: find matching Sub/Function header
-            ' by searching backward from selection start for 'Sub' or 'Function' declaration
+            ' Prefer Roslyn syntax tree to detect the containing method block — this handles
+            ' all modifier permutations (Public, Private, Friend, Protected, Shared, Async, …)
+            ' and modifier-less declarations (plain "Sub Foo()" in a Module).
+            ' Note: only MethodBlockSyntax is checked; constructors, property accessors and
+            ' operators are not supported by BuildSimpleExtractEdit and are left to the Roslyn path.
+            If root IsNot Nothing Then
+                Dim selectionSpan = TryGetTextSpan([range], sourceText)
+                If selectionSpan.HasValue Then
+                    Dim token = root.FindToken(selectionSpan.Value.Start)
+                    Dim containingMethod = token.Parent?.AncestorsAndSelf().OfType(Of MethodBlockSyntax)().
+                        FirstOrDefault(Function(m) m.Span.Contains(selectionSpan.Value))
+                    Return containingMethod IsNot Nothing
+                End If
+            End If
+
+            ' Fallback (tree unavailable): scan backward for any Sub/Function declaration line.
+            ' Covers access modifiers and bare "Sub"/"Function" forms.
             Dim subLine = -1
             For i = [range].Start.Line To 0 Step -1
-                Dim line = sourceText.Lines(i).ToString()
-                Dim trimmed = line.TrimStart()
-                If trimmed.StartsWith("Private Sub ", StringComparison.OrdinalIgnoreCase) OrElse
-                   trimmed.StartsWith("Public Sub ", StringComparison.OrdinalIgnoreCase) OrElse
-                   trimmed.StartsWith("Protected Sub ", StringComparison.OrdinalIgnoreCase) OrElse
-                   trimmed.StartsWith("Friend Sub ", StringComparison.OrdinalIgnoreCase) OrElse
-                   trimmed.StartsWith("Private Function ", StringComparison.OrdinalIgnoreCase) OrElse
-                   trimmed.StartsWith("Public Function ", StringComparison.OrdinalIgnoreCase) OrElse
-                   trimmed.StartsWith("Protected Function ", StringComparison.OrdinalIgnoreCase) OrElse
-                   trimmed.StartsWith("Friend Function ", StringComparison.OrdinalIgnoreCase) Then
+                Dim lineStr = sourceText.Lines(i).ToString()
+                Dim trimmed = lineStr.TrimStart()
+                If trimmed.StartsWith("Sub ", StringComparison.OrdinalIgnoreCase) OrElse
+                   trimmed.StartsWith("Function ", StringComparison.OrdinalIgnoreCase) Then
                     subLine = i
                     Exit For
                 End If
@@ -392,23 +425,23 @@ Namespace Services
                 Return False
             End If
 
-            For Each node In root.DescendantNodesAndSelf()
+            For Each node In root.DescendantNodesAndSelf(Function(n) n.FullSpan.IntersectsWith(selection))
                 If Not node.Span.IntersectsWith(selection) Then
                     Continue For
                 End If
+
+                Dim boundarySpans = GetSelectionBoundarySpans(node).ToArray()
 
                 If RequiresContainingBlockBoundary(node) Then
                     ' Only reject when the selection actually intersects the block's own header
                     ' boundary span (i.e., it clips or crosses the header line). A selection
                     ' wholly inside the block body — not touching the header — is safe to extract.
-                    Dim blockHeaders = GetSelectionBoundarySpans(node).ToArray()
-                    If blockHeaders.Any(Function(s) selection.IntersectsWith(s)) AndAlso
+                    If boundarySpans.Any(Function(s) selection.IntersectsWith(s)) AndAlso
                        Not IsContainingBlockFullySelected(selection, node) Then
                         Return False
                     End If
                 End If
 
-                Dim boundarySpans = GetSelectionBoundarySpans(node).ToArray()
                 If boundarySpans.Length >= 2 Then
                     Dim containedCount = boundarySpans.Count(Function(span) selection.Contains(span))
                     If containedCount > 0 AndAlso containedCount < boundarySpans.Length Then
@@ -553,7 +586,7 @@ Namespace Services
             Dim argList = String.Join(", ", capturedParams.Keys)
 
             Dim normalizedBody = NormalizeIndent(selectedText, statementIndentSize, methodBodyIndentSize)
-            Dim nl = Environment.NewLine
+            Dim nl = If(source.Contains(vbCrLf), vbCrLf, vbLf)
             Dim methodName = GenerateUniqueMethodName("ExtractedMethod", source)
 
             Dim callText As String
