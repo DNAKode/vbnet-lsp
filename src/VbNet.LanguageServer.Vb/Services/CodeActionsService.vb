@@ -42,6 +42,11 @@ Namespace Services
             "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
             RegexOptions.IgnoreCase)
 
+        ' Captures the initializer expression from "Dim x As Type = <expr>" declarations.
+        Private Shared ReadOnly _dimInitializerRe As New Regex(
+            "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+\w+(?:\.\w+)*(?:\(\s*\))?\s*=\s*(.+?)\s*$",
+            RegexOptions.IgnoreCase)
+
         Private Shared ReadOnly _forEachDeclRe As New Regex(
             "(?m)For\s+Each\s+(\w+)\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
             RegexOptions.IgnoreCase)
@@ -114,7 +119,7 @@ Namespace Services
             End If
 
             Dim uri = parameters.TextDocument.Uri
-            Dim sourceText = Await GetSourceTextAsync(uri, cancellationToken).ConfigureAwait(False)
+            Dim sourceText = Await _documentManager.GetSourceTextAsync(uri, cancellationToken).ConfigureAwait(False)
             If sourceText Is Nothing Then
                 _logger.LogTrace("No document available for code actions: {Uri}", uri)
                 Return Array.Empty(Of CodeAction)()
@@ -140,30 +145,26 @@ Namespace Services
             End If
 
             If StringComparer.Ordinal.Equals(data.ActionType, ActionTypeOption) Then
+                If String.IsNullOrWhiteSpace(data.Uri) Then
+                    Return action
+                End If
                 action.Edit = BuildOptionEdit(data.Uri, data.InsertionLine.GetValueOrDefault(), data.OptionText)
                 Return action
             End If
 
             If StringComparer.Ordinal.Equals(data.ActionType, ActionTypeExtract) Then
+                If String.IsNullOrWhiteSpace(data.Uri) OrElse
+                   Not data.StartLine.HasValue OrElse Not data.StartCharacter.HasValue OrElse
+                   Not data.EndLine.HasValue OrElse Not data.EndCharacter.HasValue Then
+                    _logger.LogWarning("Resolve extract: missing required fields in resolve payload for action '{Title}'", action.Title)
+                    Return action
+                End If
                 Return Await ResolveExtractActionAsync(action, data, cancellationToken).ConfigureAwait(False)
             End If
 
             Return action
         End Function
 
-        Private Async Function GetSourceTextAsync(uri As String, cancellationToken As CancellationToken) As Task(Of SourceText)
-            Dim openDoc = _documentManager.GetOpenDocument(uri)
-            If openDoc IsNot Nothing AndAlso openDoc.Text IsNot Nothing Then
-                Return openDoc.Text
-            End If
-
-            Dim document = _documentManager.GetRoslynDocument(uri)
-            If document Is Nothing Then
-                Return Nothing
-            End If
-
-            Return Await document.GetTextAsync(cancellationToken).ConfigureAwait(False)
-        End Function
 
         Private Function GetOptionActions(uri As String, sourceText As SourceText) As IEnumerable(Of CodeAction)
             Dim actions As New List(Of CodeAction)()
@@ -197,8 +198,14 @@ Namespace Services
                 Return Array.Empty(Of CodeAction)()
             End If
 
-            Dim syntaxTree = VisualBasicSyntaxTree.ParseText(sourceText, cancellationToken:=cancellationToken)
-            Dim root = Await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(False)
+            ' Use Roslyn's already-parsed syntax tree when available; only fall back to a fresh parse for standalone files.
+            Dim root As SyntaxNode
+            If document IsNot Nothing Then
+                root = Await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(False)
+            Else
+                Dim syntaxTree = VisualBasicSyntaxTree.ParseText(sourceText, cancellationToken:=cancellationToken)
+                root = Await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(False)
+            End If
             If Not IsSelectionLexicallySafe(selection.Value, root) Then
                 _logger.LogTrace("Extract skipped: selection crosses a lexical boundary for {Uri}", uri)
                 Return Array.Empty(Of CodeAction)()
@@ -565,8 +572,18 @@ Namespace Services
                 Dim fullParamList = If(paramList.Length > 0,
                     paramList & ", " & String.Join(", ", byRefParts),
                     String.Join(", ", byRefParts))
+                ' Preserve initializers from the original Dim declarations so call-site semantics are unchanged.
+                ' E.g. "Dim x As Integer = Compute()" becomes "Dim x As Integer = Compute()" at the call site,
+                ' not just "Dim x As Integer" (which would lose the Compute() side-effect/value).
+                Dim originalInits = ParseLocalDimInitializers(selectedText)
                 Dim escapedArgInit = String.Join(nl,
-                    escapedVars.Select(Function(kvp) statementIndent & "Dim " & kvp.Key & " As " & kvp.Value))
+                    escapedVars.Select(Function(kvp)
+                                           Dim init As String = Nothing
+                                           If originalInits.TryGetValue(kvp.Key, init) Then
+                                               Return statementIndent & "Dim " & kvp.Key & " As " & kvp.Value & " = " & init
+                                           End If
+                                           Return statementIndent & "Dim " & kvp.Key & " As " & kvp.Value
+                                       End Function))
                 Dim escapedArgNames = String.Join(", ", escapedVars.Keys)
                 Dim fullArgList = If(argList.Length > 0, argList & ", " & escapedArgNames, escapedArgNames)
                 callText = escapedArgInit & nl & statementIndent & methodName & "(" & fullArgList & ")" & nl
@@ -697,6 +714,23 @@ Namespace Services
                 addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
             Next
 
+            Return result
+        End Function
+
+        ''' <summary>
+        ''' Parses initializer expressions from Dim declarations in the given text.
+        ''' Returns a case-insensitive map of variable name to initializer expression string.
+        ''' Only captures declarations of the form "Dim x As Type = expr".
+        ''' </summary>
+        Private Shared Function ParseLocalDimInitializers(text As String) As Dictionary(Of String, String)
+            Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+            For Each m As Match In _dimInitializerRe.Matches(text)
+                Dim name = m.Groups(1).Value
+                Dim initializer = m.Groups(2).Value.Trim()
+                If Not result.ContainsKey(name) Then
+                    result.Add(name, initializer)
+                End If
+            Next
             Return result
         End Function
 

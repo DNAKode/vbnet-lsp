@@ -135,9 +135,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -354,9 +352,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -390,28 +386,35 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Assert.NotNull(firstResolved)
             Assert.NotNull(firstResolved.Edit)
 
-            ' Extract method name from first resolved edit
+            ' Extract method name from first resolved edit, keyed by helperUri for determinism.
             Dim firstMethodName As String = Nothing
-            If firstResolved.Edit.Changes IsNot Nothing AndAlso firstResolved.Edit.Changes.Count > 0 Then
-                Dim firstEdit = firstResolved.Edit.Changes.FirstOrDefault()
-                If firstEdit.Value IsNot Nothing AndAlso firstEdit.Value.Length > 0 Then
-                    Dim firstEditText = firstEdit.Value(0).NewText
-                    Dim match = System.Text.RegularExpressions.Regex.Match(firstEditText, "Private Sub (\w+)\(")
+            Dim firstEditsForUri As TextEdit() = Nothing
+            If firstResolved.Edit.Changes IsNot Nothing Then
+                firstResolved.Edit.Changes.TryGetValue(helperUri, firstEditsForUri)
+            End If
+            If firstEditsForUri IsNot Nothing Then
+                For Each e In firstEditsForUri
+                    Dim match = System.Text.RegularExpressions.Regex.Match(e.NewText, "Private Sub (\w+)\(")
                     If match.Success Then
                         firstMethodName = match.Groups(1).Value
+                        Exit For
                     End If
-                End If
+                Next
             End If
 
             Assert.NotNull(firstMethodName)
 
-            ' Apply the first edit properly by using its range, just as a real LSP client would.
+            ' Apply all edits for helperUri in end-to-start order to keep offsets valid,
+            ' simulating a real LSP client applying the WorkspaceEdit.
             Dim updatedText = text
-            If firstResolved.Edit.Changes IsNot Nothing AndAlso firstResolved.Edit.Changes.Count > 0 Then
-                Dim firstEdit = firstResolved.Edit.Changes.FirstOrDefault()
-                If firstEdit.Value IsNot Nothing AndAlso firstEdit.Value.Length > 0 Then
-                    updatedText = ApplyTextEdit(updatedText, firstEdit.Value(0))
-                End If
+            If firstEditsForUri IsNot Nothing Then
+                Dim sortedEdits = firstEditsForUri.
+                    OrderByDescending(Function(e) e.Range.Start.Line).
+                    ThenByDescending(Function(e) e.Range.Start.Character).
+                    ToArray()
+                For Each e In sortedEdits
+                    updatedText = ApplyTextEdit(updatedText, e)
+                Next
             End If
 
             ' Notify the document manager of the change to simulate applying the edit
@@ -445,17 +448,20 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Assert.NotNull(secondResolved)
             Assert.NotNull(secondResolved.Edit)
 
-            ' Extract method name from second resolved edit
+            ' Extract method name from second resolved edit, keyed by helperUri for determinism.
             Dim secondMethodName As String = Nothing
-            If secondResolved.Edit.Changes IsNot Nothing AndAlso secondResolved.Edit.Changes.Count > 0 Then
-                Dim secondEdit = secondResolved.Edit.Changes.FirstOrDefault()
-                If secondEdit.Value IsNot Nothing AndAlso secondEdit.Value.Length > 0 Then
-                    Dim secondEditText = secondEdit.Value(0).NewText
-                    Dim match = System.Text.RegularExpressions.Regex.Match(secondEditText, "Private Sub (\w+)\(")
+            Dim secondEditsForUri As TextEdit() = Nothing
+            If secondResolved.Edit.Changes IsNot Nothing Then
+                secondResolved.Edit.Changes.TryGetValue(helperUri, secondEditsForUri)
+            End If
+            If secondEditsForUri IsNot Nothing Then
+                For Each e In secondEditsForUri
+                    Dim match = System.Text.RegularExpressions.Regex.Match(e.NewText, "Private Sub (\w+)\(")
                     If match.Success Then
                         secondMethodName = match.Groups(1).Value
+                        Exit For
                     End If
-                End If
+                Next
             End If
 
             ' Verify both methods were extracted
