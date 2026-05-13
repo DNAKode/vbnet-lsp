@@ -473,27 +473,58 @@ Namespace VbNet.LanguageServer.Tests.Integration
         ''' <summary>
         ''' Applies a single TextEdit to source text by replacing the edit's range with NewText,
         ''' the same way a real LSP client would apply edits.
-        ''' Detects the actual newline convention in the text (LF vs CRLF) rather than
-        ''' relying on Environment.NewLine, so offset calculations are correct on all platforms.
+        ''' Computes offsets from the original text's actual line starts so mixed newline
+        ''' conventions (for example CRLF and LF in the same document) are handled correctly.
         ''' </summary>
         Private Shared Function ApplyTextEdit(originalText As String, edit As TextEdit) As String
-            ' Detect the newline style actually present in the text.
-            ' The repo enforces LF via .gitattributes, but text could arrive with CRLF on Windows.
-            Dim newline = If(originalText.Contains(vbCrLf), vbCrLf, vbLf)
-            Dim nlLen = newline.Length
-            Dim lines = originalText.Split({vbCrLf, vbLf}, StringSplitOptions.None)
+            Dim lineStarts As New System.Collections.Generic.List(Of Integer) From {0}
+            Dim i = 0
+
+            While i < originalText.Length
+                If originalText(i) = vbCr Then
+                    If i + 1 < originalText.Length AndAlso originalText(i + 1) = vbLf Then
+                        i += 2
+                    Else
+                        i += 1
+                    End If
+
+                    If i <= originalText.Length Then
+                        lineStarts.Add(i)
+                    End If
+                ElseIf originalText(i) = vbLf Then
+                    i += 1
+
+                    If i <= originalText.Length Then
+                        lineStarts.Add(i)
+                    End If
+                Else
+                    i += 1
+                End If
+            End While
 
             Dim CalcOffset = Function(lineNum As Integer, charNum As Integer) As Integer
-                                 Dim offset = 0
-                                 For i = 0 To Math.Min(lineNum, lines.Length) - 1
-                                     offset += lines(i).Length + nlLen
-                                 Next
-                                 If lineNum < lines.Length Then
-                                     offset += Math.Min(charNum, lines(lineNum).Length)
-                                 Else
-                                     offset = originalText.Length
+                                 If lineNum < 0 Then
+                                     Return 0
                                  End If
-                                 Return offset
+
+                                 If lineNum >= lineStarts.Count Then
+                                     Return originalText.Length
+                                 End If
+
+                                 Dim lineStart = lineStarts(lineNum)
+                                 Dim lineEnd = originalText.Length
+                                 Dim j = lineStart
+
+                                 While j < originalText.Length
+                                     If originalText(j) = vbCr OrElse originalText(j) = vbLf Then
+                                         lineEnd = j
+                                         Exit While
+                                     End If
+
+                                     j += 1
+                                 End While
+
+                                 Return Math.Min(lineStart + Math.Max(charNum, 0), lineEnd)
                              End Function
 
             Dim startOffset = CalcOffset(edit.Range.Start.Line, edit.Range.Start.Character)

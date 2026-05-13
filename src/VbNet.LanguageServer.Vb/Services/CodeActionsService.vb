@@ -43,7 +43,7 @@ Namespace Services
         RegexOptions.IgnoreCase)
 
     ' Matches "Dim x = expr" declarations (no As clause).
-    ' Type falls back to Object since no annotation is present.
+    ' ParseLocalDims records an empty type name for these declarations so downstream code can omit "As Object".
     Private Shared ReadOnly _dimImplicitRe As New Regex(
         "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s*=",
         RegexOptions.IgnoreCase)
@@ -640,15 +640,20 @@ Namespace Services
 
       ElseIf escapedVars.Count = 1 Then
         Dim esc = escapedVars.First()
-        ' Normalize "As New" — "Dim x As New T() = method()" is invalid VB.
-        ' Use "Dim x As T() = method()" instead.
+        ' Normalize "As New" — constructor syntax is not valid in an As clause.
         Dim normalizedType = NormalizeTypeName(esc.Value)
-        callText = statementIndent & "Dim " & esc.Key & " As " & normalizedType &
+        If esc.Value.IndexOf("As New ", StringComparison.OrdinalIgnoreCase) >= 0 AndAlso
+           normalizedType.EndsWith("()", StringComparison.Ordinal) Then
+          normalizedType = normalizedType.Substring(0, normalizedType.Length - 2)
+        End If
+
+        Dim declarationClause = If(String.IsNullOrWhiteSpace(normalizedType), "", " As " & normalizedType)
+        callText = statementIndent & "Dim " & esc.Key & declarationClause &
                    " = " & methodName & "(" & argList & ")" & nl
         Dim returnLine = New String(" "c, methodBodyIndentSize) & "Return " & esc.Key & nl
         methodText =
             nl &
-            methodIndent & "Private Function " & methodName & "(" & paramList & ") As " & If(String.IsNullOrEmpty(normalizedType), "Object", normalizedType) & nl &
+            methodIndent & "Private Function " & methodName & "(" & paramList & ") As " & If(String.IsNullOrWhiteSpace(normalizedType), "Object", normalizedType) & nl &
             normalizedBody & nl &
             returnLine &
             methodIndent & "End Function" & nl
