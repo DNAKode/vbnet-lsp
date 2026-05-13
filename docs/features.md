@@ -77,7 +77,7 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 
 | Feature | Status | Phase | Notes |
 |---------|--------|-------|-------|
-| `textDocument/codeAction` | Implemented | Phase 2 | Source actions + extract-function refactor (`refactor.extract`) |
+| `textDocument/codeAction` | Implemented | Phase 2 | Source actions + Extract Method refactor (`refactor.extract`) |
 | `codeAction/resolve` | Implemented | Phase 2 | Lazy compute edit |
 | Quick fixes (diagnostics) | Planned | Phase 2 | Fix errors/warnings |
 

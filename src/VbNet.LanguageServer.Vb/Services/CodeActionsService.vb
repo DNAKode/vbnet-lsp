@@ -22,7 +22,6 @@ Namespace Services
     ''' Provides source and refactor code actions for VB.NET documents.
     ''' </summary>
     Public NotInheritable Class CodeActionsService
-        Private ReadOnly _workspaceManager As WorkspaceManager
         Private ReadOnly _documentManager As DocumentManager
         Private ReadOnly _logger As ILogger(Of CodeActionsService)
 
@@ -91,9 +90,6 @@ Namespace Services
         }
 
         Public Sub New(workspaceManager As WorkspaceManager, documentManager As DocumentManager, logger As ILogger(Of CodeActionsService))
-            If workspaceManager Is Nothing Then
-                Throw New ArgumentNullException(NameOf(workspaceManager))
-            End If
             If documentManager Is Nothing Then
                 Throw New ArgumentNullException(NameOf(documentManager))
             End If
@@ -101,7 +97,6 @@ Namespace Services
                 Throw New ArgumentNullException(NameOf(logger))
             End If
 
-            _workspaceManager = workspaceManager
             _documentManager = documentManager
             _logger = logger
         End Sub
