@@ -1226,6 +1226,10 @@ Namespace Services
                 Return Nothing
             End If
 
+            If [range].Start.Character < 0 OrElse [range].End.Character < 0 Then
+                Return Nothing
+            End If
+
             If [range].Start.Line >= sourceText.Lines.Count OrElse [range].End.Line >= sourceText.Lines.Count Then
                 Return Nothing
             End If
@@ -1234,8 +1238,8 @@ Namespace Services
             Dim endLine = sourceText.Lines([range].End.Line)
             ' Clip character offsets to the line content boundary (End, excluding the line break)
             ' so that large sentinel values (e.g. character=99) do not bleed into newline characters.
-            Dim startPosition = Math.Min(startLine.Start + Math.Max(0, [range].Start.Character), startLine.End)
-            Dim endPosition = Math.Min(endLine.Start + Math.Max(0, [range].End.Character), endLine.End)
+            Dim startPosition = Math.Min(startLine.Start + [range].Start.Character, startLine.End)
+            Dim endPosition = Math.Min(endLine.Start + [range].End.Character, endLine.End)
 
             startPosition = Math.Min(startPosition, sourceText.Length)
             endPosition = Math.Min(endPosition, sourceText.Length)
