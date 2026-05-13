@@ -157,7 +157,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
                 .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
                 .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
                     .Start = New Position(20, 8),
-                    .End = New Position(22, 48)
+                    .End = New Position(21, 53)
                 },
                 .Context = New CodeActionContext()
             }, CancellationToken.None)
@@ -193,7 +193,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
                 .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
                 .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
                     .Start = New Position(20, 8),
-                    .End = New Position(22, 48)
+                    .End = New Position(21, 53)
                 },
                 .Context = New CodeActionContext()
             }, CancellationToken.None)
@@ -241,7 +241,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
                         .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
                         .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
                             .Start = New Position(20, 8),
-                            .End = New Position(21, 48)
+                            .End = New Position(21, 53)
                         },
                         .Context = New CodeActionContext()
                     }, cts.Token)
@@ -280,7 +280,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
                 .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
                 .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
                     .Start = New Position(20, 8),
-                    .End = New Position(21, 48)
+                    .End = New Position(21, 53)
                 },
                 .Context = New CodeActionContext()
             }
