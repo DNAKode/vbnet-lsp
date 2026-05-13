@@ -211,7 +211,7 @@ Namespace Services
             End If
 
             _logger.LogTrace("Extract discovery start: {Uri}, span=[{Start},{End}]", uri, selection.Value.Start, selection.Value.End)
-            Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, parameters.Range, selection.Value, cancellationToken).ConfigureAwait(False)
+            Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, selection.Value, cancellationToken).ConfigureAwait(False)
             _logger.LogTrace("Extract discovery complete: {Count} Roslyn actions for {Uri}", discovered.Count, uri)
             If discovered.Count > 0 Then
                 Return discovered.Select(Function(x) New CodeAction With {
@@ -294,7 +294,7 @@ Namespace Services
                 Return action
             End If
 
-            Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, range, selection.Value, cancellationToken).ConfigureAwait(False)
+            Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, selection.Value, cancellationToken).ConfigureAwait(False)
             Dim selected = discovered.FirstOrDefault(Function(x) PathsEqual(x.Path, data.ActionPath)).RoslynAction
             If selected Is Nothing Then
                 _logger.LogTrace("Extract action no longer available for {Uri}", data.Uri)
@@ -734,7 +734,7 @@ Namespace Services
             Return String.Join(separator, lines)
         End Function
 
-        Private Async Function DiscoverExtractRoslynActionsAsync(document As Document, selectionRange As Protocol.Range, selection As TextSpan, cancellationToken As CancellationToken) As Task(Of List(Of (Title As String, Path As String(), RoslynAction As RoslynCodeAction)))
+        Private Async Function DiscoverExtractRoslynActionsAsync(document As Document, selection As TextSpan, cancellationToken As CancellationToken) As Task(Of List(Of (Title As String, Path As String(), RoslynAction As RoslynCodeAction)))
             Dim results As New List(Of (Title As String, Path As String(), RoslynAction As RoslynCodeAction))()
             Dim codeRefactorings = Await GetCodeRefactoringsAsync(document, selection, cancellationToken).ConfigureAwait(False)
             If codeRefactorings Is Nothing Then
