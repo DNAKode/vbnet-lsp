@@ -348,6 +348,121 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim resolved = Await _codeActionsService.ResolveCodeActionAsync(extractAction, CancellationToken.None)
             Assert.NotNull(resolved)
         End Function
+
+        <Fact>
+        Public Async Function ResolveCodeActionAsync_MultipleExtractions_ProducesUniqueMethodNames() As Task
+            Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
+            Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
+
+            If Not File.Exists(projectPath) Then
+                Return
+            End If
+
+            Await _workspaceManager.LoadProjectAsync(projectPath)
+
+            Dim helperUri = New Uri(helperPath).ToString()
+            Dim text = Await File.ReadAllTextAsync(helperPath)
+
+            _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                .TextDocument = New TextDocumentItem With {
+                    .Uri = helperUri,
+                    .LanguageId = "vb",
+                    .Version = 1,
+                    .Text = text
+                }
+            })
+
+            ' First extraction
+            Dim firstParams = New CodeActionParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
+                .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
+                    .Start = New Position(20, 8),
+                    .End = New Position(21, 53)
+                },
+                .Context = New CodeActionContext()
+            }
+
+            Dim firstActions = Await _codeActionsService.GetCodeActionsAsync(firstParams, CancellationToken.None)
+            Dim firstExtractAction = firstActions.FirstOrDefault(Function(action) String.Equals(action.Kind, "refactor.extract", StringComparison.Ordinal))
+            Assert.NotNull(firstExtractAction)
+
+            Dim firstResolved = Await _codeActionsService.ResolveCodeActionAsync(firstExtractAction, CancellationToken.None)
+            Assert.NotNull(firstResolved)
+            Assert.NotNull(firstResolved.Edit)
+
+            ' Extract method name from first resolved edit
+            Dim firstMethodName As String = Nothing
+            If firstResolved.Edit.Changes IsNot Nothing AndAlso firstResolved.Edit.Changes.Count > 0 Then
+                Dim firstEdit = firstResolved.Edit.Changes.FirstOrDefault()
+                If firstEdit.Value IsNot Nothing AndAlso firstEdit.Value.Length > 0 Then
+                    Dim firstEditText = firstEdit.Value(0).NewText
+                    Dim match = System.Text.RegularExpressions.Regex.Match(firstEditText, "Private Sub (\w+)\(")
+                    If match.Success Then
+                        firstMethodName = match.Groups(1).Value
+                    End If
+                End If
+            End If
+
+            Assert.NotNull(firstMethodName)
+
+            ' Apply the first edit to simulate real LSP behavior
+            Dim updatedText = text
+            If firstResolved.Edit.Changes IsNot Nothing AndAlso firstResolved.Edit.Changes.Count > 0 Then
+                Dim firstEdit = firstResolved.Edit.Changes.FirstOrDefault()
+                If firstEdit.Value IsNot Nothing AndAlso firstEdit.Value.Length > 0 Then
+                    updatedText = firstEdit.Value(0).NewText
+                End If
+            End If
+
+            ' Notify the document manager of the change to simulate applying the edit
+            _documentManager.HandleDidChange(New DidChangeTextDocumentParams With {
+                .TextDocument = New VersionedTextDocumentIdentifier With {
+                    .Uri = helperUri,
+                    .Version = 2
+                },
+                .ContentChanges = New TextDocumentContentChangeEvent() {
+                    New TextDocumentContentChangeEvent With {
+                        .Text = updatedText
+                    }
+                }
+            })
+
+            ' Second extraction (different selection, now from modified document)
+            Dim secondParams = New CodeActionParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = helperUri},
+                .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
+                    .Start = New Position(20, 20),
+                    .End = New Position(20, 35)
+                },
+                .Context = New CodeActionContext()
+            }
+
+            Dim secondActions = Await _codeActionsService.GetCodeActionsAsync(secondParams, CancellationToken.None)
+            Dim secondExtractAction = secondActions.FirstOrDefault(Function(action) String.Equals(action.Kind, "refactor.extract", StringComparison.Ordinal))
+            Assert.NotNull(secondExtractAction)
+
+            Dim secondResolved = Await _codeActionsService.ResolveCodeActionAsync(secondExtractAction, CancellationToken.None)
+            Assert.NotNull(secondResolved)
+            Assert.NotNull(secondResolved.Edit)
+
+            ' Extract method name from second resolved edit
+            Dim secondMethodName As String = Nothing
+            If secondResolved.Edit.Changes IsNot Nothing AndAlso secondResolved.Edit.Changes.Count > 0 Then
+                Dim secondEdit = secondResolved.Edit.Changes.FirstOrDefault()
+                If secondEdit.Value IsNot Nothing AndAlso secondEdit.Value.Length > 0 Then
+                    Dim secondEditText = secondEdit.Value(0).NewText
+                    Dim match = System.Text.RegularExpressions.Regex.Match(secondEditText, "Private Sub (\w+)\(")
+                    If match.Success Then
+                        secondMethodName = match.Groups(1).Value
+                    End If
+                End If
+            End If
+
+            ' Verify both methods were extracted
+            Assert.NotNull(secondMethodName)
+            ' Verify they have different names
+            Assert.NotEqual(firstMethodName, secondMethodName)
+        End Function
     End Class
 
 End Namespace

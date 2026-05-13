@@ -47,6 +47,10 @@ Public Class Helper
     Public Sub SignatureHelpTest()
         Dim result = Add(1, 2)
     End Sub
+
+    Public Sub ExtractedMethod()
+        ' Pre-existing method to test name deduplication
+    End Sub
 End Class
 
 Public Class BaseHelper

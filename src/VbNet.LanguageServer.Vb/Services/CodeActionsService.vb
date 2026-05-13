@@ -534,7 +534,7 @@ Namespace Services
 
             Dim normalizedBody = NormalizeIndent(selectedText, statementIndentSize, methodBodyIndentSize)
             Dim nl = Environment.NewLine
-            Dim methodName = "ExtractedMethod"
+            Dim methodName = GenerateUniqueMethodName("ExtractedMethod", source)
 
             Dim callText As String
             Dim methodText As String
@@ -639,6 +639,36 @@ Namespace Services
             result = System.Text.RegularExpressions.Regex.Replace(result, "^\s*" & Environment.NewLine, "", System.Text.RegularExpressions.RegexOptions.Multiline)
 
             Return result
+        End Function
+
+        ''' <summary>
+        ''' Generates a unique method name by finding existing methods in the source and appending
+        ''' a numeric suffix if the base name already exists.
+        ''' </summary>
+        Private Shared Function GenerateUniqueMethodName(baseName As String, sourceText As String) As String
+            ' Pattern to find all method declarations (Sub/Function)
+            Dim methodPattern = "^\s*(Private|Public|Protected|Friend|Async)?\s*(Sub|Function)\s+(\w+)\s*\("
+            Dim existingNames = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+
+            For Each m As Match In System.Text.RegularExpressions.Regex.Matches(
+                sourceText,
+                methodPattern,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase Or System.Text.RegularExpressions.RegexOptions.Multiline)
+                existingNames.Add(m.Groups(3).Value)
+            Next
+
+            ' If base name doesn't exist, use it
+            If Not existingNames.Contains(baseName) Then
+                Return baseName
+            End If
+
+            ' Otherwise, append numeric suffix until we find an unused name
+            Dim suffix = 1
+            While existingNames.Contains(baseName & suffix)
+                suffix += 1
+            End While
+
+            Return baseName & suffix
         End Function
 
         ''' <summary>
