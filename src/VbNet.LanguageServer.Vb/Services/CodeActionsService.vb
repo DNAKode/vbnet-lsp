@@ -85,6 +85,12 @@ Namespace Services
 
     Private Shared ReadOnly _identRe As New Regex("\b([A-Za-z_]\w*)\b")
 
+    ' Matches assignments to captured variables: varName = expr at start of line or after statement separator.
+    ' Used to detect which captured params need ByRef (they are mutated inside the selection).
+    Private Shared ReadOnly _capturedAssignRe As New Regex(
+        "(?m)(?:^|:)\s*(\w+)\s*=(?!=)",
+        RegexOptions.IgnoreCase)
+
     Private Shared ReadOnly _vbKeywords As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
         "And", "AndAlso", "As", "Boolean", "ByRef", "ByVal", "Byte", "Catch",
         "CBool", "CByte", "CChar", "CDate", "CDbl", "CDec", "Char", "CInt",
@@ -594,8 +600,28 @@ Namespace Services
       Dim capturedParams = FindCapturedParams(selectedText, localDims, preText)
       Dim escapedVars = FindEscapedVars(localDims, postText)
 
-      Dim paramList = String.Join(", ", capturedParams.Select(Function(kvp) TypedParam(kvp.Key, kvp.Value)))
-      Dim argList = String.Join(", ", capturedParams.Keys)
+      ' Detect which captured parameters are assigned inside the selection.
+      ' These must be ByRef so mutations flow back to the caller.
+      Dim assignedCaptured = FindAssignmentTargets(selectedText)
+      Dim byRefCaptured = capturedParams.Where(Function(kvp) assignedCaptured.Contains(kvp.Key)).ToDictionary(Function(kvp) kvp.Key, Function(kvp) kvp.Value, StringComparer.OrdinalIgnoreCase)
+      Dim byValCaptured = capturedParams.Where(Function(kvp) Not assignedCaptured.Contains(kvp.Key)).ToDictionary(Function(kvp) kvp.Key, Function(kvp) kvp.Value, StringComparer.OrdinalIgnoreCase)
+
+      Dim byValParamList = String.Join(", ", byValCaptured.Select(Function(kvp) TypedParam(kvp.Key, kvp.Value)))
+      Dim byRefParamList = String.Join(", ", byRefCaptured.Select(Function(kvp) "ByRef " & TypedParam(kvp.Key, kvp.Value)))
+      Dim byValArgList = String.Join(", ", byValCaptured.Keys)
+      Dim byRefArgList = String.Join(", ", byRefCaptured.Keys)
+
+      ' Combine ByVal and ByRef params: ByVal first, then ByRef
+      Dim allParamParts As New List(Of String)
+      If byValParamList.Length > 0 Then allParamParts.Add(byValParamList)
+      If byRefParamList.Length > 0 Then allParamParts.Add(byRefParamList)
+      Dim paramList = String.Join(", ", allParamParts)
+
+      ' Combine ByVal and ByRef args in the same order
+      Dim allArgParts As New List(Of String)
+      If byValArgList.Length > 0 Then allArgParts.Add(byValArgList)
+      If byRefArgList.Length > 0 Then allArgParts.Add(byRefArgList)
+      Dim argList = String.Join(", ", allArgParts)
 
       Dim normalizedBody = NormalizeIndent(selectedText, statementIndentSize, methodBodyIndentSize)
       Dim nl = If(source.Contains(vbCrLf), vbCrLf, vbLf)
@@ -614,19 +640,23 @@ Namespace Services
 
       ElseIf escapedVars.Count = 1 Then
         Dim esc = escapedVars.First()
-        callText = statementIndent & DimDecl(esc.Key, esc.Value) &
+        ' Normalize "As New" — "Dim x As New T() = method()" is invalid VB.
+        ' Use "Dim x As T() = method()" instead.
+        Dim normalizedType = NormalizeTypeName(esc.Value)
+        callText = statementIndent & "Dim " & esc.Key & " As " & normalizedType &
                    " = " & methodName & "(" & argList & ")" & nl
         Dim returnLine = New String(" "c, methodBodyIndentSize) & "Return " & esc.Key & nl
         methodText =
             nl &
-            methodIndent & "Private Function " & methodName & "(" & paramList & ") As " & If(String.IsNullOrEmpty(esc.Value), "Object", esc.Value) & nl &
+            methodIndent & "Private Function " & methodName & "(" & paramList & ") As " & If(String.IsNullOrEmpty(normalizedType), "Object", normalizedType) & nl &
             normalizedBody & nl &
             returnLine &
             methodIndent & "End Function" & nl
 
       Else
         ' Multiple escaped vars: use ByRef parameters
-        Dim byRefParts = escapedVars.Select(Function(kvp) "ByRef " & TypedParam(kvp.Key, kvp.Value))
+        ' Normalize "As New" — "ByRef x As New T()" and "Dim x As New T() = expr" are both invalid VB.
+        Dim byRefParts = escapedVars.Select(Function(kvp) "ByRef " & TypedParam(kvp.Key, NormalizeTypeName(kvp.Value)))
         Dim fullParamList = If(paramList.Length > 0,
             paramList & ", " & String.Join(", ", byRefParts),
             String.Join(", ", byRefParts))
@@ -637,16 +667,22 @@ Namespace Services
         Dim escapedArgInit = String.Join(nl,
             escapedVars.Select(Function(kvp)
                                  Dim init As String = Nothing
+                                 ' Use NormalizeTypeName for call-site Dim declarations with initializer,
+                                 ' since "Dim x As New T() = expr" is invalid VB.
                                  If originalInits.TryGetValue(kvp.Key, init) Then
-                                   Return statementIndent & DimDecl(kvp.Key, kvp.Value) & " = " & init
+                                   Return statementIndent & "Dim " & kvp.Key & " As " & NormalizeTypeName(kvp.Value) & " = " & init
                                  End If
-                                 Return statementIndent & DimDecl(kvp.Key, kvp.Value)
+                                 Return statementIndent & "Dim " & kvp.Key & " As " & NormalizeTypeName(kvp.Value)
                                End Function))
         Dim escapedArgNames = String.Join(", ", escapedVars.Keys)
         Dim fullArgList = If(argList.Length > 0, argList & ", " & escapedArgNames, escapedArgNames)
         callText = escapedArgInit & nl & statementIndent & methodName & "(" & fullArgList & ")" & nl
         ' Remove conflicting Dim declarations from method body (they're now ByRef parameters)
-        Dim cleanedBody = RemoveConflictingDimDeclarations(normalizedBody, escapedVars.Keys)
+        ' Also remove conflicting Dim declarations for ByRef captured params that were promoted
+        ' from captured to ByRef (they were assigned inside the selection).
+        Dim allByRefVars = New List(Of String)(escapedVars.Keys)
+        allByRefVars.AddRange(byRefCaptured.Keys)
+        Dim cleanedBody = RemoveConflictingDimDeclarations(normalizedBody, allByRefVars)
         methodText =
             nl &
             methodIndent & "Private Sub " & methodName & "(" & fullParamList & ")" & nl &
@@ -823,13 +859,51 @@ Namespace Services
 
     ' Returns "{name} As {typeName}" or just "{name}" for implicitly-typed variables
     ' (empty typeName). Callers prepend keywords such as "ByRef " as needed.
+    ''' <summary>
+    ''' Strips the "New " prefix from a type name when it appears in a context that
+    ''' does not allow "As New" syntax (parameter declarations, return types, Dim with initializer).
+    ''' "As New T" is only valid in bare Dim declarations like "Dim x As New T()".
+    ''' In contexts like "Dim x As T = expr", "x As T" (parameter), or ") As T" (return type),
+    ''' the "New " prefix must be removed to produce valid VB.
+    ''' </summary>
+    Private Shared Function NormalizeTypeName(typeName As String) As String
+      If String.IsNullOrEmpty(typeName) Then
+        Return typeName
+      End If
+      ' Strip leading "New " (case-insensitive) — the regex captures the full "New T(...)" expression.
+      If typeName.StartsWith("New ", StringComparison.OrdinalIgnoreCase) Then
+        Return typeName.Substring(4).Trim()
+      End If
+      Return typeName
+    End Function
+
     Private Shared Function TypedParam(name As String, typeName As String) As String
-      Return If(String.IsNullOrEmpty(typeName), name, name & " As " & typeName)
+      Return If(String.IsNullOrEmpty(typeName), name, name & " As " & NormalizeTypeName(typeName))
     End Function
 
     ' Returns "Dim {name} As {typeName}" or "Dim {name}" for implicitly-typed variables.
+    ' Note: "As New" is valid in bare Dim declarations, but when the Dim has an initializer
+    ' ("= expr"), callers must use NormalizeTypeName first since "As New" with "=" is invalid VB.
     Private Shared Function DimDecl(name As String, typeName As String) As String
       Return If(String.IsNullOrEmpty(typeName), "Dim " & name, "Dim " & name & " As " & typeName)
+    End Function
+
+    ''' <summary>
+    ''' Scans the given text for assignment targets and returns a set of variable names
+    ''' that are assigned to. Used to detect which captured variables need ByRef parameters.
+    ''' Matches simple assignments (x = ...) at the start of a line or after a statement
+    ''' separator (:), avoiding comparison contexts like If/While/Until.
+    ''' </summary>
+    Private Shared Function FindAssignmentTargets(text As String) As HashSet(Of String)
+      Dim result As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+      Dim stripped = StripStringsAndComments(text)
+      For Each m As Match In _capturedAssignRe.Matches(stripped)
+        Dim name = m.Groups(1).Value
+        If Not _vbKeywords.Contains(name) Then
+          result.Add(name)
+        End If
+      Next
+      Return result
     End Function
 
     ''' <summary>
