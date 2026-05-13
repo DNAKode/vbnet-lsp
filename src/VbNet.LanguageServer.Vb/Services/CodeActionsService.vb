@@ -185,10 +185,12 @@ Namespace Services
             End If
 
             If StringComparer.Ordinal.Equals(data.ActionType, ActionTypeOption) Then
-                If String.IsNullOrWhiteSpace(data.Uri) Then
+                If String.IsNullOrWhiteSpace(data.Uri) OrElse
+                   Not data.InsertionLine.HasValue OrElse
+                   String.IsNullOrWhiteSpace(data.OptionText) Then
                     Return action
                 End If
-                action.Edit = BuildOptionEdit(data.Uri, data.InsertionLine.GetValueOrDefault(), data.OptionText)
+                action.Edit = BuildOptionEdit(data.Uri, data.InsertionLine.Value, data.OptionText)
                 Return action
             End If
 
