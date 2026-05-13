@@ -260,23 +260,29 @@ Namespace VbNet.LanguageServer.Tests.Services
 
         <Fact>
         Public Async Function GetCodeActionsAsync_SelectionThatCutsIfBoundary_DoesNotReturnExtractAction() As Task
-            Dim projectPath = Path.Combine("C:\Code\Repos\vbnet-lsp\test\TestProjects", "MediumProject", "MediumProject.vbproj")
-            Dim filePath = Path.Combine("C:\Code\Repos\vbnet-lsp\test\TestProjects", "MediumProject", "Program.vb")
-
-            Await _workspaceManager.LoadProjectAsync(projectPath)
-
-            Dim uri = New Uri(filePath).ToString()
-            Dim text = Await File.ReadAllTextAsync(filePath)
+            Dim uri = "file:///test-boundary.vb"
+            Dim fileText =
+                "Module Program" & Environment.NewLine &
+                "    Sub Main(args As String())" & Environment.NewLine &
+                "        Console.WriteLine(""VB.NET MediumProject"")" & Environment.NewLine &
+                "        Dim sum = 0" & Environment.NewLine &
+                "        For i = 1 To 5" & Environment.NewLine &
+                "            sum += i" & Environment.NewLine &
+                "        Next" & Environment.NewLine &
+                "        Console.WriteLine($""Sum = {sum}"")" & Environment.NewLine &
+                "    End Sub" & Environment.NewLine &
+                "End Module" & Environment.NewLine
 
             _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
                 .TextDocument = New TextDocumentItem With {
                     .Uri = uri,
                     .LanguageId = "vb",
                     .Version = 1,
-                    .Text = text
+                    .Text = fileText
                 }
             })
 
+            ' Selection from "sum += i" (line 5) to "Next" (line 6) crosses the For boundary.
             Dim result = Await _codeActionsService.GetCodeActionsAsync(New CodeActionParams With {
                 .TextDocument = New TextDocumentIdentifier With {.Uri = uri},
                 .Range = New Global.VbNet.LanguageServer.Protocol.Range With {

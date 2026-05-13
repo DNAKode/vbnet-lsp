@@ -405,12 +405,12 @@ Namespace VbNet.LanguageServer.Tests.Integration
 
             Assert.NotNull(firstMethodName)
 
-            ' Apply the first edit to simulate real LSP behavior
+            ' Apply the first edit properly by using its range, just as a real LSP client would.
             Dim updatedText = text
             If firstResolved.Edit.Changes IsNot Nothing AndAlso firstResolved.Edit.Changes.Count > 0 Then
                 Dim firstEdit = firstResolved.Edit.Changes.FirstOrDefault()
                 If firstEdit.Value IsNot Nothing AndAlso firstEdit.Value.Length > 0 Then
-                    updatedText = firstEdit.Value(0).NewText
+                    updatedText = ApplyTextEdit(updatedText, firstEdit.Value(0))
                 End If
             End If
 
@@ -463,6 +463,31 @@ Namespace VbNet.LanguageServer.Tests.Integration
             ' Verify they have different names
             Assert.NotEqual(firstMethodName, secondMethodName)
         End Function
+        ''' <summary>
+        ''' Applies a single TextEdit to source text by replacing the edit's range with NewText,
+        ''' the same way a real LSP client would apply edits.
+        ''' </summary>
+        Private Shared Function ApplyTextEdit(originalText As String, edit As TextEdit) As String
+            Dim lines = originalText.Split({Environment.NewLine}, StringSplitOptions.None)
+
+            Dim CalcOffset = Function(lineNum As Integer, charNum As Integer) As Integer
+                                 Dim offset = 0
+                                 For i = 0 To Math.Min(lineNum, lines.Length) - 1
+                                     offset += lines(i).Length + Environment.NewLine.Length
+                                 Next
+                                 If lineNum < lines.Length Then
+                                     offset += Math.Min(charNum, lines(lineNum).Length)
+                                 Else
+                                     offset = originalText.Length
+                                 End If
+                                 Return offset
+                             End Function
+
+            Dim startOffset = CalcOffset(edit.Range.Start.Line, edit.Range.Start.Character)
+            Dim endOffset = CalcOffset(edit.Range.[End].Line, edit.Range.[End].Character)
+            Return originalText.Substring(0, startOffset) & edit.NewText & originalText.Substring(endOffset)
+        End Function
+
     End Class
 
 End Namespace

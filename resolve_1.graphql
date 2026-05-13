@@ -1,9 +1,0 @@
-mutation {
-  addComment(input: {subjectId: "PRRT_kwDOQ2l2O86Bkwfc", body: "**Resolved**: Removed unused `_workspaceManager` field in commit 0781bda. The field was assigned in the constructor but never used in the class. This cleanup removes dead code and prevents build warnings."}) {
-    commentEdge {
-      node {
-        id
-      }
-    }
-  }
-}

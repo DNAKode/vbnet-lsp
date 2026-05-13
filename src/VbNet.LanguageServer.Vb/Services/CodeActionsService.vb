@@ -646,15 +646,16 @@ Namespace Services
         ''' a numeric suffix if the base name already exists.
         ''' </summary>
         Private Shared Function GenerateUniqueMethodName(baseName As String, sourceText As String) As String
-            ' Pattern to find all method declarations (Sub/Function)
-            Dim methodPattern = "^\s*(Private|Public|Protected|Friend|Async)?\s*(Sub|Function)\s+(\w+)\s*\("
+            ' Pattern handles zero or more modifiers (Private, Public, Async, Shared, Overrides, etc.)
+            ' before Sub/Function, so "Private Async Sub Foo(" and "Public Shared Function Bar(" are both matched.
+            Dim methodPattern = "^\s*(?:(?:Private|Public|Protected|Friend|Async|Shared|Overrides|Overloads|MustOverride|NotOverridable|Overridable|Shadows)\s+)*(?:Sub|Function)\s+(?<name>\w+)\s*\("
             Dim existingNames = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
 
             For Each m As Match In System.Text.RegularExpressions.Regex.Matches(
                 sourceText,
                 methodPattern,
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase Or System.Text.RegularExpressions.RegexOptions.Multiline)
-                existingNames.Add(m.Groups(3).Value)
+                existingNames.Add(m.Groups("name").Value)
             Next
 
             ' If base name doesn't exist, use it
@@ -1087,10 +1088,10 @@ Namespace Services
 
             Dim startLine = sourceText.Lines([range].Start.Line)
             Dim endLine = sourceText.Lines([range].End.Line)
-            ' Clip character offsets to the line boundary so that large sentinel values
-            ' (e.g. character=99 meaning "end of line") do not overrun into the next line.
-            Dim startPosition = Math.Min(startLine.Start + Math.Max(0, [range].Start.Character), startLine.EndIncludingLineBreak)
-            Dim endPosition = Math.Min(endLine.Start + Math.Max(0, [range].End.Character), endLine.EndIncludingLineBreak)
+            ' Clip character offsets to the line content boundary (End, excluding the line break)
+            ' so that large sentinel values (e.g. character=99) do not bleed into newline characters.
+            Dim startPosition = Math.Min(startLine.Start + Math.Max(0, [range].Start.Character), startLine.End)
+            Dim endPosition = Math.Min(endLine.Start + Math.Max(0, [range].End.Character), endLine.End)
 
             startPosition = Math.Min(startPosition, sourceText.Length)
             endPosition = Math.Min(endPosition, sourceText.Length)
