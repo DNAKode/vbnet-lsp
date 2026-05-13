@@ -1,0 +1,17 @@
+Test run for C:\Code\Repos\vbnet-lsp\test\VbNet.Extension.Tests.Vb\bin\Debug\net10.0\VbNet.Extension.Tests.Vb.dll (.NETCoreApp,Version=v10.0)
+Test run for C:\Code\Repos\vbnet-lsp\test\VbNet.LanguageServer.Tests.Vb\bin\Debug\net10.0\VbNet.LanguageServer.Tests.Vb.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7, Duration: 17 ms - VbNet.Extension.Tests.Vb.dll (net10.0)
+[xUnit.net 00:00:02.66]     VbNet.LanguageServer.Tests.Vb.VbNet.LanguageServer.Tests.Services.CodeActionsServiceTests.GetCodeActionsAsync_NestedIfSelectionThatCutsBoundary_DoesNotReturnExtractAction [FAIL]
+  Failed VbNet.LanguageServer.Tests.Vb.VbNet.LanguageServer.Tests.Services.CodeActionsServiceTests.GetCodeActionsAsync_NestedIfSelectionThatCutsBoundary_DoesNotReturnExtractAction [18 ms]
+  Error Message:
+   Assert.Null() Failure: Value is not null
+Expected: null
+Actual:   WorkspaceEdit { Changes = [["file:///ScopeFixture.vb"] = [TextEdit { NewText = "Public Class ScopeFixture\r\n    Public Sub Proces"┬╖┬╖┬╖, Range = Range { End = Position { ┬╖┬╖┬╖ }, Start = Position { ┬╖┬╖┬╖ } } }]], DocumentChanges = null }
+  Stack Trace:
+     at VbNet.LanguageServer.Tests.Vb.VbNet.LanguageServer.Tests.Services.CodeActionsServiceTests.GetCodeActionsAsync_NestedIfSelectionThatCutsBoundary_DoesNotReturnExtractAction() in C:\Code\Repos\vbnet-lsp\test\VbNet.LanguageServer.Tests.Vb\Services\CodeActionsServiceTests.vb:line 342
+--- End of stack trace from previous location ---
+
+Failed!  - Failed:     1, Passed:   186, Skipped:     0, Total:   187, Duration: 1 m 14 s - VbNet.LanguageServer.Tests.Vb.dll (net10.0)

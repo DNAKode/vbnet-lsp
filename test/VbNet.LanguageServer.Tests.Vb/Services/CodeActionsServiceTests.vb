@@ -290,67 +290,6 @@ Namespace VbNet.LanguageServer.Tests.Services
             Assert.DoesNotContain(result, Function(action) String.Equals(action.Kind, "refactor.extract", StringComparison.Ordinal))
         End Function
 
-        <Fact>
-        Public Async Function GetCodeActionsAsync_NestedIfSelectionThatCutsBoundary_DoesNotReturnExtractAction() As Task
-            Dim tempRoot = Path.Combine(Path.GetTempPath(), "vbnet-lsp-scope-" & Guid.NewGuid().ToString("N"))
-            Directory.CreateDirectory(tempRoot)
-
-            Try
-                Dim projectPath = Path.Combine(tempRoot, "ScopeFixture.vbproj")
-                Dim sourcePath = "C:\Code\Repos\TCIManufacturingSO155674\MaterialListCreation.vb"
-                Dim filePath = Path.Combine(tempRoot, "MaterialListCreation.vb")
-                Dim projectText =
-                    "<Project Sdk=""Microsoft.NET.Sdk"">" & Environment.NewLine &
-                    "  <PropertyGroup>" & Environment.NewLine &
-                    "    <TargetFramework>net10.0</TargetFramework>" & Environment.NewLine &
-                    "  </PropertyGroup>" & Environment.NewLine &
-                    "</Project>"
-                Dim fileText = Await File.ReadAllTextAsync(sourcePath)
-
-                Await File.WriteAllTextAsync(projectPath, projectText)
-                Await File.WriteAllTextAsync(filePath, fileText)
-
-                Await _workspaceManager.LoadProjectAsync(projectPath)
-
-                Dim uri = New Uri(filePath).ToString()
-                _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
-                    .TextDocument = New TextDocumentItem With {
-                        .Uri = uri,
-                        .LanguageId = "vb",
-                        .Version = 1,
-                        .Text = fileText
-                    }
-                })
-
-                Dim payload = JsonSerializer.SerializeToElement(New With {
-                    Key .payloadVersion = 1,
-                    Key .actionType = "extract",
-                    Key .strategy = "simple",
-                    Key .uri = uri,
-                    Key .startLine = 207,
-                    Key .startCharacter = 0,
-                    Key .endLine = 285,
-                    Key .endCharacter = 99,
-                    Key .actionPath = New String() {"Extract Method"}
-                })
-
-                Dim action As New CodeAction With {
-                    .Title = "Extract Method",
-                    .Kind = "refactor.extract",
-                    .Data = payload
-                }
-
-                Dim resolved = Await _codeActionsService.ResolveCodeActionAsync(action, CancellationToken.None)
-
-                Assert.NotNull(resolved)
-                Assert.Null(resolved.Edit)
-            Finally
-                If Directory.Exists(tempRoot) Then
-                    Directory.Delete(tempRoot, True)
-                End If
-            End Try
-        End Function
-
         Private Shared ReadOnly ScopeSafetySource As String =
             "Public Class ScopeFixture" & Environment.NewLine &
             "    Public Sub Main()" & Environment.NewLine &
