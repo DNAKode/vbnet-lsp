@@ -68,7 +68,7 @@ Namespace VbNet.LanguageServer.Tests.Services
         <InlineData(-1, 0, 0, 0)>
         <InlineData(0, 0, -1, 0)>
         <InlineData(0, -5, 0, 0)>
-        Public Async Function GetCodeActionsAsync_InvalidRange_ReturnsEmpty(startLine As Integer, startChar As Integer, endLine As Integer, endChar As Integer) As Task
+        Public Async Function GetCodeActionsAsync_InvalidRange_ReturnsNoExtractActions(startLine As Integer, startChar As Integer, endLine As Integer, endChar As Integer) As Task
             ' Open a minimal in-memory document so source text exists
             Dim uri = "file:///test-range.vb"
             _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {

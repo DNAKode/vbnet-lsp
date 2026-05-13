@@ -52,9 +52,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -89,9 +87,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -134,9 +130,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -170,9 +164,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -214,9 +206,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -257,9 +247,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 
@@ -298,9 +286,7 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
 
-            If Not File.Exists(projectPath) Then
-                Return
-            End If
+            Assert.True(File.Exists(projectPath), $"Test fixture missing: {projectPath}. Ensure TestProjects/SmallProject is present.")
 
             Await _workspaceManager.LoadProjectAsync(projectPath)
 

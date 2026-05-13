@@ -49,8 +49,9 @@ Namespace Services
         RegexOptions.IgnoreCase)
 
     ' Captures name + full "As New T(...)" expression from "Dim x As New T(...)" declarations.
+    ' Stops capture at a single-quote comment delimiter so trailing comments are not included.
     Private Shared ReadOnly _dimAsNewRe As New Regex(
-        "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(New\s+.+?)\s*$",
+        "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(New\s+[^'\r\n]+?)\s*(?:'[^\r\n]*)?\s*$",
         RegexOptions.IgnoreCase)
 
     ' Captures the initializer expression from "Dim x As Type = <expr>" declarations.
@@ -883,7 +884,7 @@ Namespace Services
     End Function
 
     Private Shared Function TypedParam(name As String, typeName As String) As String
-      Return If(String.IsNullOrEmpty(typeName), name, name & " As " & NormalizeTypeName(typeName))
+      Return If(String.IsNullOrEmpty(typeName), name & " As Object", name & " As " & NormalizeTypeName(typeName))
     End Function
 
     ' Returns "Dim {name} As {typeName}" or "Dim {name}" for implicitly-typed variables.
