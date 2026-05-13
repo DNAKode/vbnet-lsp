@@ -472,14 +472,20 @@ Namespace VbNet.LanguageServer.Tests.Integration
         ''' <summary>
         ''' Applies a single TextEdit to source text by replacing the edit's range with NewText,
         ''' the same way a real LSP client would apply edits.
+        ''' Detects the actual newline convention in the text (LF vs CRLF) rather than
+        ''' relying on Environment.NewLine, so offset calculations are correct on all platforms.
         ''' </summary>
         Private Shared Function ApplyTextEdit(originalText As String, edit As TextEdit) As String
-            Dim lines = originalText.Split({Environment.NewLine}, StringSplitOptions.None)
+            ' Detect the newline style actually present in the text.
+            ' The repo enforces LF via .gitattributes, but text could arrive with CRLF on Windows.
+            Dim newline = If(originalText.Contains(vbCrLf), vbCrLf, vbLf)
+            Dim nlLen = newline.Length
+            Dim lines = originalText.Split({vbCrLf, vbLf}, StringSplitOptions.None)
 
             Dim CalcOffset = Function(lineNum As Integer, charNum As Integer) As Integer
                                  Dim offset = 0
                                  For i = 0 To Math.Min(lineNum, lines.Length) - 1
-                                     offset += lines(i).Length + Environment.NewLine.Length
+                                     offset += lines(i).Length + nlLen
                                  Next
                                  If lineNum < lines.Length Then
                                      offset += Math.Min(charNum, lines(lineNum).Length)

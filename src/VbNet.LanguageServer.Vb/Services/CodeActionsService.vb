@@ -42,6 +42,12 @@ Namespace Services
             "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+(\w+(?:\.\w+)*(?:\(\s*\))?)",
             RegexOptions.IgnoreCase)
 
+        ' Matches implicit-type "Dim x = expr" declarations (no As clause).
+        ' Type falls back to Object since no annotation is present.
+        Private Shared ReadOnly _dimImplicitRe As New Regex(
+            "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s*=",
+            RegexOptions.IgnoreCase)
+
         ' Captures the initializer expression from "Dim x As Type = <expr>" declarations.
         Private Shared ReadOnly _dimInitializerRe As New Regex(
             "(?m)^\s*Dim\s+(\w+)(?:\(\s*\))?\s+As\s+\w+(?:\.\w+)*(?:\(\s*\))?\s*=\s*(.+?)\s*$",
@@ -704,6 +710,11 @@ Namespace Services
             For Each m As Match In _dimDeclRe.Matches(text)
                 addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
             Next
+            ' Implicit-type: "Dim x = expr" — no As clause; type inferred at compile time.
+            ' Use Object as a safe placeholder so the variable is still tracked for escape analysis.
+            For Each m As Match In _dimImplicitRe.Matches(text)
+                addIfAbsent(m.Groups(1).Value, "Object")
+            Next
             For Each m As Match In _forEachDeclRe.Matches(text)
                 addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
             Next
@@ -787,24 +798,29 @@ Namespace Services
         ''' Finds variables declared inside the selection whose names also appear after the
         ''' selection — these escape and must be returned or passed ByRef.
         ''' Only scans within the current method body (stops at the next method declaration)
+        ''' Finds local variables that are referenced after the selection end —
         ''' to avoid false positives from identically-named vars in other methods.
         ''' </summary>
         Private Shared Function FindEscapedVars(
             localDims As Dictionary(Of String, String),
             postText As String) As Dictionary(Of String, String)
 
+            ' Strip strings/comments first so that method signature detection is not misled
+            ' by comment or string content that resembles a Sub/Function header.
+            ' StripStringsAndComments preserves text length, so the match index is valid
+            ' for scoping the stripped text directly.
+            Dim strippedPost = StripStringsAndComments(postText)
+
             ' Scope to the current method only: stop at the next Sub/Function/Property declaration.
-            Dim nextSig = _methodSigRe.Match(postText)
-            Dim scopedPost = If(nextSig.Success, postText.Substring(0, nextSig.Index), postText)
-            ' Also strip string literals and comments from the scope.
-            scopedPost = StripStringsAndComments(scopedPost)
+            Dim nextSig = _methodSigRe.Match(strippedPost)
+            Dim scopedStripped = If(nextSig.Success, strippedPost.Substring(0, nextSig.Index), strippedPost)
 
             Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
             For Each kvp In localDims
                 Dim pattern As New Regex(
                     "\b" & Regex.Escape(kvp.Key) & "\b",
                     RegexOptions.IgnoreCase)
-                If pattern.IsMatch(scopedPost) Then
+                If pattern.IsMatch(scopedStripped) Then
                     result.Add(kvp.Key, kvp.Value)
                 End If
             Next
@@ -815,6 +831,8 @@ Namespace Services
         ''' Returns a copy of <paramref name="text"/> with string literal contents
         ''' and line comments replaced by spaces, so that identifier scanning does
         ''' not produce false positives from text inside literals or comments.
+        ''' The returned string is guaranteed to have the same length as the input,
+        ''' which means character offsets computed on one are valid for the other.
         ''' </summary>
         Private Shared Function StripStringsAndComments(text As String) As String
             Dim sb As New System.Text.StringBuilder(text.Length)
@@ -822,14 +840,19 @@ Namespace Services
             While i < text.Length
                 Dim c = text(i)
                 If c = """"c Then
-                    ' String literal: skip content until closing quote.
+                    ' String literal: replace ALL characters (including opening/closing quotes)
+                    ' with spaces so token boundaries and offsets remain stable.
+                    sb.Append(" "c) ' opening quote
                     i += 1
                     While i < text.Length
                         If text(i) = """"c Then
                             If i + 1 < text.Length AndAlso text(i + 1) = """"c Then
-                                i += 2 ' skip "" escape inside string
+                                sb.Append(" "c) ' first quote of "" escape
+                                sb.Append(" "c) ' second quote of "" escape
+                                i += 2
                             Else
-                                i += 1 ' skip closing quote
+                                sb.Append(" "c) ' closing quote
+                                i += 1
                                 Exit While
                             End If
                         Else
@@ -838,8 +861,10 @@ Namespace Services
                         End If
                     End While
                 ElseIf c = "'"c Then
-                    ' Line comment: skip to end of line, preserving newline chars.
+                    ' Line comment: replace comment char and all content with spaces,
+                    ' preserving newline characters so line numbers remain intact.
                     While i < text.Length AndAlso text(i) <> ChrW(13) AndAlso text(i) <> ChrW(10)
+                        sb.Append(" "c)
                         i += 1
                     End While
                 Else
