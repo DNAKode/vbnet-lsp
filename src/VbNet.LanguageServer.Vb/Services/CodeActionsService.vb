@@ -7,6 +7,8 @@ Imports System.Text.RegularExpressions
 Imports System.Text.Json.Serialization
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Text
+Imports Microsoft.CodeAnalysis.VisualBasic
+Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 Imports Microsoft.Extensions.Logging
 Imports VbNet.LanguageServer.Protocol
 Imports VbNet.LanguageServer.Workspace
@@ -201,6 +203,13 @@ Namespace Services
                 Return Array.Empty(Of CodeAction)()
             End If
 
+            Dim syntaxTree = VisualBasicSyntaxTree.ParseText(sourceText, cancellationToken:=cancellationToken)
+            Dim root = Await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(False)
+            If Not IsSelectionLexicallySafe(selection.Value, root) Then
+                _logger.LogTrace("Extract skipped: selection crosses a lexical boundary for {Uri}", uri)
+                Return Array.Empty(Of CodeAction)()
+            End If
+
             _logger.LogTrace("Extract discovery start: {Uri}, span=[{Start},{End}]", uri, selection.Value.Start, selection.Value.End)
             Dim discovered = Await DiscoverExtractRoslynActionsAsync(document, parameters.Range, selection.Value, cancellationToken).ConfigureAwait(False)
             _logger.LogTrace("Extract discovery complete: {Count} Roslyn actions for {Uri}", discovered.Count, uri)
@@ -265,6 +274,13 @@ Namespace Services
                 Return action
             End If
 
+            Dim syntaxTree = VisualBasicSyntaxTree.ParseText(sourceText, cancellationToken:=cancellationToken)
+            Dim root = Await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(False)
+            If Not IsSelectionLexicallySafe(selection.Value, root) Then
+                _logger.LogTrace("Resolve extract miss: selection crosses a lexical boundary for {Uri}", data.Uri)
+                Return action
+            End If
+
             If StringComparer.Ordinal.Equals(data.Strategy, ExtractStrategySimple) Then
                 _logger.LogTrace("Resolve extract: applying simple strategy for {Uri}", data.Uri)
                 Dim simpleEdit = BuildSimpleExtractEdit(data, sourceText)
@@ -304,6 +320,116 @@ Namespace Services
             End If
 
             Return FindEnclosingEndSubLine([range].End.Line, sourceText) >= 0
+        End Function
+
+        Friend Shared Function IsSelectionLexicallySafe(selection As TextSpan, root As SyntaxNode) As Boolean
+            If root Is Nothing Then
+                Return False
+            End If
+
+            For Each node In root.DescendantNodesAndSelf()
+                If Not node.Span.IntersectsWith(selection) Then
+                    Continue For
+                End If
+
+                If RequiresContainingBlockBoundary(node) AndAlso Not IsContainingBlockFullySelected(selection, node) Then
+                    Return False
+                End If
+
+                Dim boundarySpans = GetSelectionBoundarySpans(node).ToArray()
+                If boundarySpans.Length >= 2 Then
+                    Dim containedCount = boundarySpans.Count(Function(span) selection.Contains(span))
+                    If containedCount > 0 AndAlso containedCount < boundarySpans.Length Then
+                        Return False
+                    End If
+                End If
+
+                For Each boundary In boundarySpans
+                    If selection.IntersectsWith(boundary) AndAlso Not selection.Contains(boundary) Then
+                        Return False
+                    End If
+                Next
+            Next
+
+            Return True
+        End Function
+
+        Private Shared Function RequiresContainingBlockBoundary(node As SyntaxNode) As Boolean
+            Return TypeOf node Is ElseIfBlockSyntax OrElse
+                   TypeOf node Is ElseBlockSyntax OrElse
+                   TypeOf node Is CatchBlockSyntax OrElse
+                   TypeOf node Is FinallyBlockSyntax OrElse
+                   TypeOf node Is CaseBlockSyntax
+        End Function
+
+        Private Shared Function IsContainingBlockFullySelected(selection As TextSpan, node As SyntaxNode) As Boolean
+            Dim current = node.Parent
+            While current IsNot Nothing
+                Dim boundarySpans = GetSelectionBoundarySpans(current).ToArray()
+                If boundarySpans.Length >= 2 Then
+                    Return boundarySpans.All(Function(span) selection.Contains(span))
+                End If
+
+                current = current.Parent
+            End While
+
+            Return False
+        End Function
+
+        Private Shared Iterator Function GetSelectionBoundarySpans(node As SyntaxNode) As IEnumerable(Of TextSpan)
+            Select Case True
+                Case TypeOf node Is MultiLineIfBlockSyntax
+                    Dim block = DirectCast(node, MultiLineIfBlockSyntax)
+                    If block.IfStatement IsNot Nothing Then Yield block.IfStatement.Span
+                    If block.EndIfStatement IsNot Nothing Then Yield block.EndIfStatement.Span
+                Case TypeOf node Is ElseIfBlockSyntax
+                    Dim block = DirectCast(node, ElseIfBlockSyntax)
+                    If block.ElseIfStatement IsNot Nothing Then Yield block.ElseIfStatement.Span
+                Case TypeOf node Is ElseBlockSyntax
+                    Dim block = DirectCast(node, ElseBlockSyntax)
+                    If block.ElseStatement IsNot Nothing Then Yield block.ElseStatement.Span
+                Case TypeOf node Is TryBlockSyntax
+                    Dim block = DirectCast(node, TryBlockSyntax)
+                    If block.TryStatement IsNot Nothing Then Yield block.TryStatement.Span
+                    If block.EndTryStatement IsNot Nothing Then Yield block.EndTryStatement.Span
+                Case TypeOf node Is CatchBlockSyntax
+                    Dim block = DirectCast(node, CatchBlockSyntax)
+                    If block.CatchStatement IsNot Nothing Then Yield block.CatchStatement.Span
+                Case TypeOf node Is FinallyBlockSyntax
+                    Dim block = DirectCast(node, FinallyBlockSyntax)
+                    If block.FinallyStatement IsNot Nothing Then Yield block.FinallyStatement.Span
+                Case TypeOf node Is SelectBlockSyntax
+                    Dim block = DirectCast(node, SelectBlockSyntax)
+                    If block.SelectStatement IsNot Nothing Then Yield block.SelectStatement.Span
+                    If block.EndSelectStatement IsNot Nothing Then Yield block.EndSelectStatement.Span
+                Case TypeOf node Is CaseBlockSyntax
+                    Dim block = DirectCast(node, CaseBlockSyntax)
+                    If block.CaseStatement IsNot Nothing Then Yield block.CaseStatement.Span
+                Case TypeOf node Is WhileBlockSyntax
+                    Dim block = DirectCast(node, WhileBlockSyntax)
+                    If block.WhileStatement IsNot Nothing Then Yield block.WhileStatement.Span
+                    If block.EndWhileStatement IsNot Nothing Then Yield block.EndWhileStatement.Span
+                Case TypeOf node Is UsingBlockSyntax
+                    Dim block = DirectCast(node, UsingBlockSyntax)
+                    If block.UsingStatement IsNot Nothing Then Yield block.UsingStatement.Span
+                    If block.EndUsingStatement IsNot Nothing Then Yield block.EndUsingStatement.Span
+                Case TypeOf node Is SyncLockBlockSyntax
+                    Dim block = DirectCast(node, SyncLockBlockSyntax)
+                    If block.SyncLockStatement IsNot Nothing Then Yield block.SyncLockStatement.Span
+                    If block.EndSyncLockStatement IsNot Nothing Then Yield block.EndSyncLockStatement.Span
+                Case TypeOf node Is WithBlockSyntax
+                    Dim block = DirectCast(node, WithBlockSyntax)
+                    If block.WithStatement IsNot Nothing Then Yield block.WithStatement.Span
+                    If block.EndWithStatement IsNot Nothing Then Yield block.EndWithStatement.Span
+                Case TypeOf node Is DoLoopBlockSyntax
+                    Dim block = DirectCast(node, DoLoopBlockSyntax)
+                    If block.DoStatement IsNot Nothing Then Yield block.DoStatement.Span
+                    If block.LoopStatement IsNot Nothing Then Yield block.LoopStatement.Span
+                Case TypeOf node Is ForOrForEachBlockSyntax
+                    Dim block = DirectCast(node, ForOrForEachBlockSyntax)
+                    If block.ForOrForEachStatement IsNot Nothing Then Yield block.ForOrForEachStatement.Span
+                    If block.NextStatement IsNot Nothing Then Yield block.NextStatement.Span
+            End Select
         End Function
 
         Private Shared Function BuildSimpleExtractEdit(data As CodeActionResolveData, sourceText As SourceText) As WorkspaceEdit

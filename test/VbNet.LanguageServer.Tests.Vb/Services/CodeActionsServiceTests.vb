@@ -1,6 +1,10 @@
-﻿Imports System.Text.Json
+Imports System.Text.Json
+Imports System.IO
 Imports System.Threading
 Imports System.Threading.Tasks
+Imports Microsoft.CodeAnalysis
+Imports Microsoft.CodeAnalysis.Text
+Imports Microsoft.CodeAnalysis.VisualBasic
 Imports Microsoft.Extensions.Logging.Abstractions
 Imports VbNet.LanguageServer.Protocol
 Imports VbNet.LanguageServer.Services
@@ -253,6 +257,143 @@ Namespace VbNet.LanguageServer.Tests.Services
             Assert.NotNull(result)
             Assert.Null(result.Edit)
         End Function
+
+        <Fact>
+        Public Async Function GetCodeActionsAsync_SelectionThatCutsIfBoundary_DoesNotReturnExtractAction() As Task
+            Dim projectPath = Path.Combine("C:\Code\Repos\vbnet-lsp\test\TestProjects", "MediumProject", "MediumProject.vbproj")
+            Dim filePath = Path.Combine("C:\Code\Repos\vbnet-lsp\test\TestProjects", "MediumProject", "Program.vb")
+
+            Await _workspaceManager.LoadProjectAsync(projectPath)
+
+            Dim uri = New Uri(filePath).ToString()
+            Dim text = Await File.ReadAllTextAsync(filePath)
+
+            _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                .TextDocument = New TextDocumentItem With {
+                    .Uri = uri,
+                    .LanguageId = "vb",
+                    .Version = 1,
+                    .Text = text
+                }
+            })
+
+            Dim result = Await _codeActionsService.GetCodeActionsAsync(New CodeActionParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = uri},
+                .Range = New Global.VbNet.LanguageServer.Protocol.Range With {
+                    .Start = New Position(5, 0),
+                    .End = New Position(6, 99)
+                },
+                .Context = New CodeActionContext()
+            }, CancellationToken.None)
+
+            Assert.NotNull(result)
+            Assert.DoesNotContain(result, Function(action) String.Equals(action.Kind, "refactor.extract", StringComparison.Ordinal))
+        End Function
+
+        <Fact>
+        Public Async Function GetCodeActionsAsync_NestedIfSelectionThatCutsBoundary_DoesNotReturnExtractAction() As Task
+            Dim tempRoot = Path.Combine(Path.GetTempPath(), "vbnet-lsp-scope-" & Guid.NewGuid().ToString("N"))
+            Directory.CreateDirectory(tempRoot)
+
+            Try
+                Dim projectPath = Path.Combine(tempRoot, "ScopeFixture.vbproj")
+                Dim sourcePath = "C:\Code\Repos\TCIManufacturingSO155674\MaterialListCreation.vb"
+                Dim filePath = Path.Combine(tempRoot, "MaterialListCreation.vb")
+                Dim projectText =
+                    "<Project Sdk=""Microsoft.NET.Sdk"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <TargetFramework>net10.0</TargetFramework>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "</Project>"
+                Dim fileText = Await File.ReadAllTextAsync(sourcePath)
+
+                Await File.WriteAllTextAsync(projectPath, projectText)
+                Await File.WriteAllTextAsync(filePath, fileText)
+
+                Await _workspaceManager.LoadProjectAsync(projectPath)
+
+                Dim uri = New Uri(filePath).ToString()
+                _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                    .TextDocument = New TextDocumentItem With {
+                        .Uri = uri,
+                        .LanguageId = "vb",
+                        .Version = 1,
+                        .Text = fileText
+                    }
+                })
+
+                Dim payload = JsonSerializer.SerializeToElement(New With {
+                    Key .payloadVersion = 1,
+                    Key .actionType = "extract",
+                    Key .strategy = "simple",
+                    Key .uri = uri,
+                    Key .startLine = 207,
+                    Key .startCharacter = 0,
+                    Key .endLine = 285,
+                    Key .endCharacter = 99,
+                    Key .actionPath = New String() {"Extract Method"}
+                })
+
+                Dim action As New CodeAction With {
+                    .Title = "Extract Method",
+                    .Kind = "refactor.extract",
+                    .Data = payload
+                }
+
+                Dim resolved = Await _codeActionsService.ResolveCodeActionAsync(action, CancellationToken.None)
+
+                Assert.NotNull(resolved)
+                Assert.Null(resolved.Edit)
+            Finally
+                If Directory.Exists(tempRoot) Then
+                    Directory.Delete(tempRoot, True)
+                End If
+            End Try
+        End Function
+
+        Private Shared ReadOnly ScopeSafetySource As String =
+            "Public Class ScopeFixture" & Environment.NewLine &
+            "    Public Sub Main()" & Environment.NewLine &
+            "        If outerCondition Then" & Environment.NewLine &
+            "            If innerCondition Then" & Environment.NewLine &
+            "                DoThing()" & Environment.NewLine &
+            "            End If" & Environment.NewLine &
+            "            DoOtherThing()" & Environment.NewLine &
+            "        End If" & Environment.NewLine &
+            "        For i As Integer = 0 To 1" & Environment.NewLine &
+            "            Console.WriteLine(i)" & Environment.NewLine &
+            "        Next" & Environment.NewLine &
+            "        Try" & Environment.NewLine &
+            "            Risky()" & Environment.NewLine &
+            "        Catch ex As Exception" & Environment.NewLine &
+            "            Handle()" & Environment.NewLine &
+            "        Finally" & Environment.NewLine &
+            "            Cleanup()" & Environment.NewLine &
+            "        End Try" & Environment.NewLine &
+            "    End Sub" & Environment.NewLine &
+            "End Class" & Environment.NewLine
+
+        Public Shared Iterator Function GetLexicalScopeCases() As IEnumerable(Of Object())
+            Yield New Object() {4, 4, True}
+            Yield New Object() {4, 7, False}
+            Yield New Object() {2, 7, True}
+            Yield New Object() {9, 10, False}
+            Yield New Object() {12, 12, True}
+            Yield New Object() {13, 14, False}
+            Yield New Object() {15, 16, False}
+        End Function
+
+        <Theory>
+        <MemberData(NameOf(GetLexicalScopeCases))>
+        Public Sub IsSelectionLexicallySafe_SelectionVariants_ReturnsExpected(startLine As Integer, endLine As Integer, expected As Boolean)
+            Dim text = SourceText.From(ScopeSafetySource)
+            Dim root = VisualBasicSyntaxTree.ParseText(text).GetRoot()
+            Dim selection = TextSpan.FromBounds(text.Lines(startLine).Start, text.Lines(endLine).End)
+
+            Dim actual = CodeActionsService.IsSelectionLexicallySafe(selection, root)
+
+            Assert.Equal(expected, actual)
+        End Sub
 
         ' --- Null/missing payload ---
 
