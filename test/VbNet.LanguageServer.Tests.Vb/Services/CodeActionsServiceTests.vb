@@ -25,7 +25,6 @@ Namespace VbNet.LanguageServer.Tests.Services
             _workspaceManager = New WorkspaceManager(NullLogger(Of WorkspaceManager).Instance)
             _documentManager = New DocumentManager(_workspaceManager, NullLogger(Of DocumentManager).Instance)
             _codeActionsService = New CodeActionsService(
-                _workspaceManager,
                 _documentManager,
                 NullLogger(Of CodeActionsService).Instance)
 
@@ -239,7 +238,7 @@ Namespace VbNet.LanguageServer.Tests.Services
             Dim action As New CodeAction With {
                 .Title = "Extract Method",
                 .Kind = "refactor.extract",
-                .Data = New With {
+                .Data = System.Text.Json.JsonSerializer.SerializeToElement(New With {
                     Key .payloadVersion = 1,
                     Key .actionType = "extract",
                     Key .strategy = "roslyn",
@@ -249,7 +248,7 @@ Namespace VbNet.LanguageServer.Tests.Services
                     Key .endLine = 1,
                     Key .endCharacter = 10,
                     Key .actionPath = New String() {"Extract Method"}
-                }
+                })
             }
 
             Dim result = Await _codeActionsService.ResolveCodeActionAsync(action, CancellationToken.None)

@@ -28,7 +28,6 @@ Namespace VbNet.LanguageServer.Tests.Integration
             _workspaceManager = New WorkspaceManager(NullLogger(Of WorkspaceManager).Instance)
             _documentManager = New DocumentManager(_workspaceManager, NullLogger(Of DocumentManager).Instance)
             _codeActionsService = New CodeActionsService(
-                _workspaceManager,
                 _documentManager,
                 NullLogger(Of CodeActionsService).Instance)
         End Sub

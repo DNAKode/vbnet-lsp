@@ -100,7 +100,7 @@ Namespace Services
             "Right", "Round", "RTrim", "Sign", "Split", "Sqrt", "ToString", "Trim"
         }
 
-        Public Sub New(workspaceManager As WorkspaceManager, documentManager As DocumentManager, logger As ILogger(Of CodeActionsService))
+        Public Sub New(documentManager As DocumentManager, logger As ILogger(Of CodeActionsService))
             If documentManager Is Nothing Then
                 Throw New ArgumentNullException(NameOf(documentManager))
             End If
@@ -397,8 +397,15 @@ Namespace Services
                     Continue For
                 End If
 
-                If RequiresContainingBlockBoundary(node) AndAlso Not IsContainingBlockFullySelected(selection, node) Then
-                    Return False
+                If RequiresContainingBlockBoundary(node) Then
+                    ' Only reject when the selection actually intersects the block's own header
+                    ' boundary span (i.e., it clips or crosses the header line). A selection
+                    ' wholly inside the block body — not touching the header — is safe to extract.
+                    Dim blockHeaders = GetSelectionBoundarySpans(node).ToArray()
+                    If blockHeaders.Any(Function(s) selection.IntersectsWith(s)) AndAlso
+                       Not IsContainingBlockFullySelected(selection, node) Then
+                        Return False
+                    End If
                 End If
 
                 Dim boundarySpans = GetSelectionBoundarySpans(node).ToArray()
@@ -542,7 +549,7 @@ Namespace Services
             Dim capturedParams = FindCapturedParams(selectedText, localDims, preText)
             Dim escapedVars = FindEscapedVars(localDims, postText)
 
-            Dim paramList = String.Join(", ", capturedParams.Select(Function(kvp) kvp.Key & " As " & kvp.Value))
+            Dim paramList = String.Join(", ", capturedParams.Select(Function(kvp) TypedParam(kvp.Key, kvp.Value)))
             Dim argList = String.Join(", ", capturedParams.Keys)
 
             Dim normalizedBody = NormalizeIndent(selectedText, statementIndentSize, methodBodyIndentSize)
@@ -562,19 +569,19 @@ Namespace Services
 
             ElseIf escapedVars.Count = 1 Then
                 Dim esc = escapedVars.First()
-                callText = statementIndent & "Dim " & esc.Key & " As " & esc.Value &
+                callText = statementIndent & DimDecl(esc.Key, esc.Value) &
                            " = " & methodName & "(" & argList & ")" & nl
                 Dim returnLine = New String(" "c, methodBodyIndentSize) & "Return " & esc.Key & nl
                 methodText =
                     nl &
-                    methodIndent & "Private Function " & methodName & "(" & paramList & ") As " & esc.Value & nl &
+                    methodIndent & "Private Function " & methodName & "(" & paramList & ") As " & If(String.IsNullOrEmpty(esc.Value), "Object", esc.Value) & nl &
                     normalizedBody & nl &
                     returnLine &
                     methodIndent & "End Function" & nl
 
             Else
                 ' Multiple escaped vars: use ByRef parameters
-                Dim byRefParts = escapedVars.Select(Function(kvp) "ByRef " & kvp.Key & " As " & kvp.Value)
+                Dim byRefParts = escapedVars.Select(Function(kvp) "ByRef " & TypedParam(kvp.Key, kvp.Value))
                 Dim fullParamList = If(paramList.Length > 0,
                     paramList & ", " & String.Join(", ", byRefParts),
                     String.Join(", ", byRefParts))
@@ -586,9 +593,9 @@ Namespace Services
                     escapedVars.Select(Function(kvp)
                                            Dim init As String = Nothing
                                            If originalInits.TryGetValue(kvp.Key, init) Then
-                                               Return statementIndent & "Dim " & kvp.Key & " As " & kvp.Value & " = " & init
+                                               Return statementIndent & DimDecl(kvp.Key, kvp.Value) & " = " & init
                                            End If
-                                           Return statementIndent & "Dim " & kvp.Key & " As " & kvp.Value
+                                           Return statementIndent & DimDecl(kvp.Key, kvp.Value)
                                        End Function))
                 Dim escapedArgNames = String.Join(", ", escapedVars.Keys)
                 Dim fullArgList = If(argList.Length > 0, argList & ", " & escapedArgNames, escapedArgNames)
@@ -649,17 +656,25 @@ Namespace Services
 
             Dim result = body
             For Each varName In byRefVariables
-                ' Match "Dim varName As ..." pattern (case-insensitive), capturing optional full line for removal
-                Dim pattern = "^\s*Dim\s+" & System.Text.RegularExpressions.Regex.Escape(varName) & "\s+As\s+.*?$"
+                ' Match "Dim varName As ..." pattern (typed explicit declaration)
+                Dim typedPattern = "^\s*Dim\s+" & System.Text.RegularExpressions.Regex.Escape(varName) & "\s+As\s+.*?$"
                 result = System.Text.RegularExpressions.Regex.Replace(
                     result,
-                    pattern,
+                    typedPattern,
+                    "",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase Or System.Text.RegularExpressions.RegexOptions.Multiline)
+                ' Also match "Dim varName = ..." pattern (implicit-type declaration) to prevent
+                ' duplicate declarations when an implicitly-typed variable is promoted to ByRef.
+                Dim implicitPattern = "^\s*Dim\s+" & System.Text.RegularExpressions.Regex.Escape(varName) & "\s*=.*?$"
+                result = System.Text.RegularExpressions.Regex.Replace(
+                    result,
+                    implicitPattern,
                     "",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase Or System.Text.RegularExpressions.RegexOptions.Multiline)
             Next
 
-            ' Remove any blank lines that were left behind
-            result = System.Text.RegularExpressions.Regex.Replace(result, "^\s*" & Environment.NewLine, "", System.Text.RegularExpressions.RegexOptions.Multiline)
+            ' Remove any blank lines that were left behind (handle both LF and CRLF)
+            result = System.Text.RegularExpressions.Regex.Replace(result, "^\s*(?:\r\n|\r|\n)", "", System.Text.RegularExpressions.RegexOptions.Multiline)
 
             Return result
         End Function
@@ -711,9 +726,10 @@ Namespace Services
                 addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
             Next
             ' Implicit-type: "Dim x = expr" — no As clause; type inferred at compile time.
-            ' Use Object as a safe placeholder so the variable is still tracked for escape analysis.
+            ' Store as empty string so downstream code can omit "As Object" in generated code,
+            ' avoiding spurious Option Strict On violations when the inferred type is not Object.
             For Each m As Match In _dimImplicitRe.Matches(text)
-                addIfAbsent(m.Groups(1).Value, "Object")
+                addIfAbsent(m.Groups(1).Value, "")
             Next
             For Each m As Match In _forEachDeclRe.Matches(text)
                 addIfAbsent(m.Groups(1).Value, m.Groups(2).Value)
@@ -743,6 +759,17 @@ Namespace Services
                 End If
             Next
             Return result
+        End Function
+
+        ' Returns "{name} As {typeName}" or just "{name}" for implicitly-typed variables
+        ' (empty typeName). Callers prepend keywords such as "ByRef " as needed.
+        Private Shared Function TypedParam(name As String, typeName As String) As String
+            Return If(String.IsNullOrEmpty(typeName), name, name & " As " & typeName)
+        End Function
+
+        ' Returns "Dim {name} As {typeName}" or "Dim {name}" for implicitly-typed variables.
+        Private Shared Function DimDecl(name As String, typeName As String) As String
+            Return If(String.IsNullOrEmpty(typeName), "Dim " & name, "Dim " & name & " As " & typeName)
         End Function
 
         ''' <summary>

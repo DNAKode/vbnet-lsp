@@ -159,7 +159,6 @@ Namespace Core
                 loggerFactory.CreateLogger(Of SemanticTokensService)())
 
             _codeActionsService = New CodeActionsService(
-                _workspaceManager,
                 _documentManager,
                 loggerFactory.CreateLogger(Of CodeActionsService)())
 
