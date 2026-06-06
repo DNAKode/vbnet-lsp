@@ -80,6 +80,19 @@ jobs:
           if (-not (Test-Path (Join-Path $root ".roslyn\\Microsoft.CodeAnalysis.LanguageServer.dll")) -and -not (Test-Path (Join-Path $root ".roslyn\\Microsoft.CodeAnalysis.LanguageServer.exe"))) {
             throw "Roslyn LSP server binary missing from VSIX"
           }
+          $forbiddenPaths = @(
+            ".debugger-cache",
+            ".roslyn-downloads",
+            ".server\\publish",
+            "node_modules",
+            "out",
+            ".vscode-test"
+          )
+          foreach ($relativePath in $forbiddenPaths) {
+            if (Test-Path (Join-Path $root $relativePath)) {
+              throw "Unexpected publish artifact in VSIX: $relativePath"
+            }
+          }
           Remove-Item -Recurse -Force $extract
 
       - name: Publish VSIX

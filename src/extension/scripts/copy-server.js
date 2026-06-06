@@ -22,6 +22,9 @@ if (!fs.existsSync(sourceDir)) {
 
 fs.rmSync(targetDir, { recursive: true, force: true });
 fs.mkdirSync(targetDir, { recursive: true });
-fs.cpSync(sourceDir, targetDir, { recursive: true });
+fs.cpSync(sourceDir, targetDir, {
+    recursive: true,
+    filter: (source) => path.basename(source) !== 'publish'
+});
 
 console.log(`Copied VB.NET language server from ${sourceDir} to ${targetDir}`);

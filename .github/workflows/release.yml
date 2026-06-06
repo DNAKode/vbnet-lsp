@@ -192,6 +192,19 @@ jobs:
             $root = Join-Path $extract "extension"
             if (-not (Test-Path (Join-Path $root ".roslyn"))) { throw "Missing .roslyn in $vsix" }
             if (-not (Test-Path (Join-Path $root ".roslyn-vb"))) { throw "Missing .roslyn-vb in $vsix" }
+            $forbiddenPaths = @(
+              ".debugger-cache",
+              ".roslyn-downloads",
+              ".server\\publish",
+              "node_modules",
+              "out",
+              ".vscode-test"
+            )
+            foreach ($relativePath in $forbiddenPaths) {
+              if (Test-Path (Join-Path $root $relativePath)) {
+                throw "Unexpected publish artifact in ${vsix}: $relativePath"
+              }
+            }
             Remove-Item -Recurse -Force $extract
           }
 

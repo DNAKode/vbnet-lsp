@@ -16,6 +16,25 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.10
+
+### Added
+- Roslyn-backed Extract Method code action support (`refactor.extract`) for project-backed VB.NET documents.
+- Legacy non-SDK-style VB.NET project fallback loading, including .NET Framework reference assembly, COM reference, project reference, and NuGet package reference handling where resolvable.
+- Zed adapter readiness gates, grammar support checks, and release validation scripts.
+
+### Changed
+- Code action resolution now distinguishes source option actions from extract refactor actions and honors LSP `CodeActionContext.only` filtering for `source`, `refactor`, and `refactor.extract`.
+- Release and Marketplace packaging now include pre-publish artifact validation to catch cache directories and duplicate server payloads before publishing.
+
+### Fixed
+- Legacy/non-SDK-style project files now produce friendlier warnings and continue with best-effort workspace loading instead of silently dropping support.
+- VSIX packaging now excludes transient debugger cache files and prevents nested `.server/publish` output from duplicating the bundled server payload.
+- Zed grammar metadata now points to the public `DNAKode/tree-sitter-vbnet` source and rejects branch names when a release version pin is expected.
+
+### Known issues
+- Extract Method is intentionally Roslyn-only; unsupported documents or selections return no extract action rather than using a synthetic fallback.
+
 ## 0.1.9
 
 ### Added

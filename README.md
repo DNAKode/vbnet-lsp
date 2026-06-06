@@ -58,7 +58,7 @@ Packaging guidance for native channels is documented in
 - Roslyn-backed semantic analysis and project loading (`.sln`, `.slnf`, `.slnx`, `.vbproj`)
 - Core language features: diagnostics, completion, hover, definition, references, rename, symbols
 - Advanced navigation: type definition, implementation, call hierarchy, type hierarchy
-- Editing support: formatting, semantic tokens, signature help, folding ranges
+- Editing support: formatting, semantic tokens, signature help, folding ranges, code actions, and Roslyn-backed Extract Method
 - Debugger integration in the VS Code extension via bundled netcoredbg
 
 Current implementation details and roadmap are tracked in [PROJECT_PLAN.md](PROJECT_PLAN.md) and [docs/features.md](docs/features.md).

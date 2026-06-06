@@ -6,6 +6,7 @@ First-class Visual Basic (.NET) support for Visual Studio Code, powered by a cus
 - IntelliSense (completion, signature help, hover)
 - Diagnostics (push + pull)
 - Formatting and rename
+- Code actions, including Roslyn-backed Extract Method
 - Symbol search and document symbols
 - Semantic tokens and folding
 - Type definition + implementation

@@ -763,6 +763,11 @@ Follow Semantic Versioning (SemVer 2.0):
 - [ ] All tests passing (unit, integration, E2E)
 - [ ] Documentation updated
 - [ ] CHANGELOG.md updated (root) and synced into `src/extension/CHANGELOG.md` (run `npm run package` or `npm run copy-changelog`)
+- [ ] Inspect publish artifacts before publishing:
+  - Run `npm exec -- vsce ls` from `src/extension` and confirm only intended top-level bundled directories are present (`.server`, `.roslyn`, `.roslyn-vb`, `.debugger`, `dist`, `images`, `scripts`).
+  - Confirm transient/cache directories are absent from the VSIX (`.debugger-cache`, `.roslyn-downloads`, `.vscode-test`, `node_modules`, `out`, nested `.server/publish`).
+  - Compare VSIX size and top-level file counts with the previous release; investigate unexpected growth before publishing.
+  - Spot-check that `.server` contains one server payload only, not both build output and a nested `publish` copy.
 - [ ] Performance targets met
 - [ ] No P0/P1 bugs open
 - [ ] Cross-platform testing complete (Windows, macOS, Linux)
