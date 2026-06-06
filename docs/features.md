@@ -77,8 +77,9 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 
 | Feature | Status | Phase | Notes |
 |---------|--------|-------|-------|
-| `textDocument/codeAction` | Implemented | Phase 2 | Source actions (Option Strict/Explicit/Infer) |
+| `textDocument/codeAction` | Implemented | Phase 2 | Source actions (Option Strict/Explicit/Infer), Roslyn-backed Extract Method |
 | `codeAction/resolve` | Implemented | Phase 2 | Lazy compute edit |
+| Extract Method (`refactor.extract`) | Implemented | Phase 2 | Uses Roslyn refactorings for project-backed documents; no synthetic fallback |
 | Quick fixes (diagnostics) | Planned | Phase 2 | Fix errors/warnings |
 
 ### Formatting
