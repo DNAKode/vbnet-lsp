@@ -70,6 +70,7 @@ Namespace Core
         Private _projectCountWarningSent As Boolean
         Private Const MaxAncestorSearchDepth As Integer = 4
         Private ReadOnly _reportedNetFxProjects As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+        Private ReadOnly _reportedLegacyWorkspaceWarnings As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
         Private _netFxWarningSent As Boolean
         Private _restoreHintSent As Boolean
 
@@ -908,6 +909,10 @@ Namespace Core
                 Dim hint = "Restore appears incomplete. Run 'VB.NET: Restore Workspace' or 'VB.NET: Restore Project' and reopen the solution."
                 Dim ignore = SendWindowMessageAsync(MessageType.Warning, hint)
             End If
+
+            If IsLegacyProjectWarning(message) AndAlso _reportedLegacyWorkspaceWarnings.Add(message) Then
+                Dim ignore = SendWindowMessageAsync(MessageType.Warning, message)
+            End If
         End Sub
 
         Private Shared Function IsRestoreRelatedMessage(message As String) As Boolean
@@ -917,6 +922,12 @@ Namespace Core
                 lowered.Contains("assets file") OrElse
                 lowered.Contains("nu1301") OrElse
                 lowered.Contains("nu1101")
+        End Function
+
+        Private Shared Function IsLegacyProjectWarning(message As String) As Boolean
+            Dim lowered = message.ToLowerInvariant()
+            Return lowered.Contains("legacy non-sdk vb.net project") OrElse
+                lowered.Contains("legacy project '")
         End Function
 
 #End Region
