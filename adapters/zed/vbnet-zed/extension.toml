@@ -7,11 +7,12 @@ description = "First-class VB.NET language support for Zed"
 repository = "https://github.com/DNAKode/vbnet-zed"
 
 [grammars.vbnet]
-repository = "https://github.com/CodeAnt-AI/tree-sitter-vb-dotnet"
-rev = "cfca210ce8fdcb5245bd9cd5c47ce0a21a8488d5"
+repository = "https://github.com/DNAKode/tree-sitter-vbnet"
+rev = "main"
 
 [language_servers.vbnet-ls]
 name = "VB.NET Language Server"
+language = "VB.NET"
 languages = ["VB.NET"]
 language_ids = { "VB.NET" = "vb" }
 

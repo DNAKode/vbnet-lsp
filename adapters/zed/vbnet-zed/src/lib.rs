@@ -84,6 +84,14 @@ impl zed::Extension for VbNetExtension {
             debug_adapter_name,
         )
     }
+
+    fn run_dap_locator(
+        &mut self,
+        locator_name: String,
+        build_task: zed::TaskTemplate,
+    ) -> zed::Result<zed::DebugRequest> {
+        debug::run_dap_locator(locator_name, build_task)
+    }
 }
 
 zed::register_extension!(VbNetExtension);

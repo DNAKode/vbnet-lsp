@@ -1,0 +1,27 @@
+[
+  {
+    "label": "Debug VB.NET console",
+    "adapter": "netcoredbg",
+    "request": "launch",
+    "program": "bin/Debug/net10.0/DebugConsole.dll",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "args": ["from-zed"],
+    "env": {
+      "VBNET_ZED_DEBUG_FIXTURE": "1",
+      "VBNET_ZED_DEBUG_LOG": "zed-debug-fixture.log"
+    },
+    "stopAtEntry": false,
+    "justMyCode": true,
+    "enableStepFiltering": true,
+    "build": {
+      "command": "dotnet",
+      "args": ["build", "DebugConsole.vbproj", "-c", "Debug"]
+    }
+  },
+  {
+    "label": "Attach VB.NET console",
+    "adapter": "netcoredbg",
+    "request": "attach",
+    "processId": 0
+  }
+]

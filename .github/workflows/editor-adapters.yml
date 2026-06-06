@@ -54,13 +54,101 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip1
-      - name: Verify Zed extension scaffold
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Verify Zed readiness gates
         shell: pwsh
-        run: scripts/verify-zed-extension.ps1
+        run: scripts/verify-zed-readiness.ps1
+      - name: Verify Zed release pin on tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          scripts/verify-zed-readiness.ps1 -Version $version
       - name: Export Zed adapter dry run
         shell: pwsh
         run: |
           adapters/scripts/export-adapter-repos.ps1 `
             -ZedRepoPath "$env:RUNNER_TEMP\vbnet-zed" `
+            -TreeSitterRepoPath "$env:RUNNER_TEMP\tree-sitter-vbnet" `
             -Clean `
             -DryRun
+      - name: Export Zed adapter contents
+        shell: pwsh
+        run: |
+          adapters/scripts/export-adapter-repos.ps1 `
+            -ZedRepoPath "$env:RUNNER_TEMP\vbnet-zed" `
+            -TreeSitterRepoPath "$env:RUNNER_TEMP\tree-sitter-vbnet" `
+            -Clean
+          foreach ($required in @(
+            'extension.toml',
+            'Cargo.toml',
+            'Cargo.lock',
+            '.gitignore',
+            'LICENSE',
+            'src/lib.rs',
+            'src/server.rs',
+            'src/debug.rs',
+            'src/platform.rs',
+            'src/workspace.rs',
+            'debug_adapter_schemas/netcoredbg.json',
+            'languages/vbnet/config.toml',
+            'languages/vbnet/brackets.scm',
+            'languages/vbnet/folds.scm',
+            'languages/vbnet/highlights.scm',
+            'languages/vbnet/indents.scm',
+            'languages/vbnet/outline.scm',
+            'languages/vbnet/overrides.scm',
+            'languages/vbnet/semantic_token_rules.json',
+            'languages/vbnet/textobjects.scm',
+            'README.md',
+            'MIRRORING.md'
+          )) {
+            $path = Join-Path "$env:RUNNER_TEMP\vbnet-zed" $required
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Exported Zed adapter is missing $required"
+            }
+          }
+          foreach ($forbidden in @(
+            'extension.wasm',
+            'grammars',
+            'target'
+          )) {
+            $path = Join-Path "$env:RUNNER_TEMP\vbnet-zed" $forbidden
+            if (Test-Path -LiteralPath $path) {
+              throw "Exported Zed adapter contains generated/cache path $forbidden"
+            }
+          }
+          foreach ($required in @(
+            'grammar.js',
+            'package.json',
+            'README.md',
+            'LICENSE',
+            'MIRRORING.md',
+            'src/grammar.json',
+            'src/node-types.json',
+            'src/parser.c'
+          )) {
+            $path = Join-Path "$env:RUNNER_TEMP\tree-sitter-vbnet" $required
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Exported Tree-sitter grammar is missing $required"
+            }
+          }
+          foreach ($forbidden in @(
+            'parser.obj',
+            'node_modules',
+            'target'
+          )) {
+            $path = Join-Path "$env:RUNNER_TEMP\tree-sitter-vbnet" $forbidden
+            if (Test-Path -LiteralPath $path) {
+              throw "Exported Tree-sitter grammar contains generated/cache path $forbidden"
+            }
+          }
+      - name: Check exported Zed adapter
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/vbnet-zed
+        run: cargo check --target wasm32-wasip1

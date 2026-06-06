@@ -1,0 +1,18 @@
+[
+  {
+    "label": "dotnet build DebugConsole",
+    "command": "dotnet",
+    "args": ["build", "DebugConsole.vbproj", "-c", "Debug"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "reveal": "always",
+    "hide": "on_success"
+  },
+  {
+    "label": "dotnet run DebugConsole",
+    "command": "dotnet",
+    "args": ["run", "--project", "DebugConsole.vbproj", "--", "from-zed-task"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "reveal": "always",
+    "hide": "never"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "languages": {
+    "VB.NET": {
+      "language_servers": ["vbnet-ls"]
+    }
+  },
+  "lsp": {
+    "vbnet-ls": {
+      "binary": {
+        "path": "dotnet",
+        "arguments": ["run", "--project", "../../probes/lsp-probe/VbNet.Zed.LspProbe.csproj"],
+        "env": {
+          "VBNET_ZED_TEST_LOG": "zed-lsp-probe.jsonl"
+        }
+      },
+      "initialization_options": {
+        "semanticTokens": true,
+        "workspace": {
+          "projectPath": "ZedFixture.vbproj"
+        }
+      }
+    }
+  }
+}

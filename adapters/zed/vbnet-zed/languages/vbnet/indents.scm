@@ -1,1 +1,21 @@
-; Placeholder for grammar-backed indentation rules.
+(namespace_block) @indent
+(class_block) @indent
+(module_block) @indent
+(structure_block) @indent
+(interface_block) @indent
+(enum_block) @indent
+(method_declaration) @indent
+(property_declaration) @indent
+(constructor_declaration) @indent
+(if_statement) @indent
+(select_case_statement) @indent
+(try_statement) @indent
+(for_statement) @indent
+(for_each_statement) @indent
+(while_statement) @indent
+(do_statement) @indent
+(using_statement) @indent
+(sync_lock_statement) @indent
+(with_statement) @indent
+(object_initializer) @indent
+(array_literal) @indent

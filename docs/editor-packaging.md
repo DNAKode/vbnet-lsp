@@ -33,9 +33,14 @@ This project separates server distribution from editor integration:
 
 ### Zed adapter
 
-- Planned source snapshot: `adapters/zed/vbnet-zed`
-- Planned downstream repository: `DNAKode/vbnet-zed`
+- Source snapshot: `adapters/zed/vbnet-zed`
+- Downstream repository: `DNAKode/vbnet-zed`
 - Distribution target: Zed extension registry
+- Server resolution: configured binary, `vbnet-ls` on `PATH`, then the pinned
+  `DNAKode/vbnet-lsp` release artifact matching the extension version
+- Tree-sitter grammar source: authoritative under `tree-sitter-vbnet`
+- Tree-sitter grammar mirror: `DNAKode/tree-sitter-vbnet`; public Zed releases
+  must point `extension.toml` at this mirror with an immutable `rev`
 - Detailed plan: `docs/zed-support-plan.md`
 
 ## Thin Adapter Rules
@@ -52,7 +57,7 @@ This project separates server distribution from editor integration:
    Use:
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-adapter-repos.ps1 -NvimRepoPath ../vbnet-lsp.nvim -EmacsRepoPath ../vbnet-eglot -Clean
+   powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-adapter-repos.ps1 -NvimRepoPath ../vbnet-lsp.nvim -EmacsRepoPath ../vbnet-eglot -ZedRepoPath ../vbnet-zed -TreeSitterRepoPath ../tree-sitter-vbnet -Clean
    ```
 3. Tag and publish adapters through editor-native channels.
 4. Run smoke checks in this repo before and after adapter releases.

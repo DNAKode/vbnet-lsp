@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "ZedMixed", "ZedMixed.vbproj", "{EF25F225-7078-4DB8-864B-B74CF7C813EC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZedMixed.CSharp", "ZedMixed.CSharp.csproj", "{8512A6E5-4200-4B04-95F1-83055E6D7A31}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EF25F225-7078-4DB8-864B-B74CF7C813EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF25F225-7078-4DB8-864B-B74CF7C813EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF25F225-7078-4DB8-864B-B74CF7C813EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF25F225-7078-4DB8-864B-B74CF7C813EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8512A6E5-4200-4B04-95F1-83055E6D7A31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8512A6E5-4200-4B04-95F1-83055E6D7A31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8512A6E5-4200-4B04-95F1-83055E6D7A31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8512A6E5-4200-4B04-95F1-83055E6D7A31}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -17,3 +17,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-ad
 
 Do not commit language-server binaries, debugger binaries, downloaded archives,
 local Zed profile data, or Rust build outputs to this repository.
+
+The VB.NET Tree-sitter grammar is not authored in this repository. Its
+authoritative source is:
+
+```text
+DNAKode/vbnet-lsp/tree-sitter-vbnet
+```
+
+The public grammar mirror is `DNAKode/tree-sitter-vbnet`. Zed release manifests
+should reference that public mirror with a pinned `rev`; grammar source changes
+still start in `vbnet-lsp`.

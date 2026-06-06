@@ -2,6 +2,7 @@ param(
     [string]$NvimRepoPath = '',
     [string]$EmacsRepoPath = '',
     [string]$ZedRepoPath = '',
+    [string]$TreeSitterRepoPath = '',
     [switch]$Clean,
     [switch]$DryRun
 )
@@ -58,7 +59,16 @@ function Copy-DirectoryContents {
         [switch]$DryRun
     )
 
-    $excludedNames = @('.git', 'target', 'node_modules', '.zed', 'work')
+    $excludedNames = @(
+        '.git',
+        'target',
+        'node_modules',
+        '.zed',
+        'work',
+        'grammars',
+        'extension.wasm',
+        'parser.obj'
+    )
 
     Get-ChildItem -LiteralPath $Source -Force | ForEach-Object {
         if ($excludedNames -contains $_.Name) {
@@ -130,8 +140,16 @@ if ($ZedRepoPath -ne '') {
     }
 }
 
+if ($TreeSitterRepoPath -ne '') {
+    $tasks += @{
+        Name = 'tree-sitter-vbnet'
+        Source = Get-FullPath (Join-Path $repoRoot 'tree-sitter-vbnet')
+        Destination = Get-FullPath $TreeSitterRepoPath
+    }
+}
+
 if ($tasks.Count -eq 0) {
-    throw "No destination provided. Set -NvimRepoPath, -EmacsRepoPath, and/or -ZedRepoPath."
+    throw "No destination provided. Set -NvimRepoPath, -EmacsRepoPath, -ZedRepoPath, and/or -TreeSitterRepoPath."
 }
 
 foreach ($task in $tasks) {

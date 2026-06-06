@@ -1,0 +1,8 @@
+{
+  "solution": {
+    "path": "ZedSlnfFixture.sln",
+    "projects": [
+      "ZedSlnfFixture.vbproj"
+    ]
+  }
+}

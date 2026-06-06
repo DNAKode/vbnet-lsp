@@ -4,24 +4,36 @@
     "style": ["keyword"]
   },
   {
-    "token_type": "class",
+    "token_type": "namespace",
+    "style": ["namespace", "type"]
+  },
+  {
+    "token_type": "type",
     "style": ["type"]
+  },
+  {
+    "token_type": "class",
+    "style": ["type.class", "class", "type"]
+  },
+  {
+    "token_type": "struct",
+    "style": ["type.struct", "struct", "type"]
   },
   {
     "token_type": "interface",
-    "style": ["type"]
+    "style": ["type.interface", "interface", "type"]
   },
   {
     "token_type": "enum",
-    "style": ["type"]
+    "style": ["type.enum", "enum", "type"]
   },
   {
-    "token_type": "delegate",
-    "style": ["type"]
+    "token_type": "typeParameter",
+    "style": ["type.parameter", "type"]
   },
   {
-    "token_type": "module",
-    "style": ["type"]
+    "token_type": "function",
+    "style": ["function"]
   },
   {
     "token_type": "method",
@@ -34,5 +46,38 @@
   {
     "token_type": "event",
     "style": ["property"]
+  },
+  {
+    "token_type": "field",
+    "style": ["property"]
+  },
+  {
+    "token_type": "parameter",
+    "style": ["variable.parameter", "variable"]
+  },
+  {
+    "token_type": "variable",
+    "style": ["variable"]
+  },
+  {
+    "token_type": "variable",
+    "token_modifiers": ["readonly"],
+    "style": ["constant", "variable"]
+  },
+  {
+    "token_type": "comment",
+    "style": ["comment"]
+  },
+  {
+    "token_type": "string",
+    "style": ["string"]
+  },
+  {
+    "token_type": "number",
+    "style": ["number"]
+  },
+  {
+    "token_type": "operator",
+    "style": ["operator"]
   }
 ]

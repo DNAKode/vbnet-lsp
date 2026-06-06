@@ -1,4 +1,5 @@
 /target/
+/grammars/
 /.zed/
 /work/
 *.wasm

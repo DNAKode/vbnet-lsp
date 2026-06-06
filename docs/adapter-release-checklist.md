@@ -12,6 +12,8 @@ Run from this repository root:
 powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-adapter-repos.ps1 `
   -NvimRepoPath ../vbnet-lsp.nvim `
   -EmacsRepoPath ../vbnet-eglot `
+  -ZedRepoPath ../vbnet-zed `
+  -TreeSitterRepoPath ../tree-sitter-vbnet `
   -Clean
 ```
 
@@ -21,6 +23,8 @@ If you want to preview only:
 powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-adapter-repos.ps1 `
   -NvimRepoPath ../vbnet-lsp.nvim `
   -EmacsRepoPath ../vbnet-eglot `
+  -ZedRepoPath ../vbnet-zed `
+  -TreeSitterRepoPath ../tree-sitter-vbnet `
   -Clean -DryRun
 ```
 
@@ -52,11 +56,41 @@ to be on a downstream development branch.
 Initial Zed publishing can use a manual approval step:
 
 1. Confirm the `vbnet-lsp` GitHub release exists for `vX.Y.Z`.
-2. Confirm all platform language-server artifacts are present.
-3. Mirror `adapters/zed/vbnet-zed` from `vbnet-lsp@vX.Y.Z` to
+2. Confirm all platform language-server artifacts are present:
+
+   ```powershell
+   scripts\verify-zed-release-assets.ps1 -Version X.Y.Z
+   ```
+
+3. Run the Zed readiness runner with the release and live-Zed gates enabled
+   after preparing an isolated Zed profile with the dev extension installed:
+
+   ```powershell
+   scripts\verify-zed-readiness.ps1 `
+     -Version X.Y.Z `
+     -IncludeReleaseAssets `
+     -IncludeLiveZed `
+     -IncludeRealServerZed `
+     -IncludeDebugZed `
+     -ZedPath C:\Programs\Zed\Zed.exe `
+     -UserDataDir $profile `
+     -WorkspacePath test-explore\clients\zed\fixtures\single-file `
+     -RealServerWorkspacePath test\TestProjects\SmallProject `
+     -DebugWorkspacePath test-explore\clients\zed\fixtures\debug-console
+   ```
+
+4. Mirror `tree-sitter-vbnet` from `vbnet-lsp@vX.Y.Z` to
+   `tree-sitter-vbnet/main`.
+5. Record the mirrored grammar commit SHA or tag.
+6. Mirror `adapters/zed/vbnet-zed` from `vbnet-lsp@vX.Y.Z` to
    `vbnet-zed/main`.
-4. Pin the Zed adapter default server download to `vX.Y.Z`.
-5. Tag `vbnet-zed` as `vX.Y.Z`.
+7. Verify `extension.toml`, `Cargo.toml`, and the Zed adapter release download
+   pin all match `X.Y.Z` / `vX.Y.Z`.
+8. Verify `extension.toml` points to `https://github.com/DNAKode/tree-sitter-vbnet`
+   with the mirrored grammar commit SHA or tag, not a local `file://` URL.
+9. Tag `vbnet-zed` as `vX.Y.Z`.
+10. Tag `tree-sitter-vbnet` as `vX.Y.Z` if grammar content changed for this
+    release.
 
 After the first stable Zed publishing cycle, revisit this checklist and the
 release workflows. The desired long-term direction is a single `vbnet-lsp`

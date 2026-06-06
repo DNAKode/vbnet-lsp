@@ -1,1 +1,11 @@
-; Placeholder for grammar-backed outline symbols.
+(namespace_block name: (_) @name) @item
+(class_block name: (identifier) @name) @item
+(module_block name: (identifier) @name) @item
+(structure_block name: (identifier) @name) @item
+(interface_block name: (identifier) @name) @item
+(enum_block name: (identifier) @name) @item
+(delegate_declaration name: (identifier) @name) @item
+(method_declaration name: (identifier) @name) @item
+(property_declaration name: (identifier) @name) @item
+(event_declaration name: (identifier) @name) @item
+(enum_member name: (identifier) @name) @item

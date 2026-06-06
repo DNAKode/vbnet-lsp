@@ -19,7 +19,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-ad
   -NvimRepoPath ../vbnet-lsp.nvim `
   -EmacsRepoPath ../vbnet-eglot `
   -ZedRepoPath ../vbnet-zed `
+  -TreeSitterRepoPath ../tree-sitter-vbnet `
   -Clean
 ```
 
 Add `-DryRun` to preview actions.
+
+`tree-sitter-vbnet` lives at the repository root because it is more general
+than the Zed adapter, but it is mirrored with the same script. The monorepo copy
+is authoritative; `DNAKode/tree-sitter-vbnet` is distribution output.

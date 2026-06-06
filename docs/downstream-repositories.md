@@ -1,6 +1,6 @@
 # Downstream Repositories
 
-Last updated: 2026-02-11
+Last updated: 2026-05-01
 
 ## Purpose
 
@@ -18,6 +18,11 @@ distribution predictable and independently releasable.
 | Emacs adapter | `adapters/emacs/vbnet-eglot` | `DNAKode/vbnet-eglot` | Emacs package channels |
 | Claude plugin | `integrations/claude/vbnet-lsp` | `DNAKode/vbnet-lsp-claude-plugin` | Claude plugin marketplace submission |
 | Zed adapter | `adapters/zed/vbnet-zed` | `DNAKode/vbnet-zed` | Zed extension registry |
+| VB.NET Tree-sitter grammar | `tree-sitter-vbnet` | `DNAKode/tree-sitter-vbnet` | Zed grammar clone source and general Tree-sitter ecosystem |
+
+The monorepo path is always authoritative. Downstream repositories are mirrors
+for distribution, review, or ecosystem consumption; normal development happens
+under `DNAKode/vbnet-lsp`.
 
 ## Sync Scripts
 
@@ -27,6 +32,8 @@ distribution predictable and independently releasable.
 powershell -NoProfile -ExecutionPolicy Bypass -File ./adapters/scripts/export-adapter-repos.ps1 `
   -NvimRepoPath ../vbnet-lsp.nvim `
   -EmacsRepoPath ../vbnet-eglot `
+  -ZedRepoPath ../vbnet-zed `
+  -TreeSitterRepoPath ../tree-sitter-vbnet `
   -Clean
 ```
 
@@ -49,22 +56,35 @@ Add `-DryRun` to either script to preview.
 3. Run validation workflows in both monorepo and downstream repos.
 4. Publish downstream repos (tags/releases) only when their user-facing content changes.
 
-## Zed Release Model
+## Zed And Tree-sitter Release Model
 
 Zed support should be developed in this monorepo from the start, with
 `DNAKode/vbnet-zed` created early as the publishable downstream repository.
-The downstream repository should be treated as generated distribution output:
-changes are made in `adapters/zed/vbnet-zed` and mirrored out.
+The Tree-sitter grammar follows the same rule: `DNAKode/tree-sitter-vbnet` is a
+public downstream mirror of `tree-sitter-vbnet`. Both downstream repositories
+should be treated as generated distribution output.
+
+Authoritative paths:
+
+- Zed extension: `adapters/zed/vbnet-zed`
+- Tree-sitter grammar: `tree-sitter-vbnet`
 
 The intended branch flow is:
 
 - `vbnet-lsp/master` mirrors automatically to `vbnet-zed/generated/dev` after
   adapter validation passes.
+- `vbnet-lsp/master` mirrors automatically to
+  `tree-sitter-vbnet/generated/dev` after grammar validation passes.
 - `vbnet-lsp` release tags (`v*`) mirror to `vbnet-zed/main` and tag
   `vbnet-zed` with the same version.
+- `vbnet-lsp` release tags (`v*`) mirror to `tree-sitter-vbnet/main` and tag
+  `tree-sitter-vbnet` when grammar content changed for that release.
 - The Zed adapter version should match the server release version. Its default
   downloaded server artifact should be pinned to that same release, while still
   allowing users to configure a local server binary for development.
+- For public Zed publishing, `vbnet-zed/extension.toml` must reference the
+  public `DNAKode/tree-sitter-vbnet` mirror with an immutable `rev`, not a local
+  development `file://` URL.
 
 During initial Zed development, keep release mirroring to `vbnet-zed/main`
 manual or manually approved. After the first successful publishing cycle, revisit

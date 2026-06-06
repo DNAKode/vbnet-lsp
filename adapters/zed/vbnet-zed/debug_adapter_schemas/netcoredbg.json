@@ -43,6 +43,28 @@
       "type": "boolean",
       "default": false
     },
+    "justMyCode": {
+      "type": "boolean",
+      "default": true
+    },
+    "enableStepFiltering": {
+      "type": "boolean",
+      "default": true
+    },
+    "configuration": {
+      "type": "string",
+      "description": "Build configuration used with projectPath convenience launch settings.",
+      "default": "Debug"
+    },
+    "framework": {
+      "type": "string",
+      "description": "Target framework used with projectPath convenience launch settings."
+    },
+    "buildBeforeLaunch": {
+      "type": "boolean",
+      "description": "Whether a project-based launch should build before debugging.",
+      "default": false
+    },
     "processId": {
       "type": "integer"
     }

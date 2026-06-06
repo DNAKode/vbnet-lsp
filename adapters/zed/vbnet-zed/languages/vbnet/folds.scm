@@ -1,1 +1,19 @@
-; Placeholder for grammar-backed folding ranges.
+(namespace_block) @fold
+(class_block) @fold
+(module_block) @fold
+(structure_block) @fold
+(interface_block) @fold
+(enum_block) @fold
+(method_declaration) @fold
+(property_declaration) @fold
+(constructor_declaration) @fold
+(if_statement) @fold
+(select_case_statement) @fold
+(try_statement) @fold
+(for_statement) @fold
+(for_each_statement) @fold
+(while_statement) @fold
+(do_statement) @fold
+(using_statement) @fold
+(sync_lock_statement) @fold
+(with_statement) @fold

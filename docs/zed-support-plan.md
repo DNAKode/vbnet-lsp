@@ -1,6 +1,6 @@
 # Zed Support Plan
 
-Last updated: 2026-04-30
+Last updated: 2026-05-01
 
 ## Reference Baseline
 
@@ -36,6 +36,11 @@ canonical development repository. The publishable Zed extension repository
 (`DNAKode/vbnet-zed`) should exist from the beginning, but it should be treated
 as generated distribution output mirrored from this repository.
 
+The Tree-sitter grammar is part of the same source-of-truth rule. Its
+authoritative source lives at `DNAKode/vbnet-lsp/tree-sitter-vbnet`; the
+standalone `DNAKode/tree-sitter-vbnet` repository is a downstream mirror used
+for public Zed grammar cloning and any broader Tree-sitter ecosystem use.
+
 The Zed extension version should match the language server release version.
 
 First-class means:
@@ -62,6 +67,7 @@ repository name only.
 Recommended identifiers:
 
 - Downstream repo: `DNAKode/vbnet-zed`
+- Grammar downstream repo: `DNAKode/tree-sitter-vbnet`
 - Extension id: `vbnet`
 - Extension name: `VB.NET`
 - Language name: `VB.NET`
@@ -119,17 +125,32 @@ test-explore/clients/zed/
   probes/
     lsp-probe/
     dap-probe/
+
+tree-sitter-vbnet/
+  grammar.js
+  package.json
+  README.md
+  LICENSE
+  MIRRORING.md
+  corpus/
+  src/grammar.json
+  src/node-types.json
+  src/parser.c
 ```
 
-Downstream repository:
+Downstream repositories:
 
 ```text
 DNAKode/vbnet-zed
+DNAKode/tree-sitter-vbnet
 ```
 
-The downstream repository should contain a clear `MIRRORING.md` notice: edits
-belong in `DNAKode/vbnet-lsp/adapters/zed/vbnet-zed`, not directly in the
-distribution repository.
+Both downstream repositories should contain a clear `MIRRORING.md` notice:
+edits belong in `DNAKode/vbnet-lsp`, not directly in the distribution
+repositories. The authoritative paths are:
+
+- Zed extension: `DNAKode/vbnet-lsp/adapters/zed/vbnet-zed`
+- Tree-sitter grammar: `DNAKode/vbnet-lsp/tree-sitter-vbnet`
 
 Do not commit language-server binaries, `netcoredbg` binaries, downloaded
 archives, local Zed caches, or generated parser build artifacts unless Zed's
@@ -138,19 +159,27 @@ extension registry explicitly requires a generated parser artifact.
 ## Early Setup
 
 1. Create `DNAKode/vbnet-zed`.
-2. Add the canonical adapter snapshot under `adapters/zed/vbnet-zed`.
-3. Extend `adapters/scripts/export-adapter-repos.ps1` with:
+2. Create `DNAKode/tree-sitter-vbnet`.
+3. Add the canonical adapter snapshot under `adapters/zed/vbnet-zed`.
+4. Add the canonical grammar project under `tree-sitter-vbnet`.
+5. Extend `adapters/scripts/export-adapter-repos.ps1` with:
    - `-ZedRepoPath`
+   - `-TreeSitterRepoPath`
    - `-Clean`
    - `-DryRun`
-4. Add a Zed verification script, for example
+6. Add a Zed verification script, for example
    `scripts/verify-zed-extension.ps1`, that checks:
    - required files exist
    - `extension.toml` and language config exist
    - Tree-sitter query files exist
+   - the owned grammar project exists under `tree-sitter-vbnet`
    - Rust extension code builds with `cargo check`
    - release version pins match the expected server version when supplied
-5. Update packaging and release docs:
+7. Add a Tree-sitter verification script, for example
+   `scripts/verify-zed-tree-sitter.ps1`, that checks parser generation
+   artifacts, fixture parsing, and Zed query compilation against the owned
+   grammar.
+8. Update packaging and release docs:
    - `docs/downstream-repositories.md`
    - `docs/editor-packaging.md`
    - `docs/adapter-release-checklist.md`
@@ -158,10 +187,10 @@ extension registry explicitly requires a generated parser artifact.
 
 Initial downstream setup should create:
 
-- `main` for released extension commits.
+- `main` for released extension and grammar commits.
 - `generated/dev` for automatic mirrors from `vbnet-lsp/master`.
-- a repository description that says it is mirrored from `vbnet-lsp`.
-- a `MIRRORING.md` file copied from the canonical snapshot.
+- repository descriptions that say the repos are mirrored from `vbnet-lsp`.
+- `MIRRORING.md` files copied from the canonical snapshots.
 - branch protection only if it does not make automation painful.
 
 Initial monorepo setup should add:
@@ -189,20 +218,28 @@ An implementation agent should work in this order:
    maintained language extension.
 2. Scaffold `adapters/zed/vbnet-zed` with valid manifest, Rust crate, language
    directory, README, license, mirroring notice, and empty-but-valid query files.
-3. Add export support and verify a clean local mirror into `../vbnet-zed`.
-4. Add static validation for required files and manifest values.
-5. Add a local dev-extension guide and manually install the extension in Zed.
-6. Add server discovery and launch using a user-configured local server path.
-7. Add `vbnet-ls` PATH lookup.
-8. Add pinned release download/extract support.
-9. Validate core LSP features against `test/TestProjects/SmallProject`.
-10. Build out Tree-sitter grammar/query coverage using fixtures.
-11. Add debug adapter metadata and explicit `netcoredbg` launch support.
-12. Add project/solution configuration and mixed VB/C# workspace validation.
-13. Wire CI checks for build, validation, export dry-run, and release pinning.
-14. Mirror to `vbnet-zed/generated/dev`.
-15. After the first server release with Zed support, mirror the tagged snapshot
-    to `vbnet-zed/main` and submit/update the Zed registry entry.
+3. Scaffold `tree-sitter-vbnet` under the monorepo root with README, license,
+   mirroring notice, grammar source, generated parser artifacts, and an initial
+   corpus.
+4. Add export support and verify clean local mirrors into `../vbnet-zed` and
+   `../tree-sitter-vbnet`.
+5. Add static validation for required adapter, manifest, and grammar values.
+6. Add a local dev-extension guide and manually install the extension in Zed.
+7. Add server discovery and launch using a user-configured local server path.
+8. Add `vbnet-ls` PATH lookup.
+9. Add pinned release download/extract support.
+10. Validate core LSP features against `test/TestProjects/SmallProject`.
+11. Build out Tree-sitter grammar/query coverage using fixtures.
+12. Mirror the grammar to `tree-sitter-vbnet/generated/dev` and, after approval,
+    pin the Zed manifest to the public `DNAKode/tree-sitter-vbnet` commit for
+    release publishing.
+13. Add debug adapter metadata and explicit `netcoredbg` launch support.
+14. Add project/solution configuration and mixed VB/C# workspace validation.
+15. Wire CI checks for build, validation, export dry-run, and release pinning.
+16. Mirror to `vbnet-zed/generated/dev`.
+17. After the first server release with Zed support, mirror the tagged adapter
+    snapshot to `vbnet-zed/main`, mirror the tagged grammar snapshot to
+    `tree-sitter-vbnet/main`, and submit/update the Zed registry entry.
 
 Each step should leave the repo in a working state. Do not defer docs until the
 end; the docs are part of the acceptance criteria for each phase.
@@ -336,16 +373,19 @@ Development flow:
 
 ```text
 vbnet-lsp/master -> vbnet-zed/generated/dev
+vbnet-lsp/master -> tree-sitter-vbnet/generated/dev
 ```
 
 Release flow:
 
 ```text
 vbnet-lsp tag vX.Y.Z -> vbnet-zed/main -> vbnet-zed tag vX.Y.Z
+vbnet-lsp tag vX.Y.Z -> tree-sitter-vbnet/main -> tree-sitter-vbnet tag vX.Y.Z
 ```
 
 Release mirroring should export from the exact `vbnet-lsp` tag. Do not promote
-whatever happens to be on `vbnet-zed/generated/dev`.
+whatever happens to be on `vbnet-zed/generated/dev` or
+`tree-sitter-vbnet/generated/dev`.
 
 Initial Zed releases may use a manual approval step before updating
 `vbnet-zed/main`. After the first stable publishing cycle, reduce the manual
@@ -358,13 +398,20 @@ Mirroring implementation details:
 - Export should delete stale files in the destination while preserving `.git`.
 - Export should stamp or preserve `MIRRORING.md`.
 - Export should support `-DryRun` and print every copied/removed path.
-- CI should fail if the canonical snapshot cannot be exported cleanly.
+- CI should fail if the canonical adapter or grammar snapshot cannot be
+  exported cleanly.
 - Release mirroring must verify that the target server artifacts exist before
   pushing `vbnet-zed/main`.
+- Release mirroring must verify that the Zed manifest points to the public
+  `DNAKode/tree-sitter-vbnet` mirror and an immutable commit SHA or release tag,
+  not a local `file://` URL.
 - The generated commit message should include the source commit or tag, for
   example `Mirror Zed adapter from DNAKode/vbnet-lsp v0.2.0`.
 - Direct commits in `vbnet-zed` should be treated as emergency-only and
   backported to the canonical snapshot immediately.
+- Direct commits in `tree-sitter-vbnet` should be treated the same way:
+  emergency-only, then backported to `DNAKode/vbnet-lsp/tree-sitter-vbnet`
+  immediately.
 
 ## Phase 1: Zed Extension Skeleton
 
@@ -703,11 +750,19 @@ on Tree-sitter for the editing feel around highlighting, outline, folding,
 indentation, selections, and structural navigation. A weak grammar will make the
 extension feel second-class even if the LSP is strong.
 
-The project should do a detailed grammar investigation before committing to an
-upstream grammar dependency.
+Decision:
 
-The grammar decision should be made explicitly in a short design note under
-`test-explore/clients/zed` or `docs/`, not buried in a commit message.
+- The authoritative grammar lives under `DNAKode/vbnet-lsp/tree-sitter-vbnet`.
+- `DNAKode/tree-sitter-vbnet` is a downstream mirror, not the place where normal
+  grammar development happens.
+- Zed release manifests should point to the public mirror with an immutable
+  `rev`; local dev manifests may temporarily use a `file://` grammar URL while
+  validating unpublished grammar changes.
+- The grammar decision is recorded in `docs/zed-tree-sitter-grammar.md`.
+
+The project should still periodically compare the owned grammar with existing
+VB.NET Tree-sitter grammars, but no external grammar is authoritative for this
+adapter.
 
 Investigation tasks:
 
@@ -732,10 +787,11 @@ Investigation tasks:
   - partial classes/modules
   - designer-generated VB files
   - legacy VB.NET constructs still common in real projects
-- Decide whether to:
-  - contribute heavily to an existing grammar,
-  - fork and maintain a `tree-sitter-vbnet` grammar,
-  - or create an authoritative grammar under the DNAKode organization.
+- Keep the owned grammar mirror-ready:
+  - authoritative source in `vbnet-lsp/tree-sitter-vbnet`,
+  - downstream mirror at `DNAKode/tree-sitter-vbnet`,
+  - `MIRRORING.md` warning against direct downstream development,
+  - generated parser artifacts committed when needed by Zed/CI.
 
 Evaluation criteria for grammar candidates:
 
@@ -758,16 +814,18 @@ Authoritative grammar target:
 - document unsupported or ambiguous constructs explicitly
 - upstream improvements where possible if we build on an existing grammar
 
-Recommended grammar development loop:
+Recommended grammar development and mirror loop:
 
-1. Create or import the grammar in a dedicated grammar repository or vendored
-   test location.
+1. Change grammar source under `vbnet-lsp/tree-sitter-vbnet`.
 2. Add the fixture corpus before writing Zed queries.
 3. Run the grammar parser over fixtures and this repository's `.vb` files.
 4. Track parse-error counts per fixture.
 5. Fix grammar errors before compensating in Zed queries.
 6. Keep query files aligned with stable syntax node names.
 7. Add regression fixtures for every parsing bug found in real code.
+8. Mirror to `DNAKode/tree-sitter-vbnet` after validation.
+9. For Zed releases, update `extension.toml` to the mirrored grammar commit SHA
+   or release tag and verify that no local `file://` grammar URL remains.
 
 Recommended grammar test corpus:
 
@@ -972,7 +1030,12 @@ Release validation:
   smoke tests
 - run at least one real-server Zed smoke test before mirroring to `main`
 - mirror from `vbnet-lsp@vX.Y.Z` to `vbnet-zed/main`
+- mirror from `vbnet-lsp@vX.Y.Z` to `tree-sitter-vbnet/main`
+- ensure `vbnet-zed/extension.toml` references the mirrored
+  `DNAKode/tree-sitter-vbnet` commit or tag
 - tag `vbnet-zed` with `vX.Y.Z`
+- tag `tree-sitter-vbnet` with `vX.Y.Z` if grammar content changed for the
+  release
 
 Zed test artifacts to retain on CI failure:
 
@@ -997,8 +1060,9 @@ Zed test artifacts to retain on CI failure:
 - Should `netcoredbg` be downloaded by the extension, installed separately, or
   reused from the VS Code extension artifact strategy?
 - Do we need Linux arm64 server artifacts before publishing broadly to Zed users?
-- Should the authoritative Tree-sitter grammar live in this monorepo, a separate
-  `DNAKode/tree-sitter-vbnet` repository, or an upstream/forked grammar repo?
+- What exact cadence should the `DNAKode/tree-sitter-vbnet` mirror use after
+  the first Zed registry release: every validated `master` change, only grammar
+  changes, or only tagged releases?
 - Which semantic token styles need extension-provided defaults in
   `semantic_token_rules.json`?
 - Is there a documented non-interactive way to install a dev extension for tests,

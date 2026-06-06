@@ -1,1 +1,8 @@
-; Placeholder for grammar-backed bracket matching.
+("(" @open
+ ")" @close)
+
+("{" @open
+ "}" @close)
+
+("<" @open
+ ">" @close)
