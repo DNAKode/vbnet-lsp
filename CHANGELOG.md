@@ -11,10 +11,31 @@ All notable changes to this project will be documented in this file.
 - _None yet._
 
 ### Fixed
-- Linux/WSL debugger bundling now ensures `libdbgshim.so` is included with netcoredbg.
+- _None yet._
 
 ### Known issues
 - _None yet._
+
+## 0.1.11
+
+### Added
+- Workspace context status surfacing for solution mode, single-project mode, Workspace Dev Mode, ambiguous context selection, and empty workspaces.
+- `VB.NET: Select Workspace Context` command for choosing Auto-detect, a solution, all discovered projects, or one `.vbproj` as the active language-server context.
+- `vbnet.workspace.projectPaths` setting for explicit project-backed workspace context.
+- VS Code harness coverage for workspace context reporting and explicit project context changes.
+
+### Changed
+- `VB.NET: Select Workspace Solution` now opens the unified workspace context picker for compatibility.
+- The status bar now opens workspace context selection and shows the active solution/project context instead of only server state.
+- Workspace context setting changes now restart the language client with a debounce so the loaded server context and status bar remain aligned.
+- Restore and test commands now respect the selected workspace context when no active file gives a more specific project target.
+- Multi-solution workspaces no longer silently select an arbitrary solution when no explicit context is configured.
+
+### Fixed
+- Linux/WSL debugger bundling now ensures `libdbgshim.so` is included with netcoredbg.
+
+### Known issues
+- Full VS Code LSP smoke coverage can still time out in broader service tests; the focused context harness passes with `SKIP_VBNET_SMOKE=1`.
 
 ## 0.1.10
 

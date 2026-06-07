@@ -67,6 +67,7 @@ Namespace VbNet.Extension.Tests
 
             Dim required = New String() {
                 "vbnet.selectWorkspaceSolution",
+                "vbnet.selectWorkspaceContext",
                 "vbnet.showLogs",
                 "vbnet.toggleLspTrace",
                 "vbnet.restoreWorkspace",
@@ -110,6 +111,16 @@ Namespace VbNet.Extension.Tests
             Assert.True(properties.TryGetProperty("vbnet.logLevel", Nothing), "Expected vbnet.logLevel setting.")
             Assert.True(properties.TryGetProperty("vbnet.msbuildPath", Nothing), "Expected vbnet.msbuildPath setting.")
             Assert.True(properties.TryGetProperty("vbnet.maxMemoryMB", Nothing), "Expected vbnet.maxMemoryMB setting.")
+        End Sub
+
+        <Fact>
+        Public Sub ConfigurationIncludesExplicitProjectContextSetting()
+            Dim root = LoadPackageJson()
+            Dim properties = root.GetProperty("contributes").GetProperty("configuration")(0).GetProperty("properties")
+
+            Dim projectPaths As JsonElement
+            Assert.True(properties.TryGetProperty("vbnet.workspace.projectPaths", projectPaths), "Expected vbnet.workspace.projectPaths setting.")
+            Assert.Equal("array", projectPaths.GetProperty("type").GetString())
         End Sub
     End Class
 

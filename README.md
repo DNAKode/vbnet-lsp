@@ -73,10 +73,16 @@ Current implementation details and roadmap are tracked in [PROJECT_PLAN.md](PROJ
 
 Useful commands:
 
+- `VB.NET: Select Workspace Context`
 - `VB.NET: Select Workspace Solution`
 - `VB.NET: Show Logs`
 - `VB.NET: Toggle LSP Trace`
 - `VB.NET: Reload Workspace`
+
+The status bar shows the active VB.NET context: a loaded solution, one selected project,
+all discovered projects in Workspace Dev Mode, or `Select Context` when multiple solutions
+are present and an explicit choice is needed. Restore and test commands follow the selected
+context when no active file gives a more specific project target.
 
 ### Non-VS Code (LSP client)
 

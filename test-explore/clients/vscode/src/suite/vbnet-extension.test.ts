@@ -275,6 +275,7 @@ if (skipVbnetSmoke) {
 
         try {
             assert.ok(commands.includes("vbnet.selectWorkspaceSolution"), "Select workspace solution command not registered.");
+            assert.ok(commands.includes("vbnet.selectWorkspaceContext"), "Select workspace context command not registered.");
             assert.ok(commands.includes("vbnet.showLogs"), "Show logs command not registered.");
             assert.ok(commands.includes("vbnet.toggleLspTrace"), "Toggle LSP trace command not registered.");
             assert.ok(commands.includes("vbnet.restoreWorkspace"), "Restore workspace command not registered.");

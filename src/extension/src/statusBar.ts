@@ -5,12 +5,20 @@
 
 import * as vscode from 'vscode';
 import { State } from 'vscode-languageclient/node';
+import {
+    formatWorkspaceContextDetail,
+    formatWorkspaceContextLabel,
+    UnknownWorkspaceContext,
+    WorkspaceContext
+} from './workspaceContext';
 
 /**
  * Status bar item for showing VB.NET language server status.
  */
 export class VbNetStatusBar implements vscode.Disposable {
     private readonly statusBarItem: vscode.StatusBarItem;
+    private serverStatus: 'initializing' | 'running' | 'stopped' | 'error' = 'initializing';
+    private workspaceContext: WorkspaceContext = UnknownWorkspaceContext;
 
     constructor() {
         this.statusBarItem = vscode.window.createStatusBarItem(
@@ -18,7 +26,7 @@ export class VbNetStatusBar implements vscode.Disposable {
             100
         );
         this.statusBarItem.name = 'VB.NET Language Server';
-        this.statusBarItem.command = 'vbnet.showOutputChannel';
+        this.statusBarItem.command = 'vbnet.selectWorkspaceContext';
         this.setStatus('initializing');
     }
 
@@ -26,31 +34,16 @@ export class VbNetStatusBar implements vscode.Disposable {
      * Sets the status bar to show the current server state.
      */
     public setStatus(status: 'initializing' | 'running' | 'stopped' | 'error'): void {
-        switch (status) {
-            case 'initializing':
-                this.statusBarItem.text = '$(sync~spin) VB.NET';
-                this.statusBarItem.tooltip = 'VB.NET Language Server: Starting...';
-                this.statusBarItem.backgroundColor = undefined;
-                break;
+        this.serverStatus = status;
+        this.render();
+    }
 
-            case 'running':
-                this.statusBarItem.text = '$(check) VB.NET';
-                this.statusBarItem.tooltip = 'VB.NET Language Server: Running';
-                this.statusBarItem.backgroundColor = undefined;
-                break;
-
-            case 'stopped':
-                this.statusBarItem.text = '$(circle-slash) VB.NET';
-                this.statusBarItem.tooltip = 'VB.NET Language Server: Stopped';
-                this.statusBarItem.backgroundColor = undefined;
-                break;
-
-            case 'error':
-                this.statusBarItem.text = '$(error) VB.NET';
-                this.statusBarItem.tooltip = 'VB.NET Language Server: Error (click for details)';
-                this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-                break;
-        }
+    /**
+     * Sets the workspace context shown alongside server state.
+     */
+    public setWorkspaceContext(context: WorkspaceContext): void {
+        this.workspaceContext = context;
+        this.render();
     }
 
     /**
@@ -70,6 +63,48 @@ export class VbNetStatusBar implements vscode.Disposable {
             default:
                 this.setStatus('stopped');
         }
+    }
+
+    private render(): void {
+        const contextLabel = formatWorkspaceContextLabel(this.workspaceContext);
+        const contextDetail = formatWorkspaceContextDetail(this.workspaceContext);
+        let serverDetail = '';
+
+        switch (this.serverStatus) {
+            case 'initializing':
+                this.statusBarItem.text = '$(sync~spin) VB.NET';
+                serverDetail = 'Starting';
+                this.statusBarItem.backgroundColor = undefined;
+                break;
+
+            case 'running':
+                this.statusBarItem.text = `$(check) VB.NET: ${contextLabel}`;
+                serverDetail = 'Running';
+                this.statusBarItem.backgroundColor = undefined;
+                break;
+
+            case 'stopped':
+                this.statusBarItem.text = '$(circle-slash) VB.NET: Stopped';
+                serverDetail = 'Stopped';
+                this.statusBarItem.backgroundColor = undefined;
+                break;
+
+            case 'error':
+                this.statusBarItem.text = '$(error) VB.NET: Error';
+                serverDetail = 'Error';
+                this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+                break;
+        }
+
+        if (this.workspaceContext.kind === 'selectContext' && this.serverStatus === 'running') {
+            this.statusBarItem.text = '$(warning) VB.NET: Select Context';
+        }
+
+        this.statusBarItem.tooltip = [
+            `VB.NET Language Server: ${serverDetail}`,
+            contextDetail,
+            'Click to select VB.NET workspace context.'
+        ].join('\n');
     }
 
     /**

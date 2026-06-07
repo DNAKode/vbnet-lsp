@@ -100,6 +100,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<VbNetE
         languageClient.onStateChange((event) => {
             statusBar?.updateFromClientState(event.newState);
         });
+        languageClient.onWorkspaceContextChange((context) => {
+            statusBar?.setWorkspaceContext(context);
+        });
 
         // Register commands
         registerCommands(context);
@@ -181,6 +184,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<VbNetE
 
     return {
         getClientState: () => languageClient?.getStateName() ?? 'stopped',
+        getWorkspaceContext: () => languageClient?.getWorkspaceContext(),
         waitForClientReady: (timeoutMs?: number) => {
             if (!languageClient) {
                 return Promise.reject(new Error('Language client is not initialized.'));
@@ -221,9 +225,21 @@ function registerCommands(context: vscode.ExtensionContext): void {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('vbnet.selectWorkspaceContext', async () => {
+            try {
+                await selectWorkspaceContext();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel?.appendLine(`Failed to select workspace context: ${message}`);
+                vscode.window.showErrorMessage(`Failed to select workspace context: ${message}`);
+            }
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('vbnet.selectWorkspaceSolution', async () => {
             try {
-                await selectWorkspaceSolution();
+                await selectWorkspaceContext();
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
                 outputChannel?.appendLine(`Failed to select workspace solution: ${message}`);
@@ -339,9 +355,10 @@ function registerCommands(context: vscode.ExtensionContext): void {
     );
 }
 
-interface SolutionPickItem extends vscode.QuickPickItem {
+interface WorkspaceContextPickItem extends vscode.QuickPickItem {
     solutionPath?: string;
-    action?: 'clear';
+    projectPath?: string;
+    action?: 'auto' | 'allProjects';
 }
 
 interface ProjectPickItem extends vscode.QuickPickItem {
@@ -650,7 +667,7 @@ async function findWorkspaceProjectsForFolder(
     return paths;
 }
 
-async function selectWorkspaceSolution(): Promise<void> {
+async function selectWorkspaceContext(): Promise<void> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
         vscode.window.showWarningMessage('No workspace folder is open.');
@@ -662,12 +679,12 @@ async function selectWorkspaceSolution(): Promise<void> {
     const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
 
     const resources = await vscode.workspace.findFiles(
-        '{**/*.sln,**/*.slnf,**/*.slnx}',
+        '{**/*.sln,**/*.slnf,**/*.slnx,**/*.vbproj}',
         `{${excludePattern}}`
     );
 
     if (resources.length === 0) {
-        vscode.window.showInformationMessage('No solution files were found in this workspace.');
+        vscode.window.showInformationMessage('No VB.NET solution or project files were found in this workspace.');
         return;
     }
 
@@ -677,18 +694,37 @@ async function selectWorkspaceSolution(): Promise<void> {
         ? path.normalize(path.resolve(workspaceRoot, configuredSolution))
         : '';
 
-    const items: SolutionPickItem[] = [];
+    const configuredProjects = config.get<string[]>('workspace.projectPaths', []) || [];
+    const configuredProjectResolved = new Set(
+        configuredProjects.map((projectPath) => path.normalize(path.resolve(workspaceRoot, projectPath)))
+    );
+
+    const items: WorkspaceContextPickItem[] = [];
     items.push({
         label: 'Auto-detect',
-        description: 'Clear workspace solution override',
-        action: 'clear'
+        description: 'Clear explicit solution/project context',
+        action: 'auto'
     });
 
-    const candidates = resources
+    const solutionCandidates = resources
+        .filter((resource) => /\.(sln|slnf|slnx)$/i.test(resource.fsPath))
         .map((resource) => resource.fsPath)
         .sort((a, b) => a.localeCompare(b));
 
-    for (const candidate of candidates) {
+    const projectCandidates = resources
+        .filter((resource) => /\.vbproj$/i.test(resource.fsPath))
+        .map((resource) => resource.fsPath)
+        .sort((a, b) => a.localeCompare(b));
+
+    if (projectCandidates.length > 0) {
+        items.push({
+            label: `Workspace Dev Mode (${projectCandidates.length} project${projectCandidates.length === 1 ? '' : 's'})`,
+            description: 'Load discovered VB.NET projects without a solution',
+            action: 'allProjects'
+        });
+    }
+
+    for (const candidate of solutionCandidates) {
         const resolved = path.normalize(candidate);
         const relative = path.relative(workspaceRoot, candidate);
         const isRelative = relative && !relative.startsWith('..') && !path.isAbsolute(relative);
@@ -703,15 +739,32 @@ async function selectWorkspaceSolution(): Promise<void> {
         }
 
         items.push({
-            label,
+            label: `Solution: ${label}`,
             description,
             detail: candidate,
             solutionPath: candidate
         });
     }
 
+    for (const candidate of projectCandidates) {
+        const resolved = path.normalize(candidate);
+        const relative = path.relative(workspaceRoot, candidate);
+        const isRelative = relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+        const label = isRelative ? relative : path.basename(candidate);
+        const description = configuredProjectResolved.has(resolved)
+            ? 'Current project context'
+            : undefined;
+
+        items.push({
+            label: `Project: ${label}`,
+            description,
+            detail: candidate,
+            projectPath: candidate
+        });
+    }
+
     const pick = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select a workspace solution for VB.NET (clears auto-detection)',
+        placeHolder: 'Select the VB.NET workspace context',
         canPickMany: false
     });
 
@@ -719,25 +772,66 @@ async function selectWorkspaceSolution(): Promise<void> {
         return;
     }
 
-    if (pick.action === 'clear') {
-        await config.update('workspace.solutionPath', '', vscode.ConfigurationTarget.Workspace);
-        outputChannel?.appendLine('Workspace solution override cleared (auto-detect enabled).');
-        vscode.window.showInformationMessage('Workspace solution override cleared (auto-detect enabled).');
+    if (pick.action === 'auto') {
+        await updateWorkspaceContextSettings('', [], false);
+        outputChannel?.appendLine('VB.NET workspace context override cleared (auto-detect enabled).');
+        vscode.window.showInformationMessage('VB.NET workspace context override cleared (auto-detect enabled).');
+        await restartLanguageClientForContextChange();
         return;
     }
 
-    if (!pick.solutionPath) {
+    if (pick.action === 'allProjects') {
+        await updateWorkspaceContextSettings('', [], true);
+        outputChannel?.appendLine('VB.NET workspace context set to Workspace Dev Mode (all discovered projects).');
+        vscode.window.showInformationMessage('VB.NET workspace context set to Workspace Dev Mode.');
+        await restartLanguageClientForContextChange();
         return;
     }
 
-    const relative = path.relative(workspaceRoot, pick.solutionPath);
-    const configValue = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
-        ? relative
-        : pick.solutionPath;
+    if (pick.solutionPath) {
+        const relative = path.relative(workspaceRoot, pick.solutionPath);
+        const configValue = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+            ? relative
+            : pick.solutionPath;
 
-    await config.update('workspace.solutionPath', configValue, vscode.ConfigurationTarget.Workspace);
-    outputChannel?.appendLine(`Workspace solution override set to: ${configValue}`);
-    vscode.window.showInformationMessage(`Workspace solution set to ${configValue}`);
+        await updateWorkspaceContextSettings(configValue, [], false);
+        outputChannel?.appendLine(`VB.NET workspace context set to solution: ${configValue}`);
+        vscode.window.showInformationMessage(`VB.NET workspace context set to ${configValue}`);
+        await restartLanguageClientForContextChange();
+        return;
+    }
+
+    if (pick.projectPath) {
+        const relative = path.relative(workspaceRoot, pick.projectPath);
+        const configValue = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+            ? relative
+            : pick.projectPath;
+
+        await updateWorkspaceContextSettings('', [configValue], true);
+        outputChannel?.appendLine(`VB.NET workspace context set to project: ${configValue}`);
+        vscode.window.showInformationMessage(`VB.NET workspace context set to ${configValue}`);
+        await restartLanguageClientForContextChange();
+    }
+}
+
+async function updateWorkspaceContextSettings(
+    solutionPath: string,
+    projectPaths: string[],
+    ignoreSolutionFiles: boolean
+): Promise<void> {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    await config.update('workspace.solutionPath', solutionPath, vscode.ConfigurationTarget.Workspace);
+    await config.update('workspace.projectPaths', projectPaths, vscode.ConfigurationTarget.Workspace);
+    await config.update('workspace.ignoreSolutionFiles', ignoreSolutionFiles, vscode.ConfigurationTarget.Workspace);
+}
+
+async function restartLanguageClientForContextChange(): Promise<void> {
+    if (!languageClient) {
+        return;
+    }
+
+    statusBar?.setStatus('initializing');
+    await languageClient.restart();
 }
 
 async function solutionLikelyHasVbProjects(solutionPath: string): Promise<boolean> {
@@ -780,13 +874,24 @@ async function restoreWorkspace(): Promise<void> {
     }
 
     const configuredSolution = getConfiguredSolutionPath(workspaceRoot);
-    const candidateSolution = configuredSolution ?? await pickWorkspaceSolutionCandidate(workspaceRoot);
+    const configuredProjects = getConfiguredProjectPaths(workspaceRoot);
+    const ignoreSolutionFiles = getIgnoreSolutionFiles();
+    const candidateSolution = configuredSolution
+        ?? (ignoreSolutionFiles || configuredProjects.length > 0
+            ? undefined
+            : await pickWorkspaceSolutionCandidate(workspaceRoot, false));
     const args = ['restore'];
     if (candidateSolution) {
         args.push(candidateSolution);
+    } else if (configuredProjects.length === 1) {
+        args.push(configuredProjects[0]);
     }
 
-    const label = candidateSolution ? `Restoring ${path.basename(candidateSolution)}` : 'Restoring workspace';
+    const label = candidateSolution
+        ? `Restoring ${path.basename(candidateSolution)}`
+        : configuredProjects.length === 1
+            ? `Restoring ${path.basename(configuredProjects[0])}`
+            : 'Restoring workspace';
     await runDotnetCommand(args, workspaceRoot, label, 'Restore completed.');
 }
 
@@ -877,7 +982,34 @@ function getConfiguredSolutionPath(workspaceRoot: string): string | undefined {
     return undefined;
 }
 
-async function pickWorkspaceSolutionCandidate(workspaceRoot: string): Promise<string | undefined> {
+function getConfiguredProjectPaths(workspaceRoot: string): string[] {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    const configuredProjects = config.get<string[]>('workspace.projectPaths', []) || [];
+    const resolved: string[] = [];
+
+    for (const projectPath of configuredProjects) {
+        const trimmed = (projectPath || '').trim();
+        if (!trimmed) {
+            continue;
+        }
+
+        const fullPath = path.resolve(workspaceRoot, trimmed);
+        if (fsPathExists(fullPath) && fullPath.toLowerCase().endsWith('.vbproj')) {
+            resolved.push(fullPath);
+        } else {
+            outputChannel?.appendLine(`Configured project path not found: ${trimmed}`);
+        }
+    }
+
+    return resolved;
+}
+
+function getIgnoreSolutionFiles(): boolean {
+    const config = vscode.workspace.getConfiguration('vbnet');
+    return config.get<boolean>('workspace.ignoreSolutionFiles', false);
+}
+
+async function pickWorkspaceSolutionCandidate(workspaceRoot: string, allowMultipleFallback: boolean = true): Promise<string | undefined> {
     const solutions = await findWorkspaceSolutions();
     if (solutions.length === 0) {
         return undefined;
@@ -894,8 +1026,13 @@ async function pickWorkspaceSolutionCandidate(workspaceRoot: string): Promise<st
         .sort((a, b) => {
             const depthA = a.split(path.sep).length;
             const depthB = b.split(path.sep).length;
-            return depthA - depthB;
+            const depthCompare = depthA - depthB;
+            return depthCompare !== 0 ? depthCompare : a.localeCompare(b);
         });
+
+    if (!allowMultipleFallback && candidates.length > 1) {
+        return undefined;
+    }
 
     return candidates[0];
 }
@@ -914,7 +1051,15 @@ async function resolveTestTarget(workspaceRoot: string): Promise<string | undefi
         return configuredSolution;
     }
 
-    const candidateSolution = await pickWorkspaceSolutionCandidate(workspaceRoot);
+    const configuredProjects = getConfiguredProjectPaths(workspaceRoot);
+    if (configuredProjects.length === 1) {
+        return configuredProjects[0];
+    }
+
+    const ignoreSolutionFiles = getIgnoreSolutionFiles();
+    const candidateSolution = ignoreSolutionFiles || configuredProjects.length > 0
+        ? undefined
+        : await pickWorkspaceSolutionCandidate(workspaceRoot, false);
     if (candidateSolution) {
         return candidateSolution;
     }
@@ -1188,5 +1333,6 @@ export async function deactivate(): Promise<void> {
 
 export interface VbNetExtensionApi {
     getClientState(): string;
+    getWorkspaceContext(): object | undefined;
     waitForClientReady(timeoutMs?: number): Promise<void>;
 }

@@ -1,7 +1,7 @@
 {
   "name": "vbnet-language-support",
   "publisher": "dnakode",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "First-class VB.NET language support for VS Code",
   "displayName": "VB.NET Language Support",
   "icon": "images/vbnet-icon.png",
@@ -222,6 +222,14 @@
             "default": false,
             "description": "Ignore .sln files and load .vbproj files directly (solution-less mode)."
           },
+          "vbnet.workspace.projectPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "Explicit .vbproj files to load as the workspace context. Leave empty for auto-detection."
+          },
           "vbnet.workspace.projectSearchPaths": {
             "type": "array",
             "items": {
@@ -287,6 +295,11 @@
       {
         "command": "vbnet.selectWorkspaceSolution",
         "title": "Select VB.NET Workspace Solution",
+        "category": "VB.NET"
+      },
+      {
+        "command": "vbnet.selectWorkspaceContext",
+        "title": "Select VB.NET Workspace Context",
         "category": "VB.NET"
       },
       {

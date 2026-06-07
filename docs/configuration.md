@@ -2,8 +2,8 @@
 
 **`VB.NET` Language Support - User Configuration**
 
-Version: 1.1
-Last Updated: 2026-01-22
+Version: 1.2
+Last Updated: 2026-06-07
 
 ## Table of Contents
 
@@ -24,8 +24,10 @@ Last Updated: 2026-01-22
 
 ### Commands
 
-- **`VB.NET: Select Workspace Solution`** — choose a `.sln/.slnf/.slnx` file and update
-  `vbnet.workspace.solutionPath`. Pick "Auto-detect" to clear the override.
+- **`VB.NET: Select Workspace Solution`** — compatibility entry point for the workspace
+  context picker; choose a solution, project, Workspace Dev Mode, or Auto-detect.
+- **`VB.NET: Select Workspace Context`** — choose Auto-detect, a solution, Workspace Dev Mode
+  (all discovered projects), or one `.vbproj` as the active language-server context.
 - **`VB.NET: Show Logs`** — opens the main output channel and the LSP trace channel.
 - **`VB.NET: Toggle LSP Trace`** — toggles `vbnet.trace.server` between `off` and `verbose`.
 - **`VB.NET: Restore Workspace`** — runs `dotnet restore` using the selected solution (or workspace root).
@@ -41,6 +43,19 @@ The extension contributes file nesting patterns so common VB artifacts are group
 Explorer (for example, `.Designer.vb`, `.g.vb`, `.g.i.vb`, `.generated.vb`, `.AssemblyInfo.vb`,
 and `My*.vb` under their primary `.vb` file). You can override these defaults via
 `explorer.fileNesting.patterns` in your settings.
+
+### Workspace Context Status
+
+The VB.NET status bar item shows the active context:
+
+- **Solution Mode**: `VB.NET: MySolution.sln` means a solution is loaded.
+- **Single Project Mode**: `VB.NET: MyProject.vbproj` means one explicit project is loaded.
+- **Workspace Dev Mode**: `VB.NET: 4 projects` means no solution is loaded and discovered projects are loaded directly.
+- **Select Context**: multiple solution candidates were found; click the status bar to choose the intended context.
+
+Click the status bar item to run **`VB.NET: Select Workspace Context`**.
+Restore and test commands also use the selected context when no active file gives a more
+specific project target.
 
 ---
 
@@ -295,6 +310,19 @@ View traces: "View > Output" > "`VB.NET` Language Support"
 ```json
 {
   "vbnet.workspace.ignoreSolutionFiles": true
+}
+```
+
+#### `vbnet.workspace.projectPaths`
+**Type**: `string[]`
+**Default**: `[]`
+**Description**: Explicit `.vbproj` files to load as the workspace context. The context picker sets this when you choose a specific project.
+
+```json
+{
+  "vbnet.workspace.projectPaths": [
+    "src/MyProject/MyProject.vbproj"
+  ]
 }
 ```
 
@@ -758,7 +786,7 @@ If configuration issues persist:
 
 ---
 
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-06-07
 
 **Maintained by**: `VB.NET` Language Support Contributors
 

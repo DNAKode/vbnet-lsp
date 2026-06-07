@@ -2,8 +2,8 @@
 
 **`VB.NET` Language Support - LSP Features and Roadmap**
 
-Version: 2.6  
-Last Updated: 2026-02-05
+Version: 2.7
+Last Updated: 2026-06-07
 
 ## 1. Overview
 
@@ -134,6 +134,7 @@ This document provides a concise view of LSP features supported by `VB.NET` Lang
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Test Explorer integration | Implemented | Dotnet test runs for solution/project items (run profile only) |
+| Workspace context status and picker | Implemented | Status bar shows solution/project/workspace mode; picker switches solution, single project, all-projects Workspace Dev Mode, or Auto-detect |
 
 ## 6. Roadmap (Next)
 

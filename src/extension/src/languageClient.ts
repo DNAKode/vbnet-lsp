@@ -18,6 +18,7 @@ import { PassThrough } from 'stream';
 import { PlatformInformation } from './platform';
 import { ServerLauncher, TransportType, ServerStartResult } from './serverLauncher';
 import { UriConverter } from './uriConverter';
+import { UnknownWorkspaceContext, WorkspaceContext } from './workspaceContext';
 
 /**
  * Language client state change event.
@@ -36,10 +37,16 @@ export class VbNetLanguageClient implements vscode.Disposable {
     private readonly onStateChangeEmitter = new vscode.EventEmitter<LanguageClientStateChangeEvent>();
     private traceConfigDisposable: vscode.Disposable | undefined;
     private serverConfigDisposable: vscode.Disposable | undefined;
+    private workspaceConfigDisposable: vscode.Disposable | undefined;
     private initializationOptions: object | undefined;
     private currentState: State = State.Stopped;
+    private currentWorkspaceContext: WorkspaceContext = UnknownWorkspaceContext;
+    private readonly onWorkspaceContextChangeEmitter = new vscode.EventEmitter<WorkspaceContext>();
+    private ambiguousContextNotificationShown = false;
+    private workspaceRestartTimer: NodeJS.Timeout | undefined;
 
     public readonly onStateChange = this.onStateChangeEmitter.event;
+    public readonly onWorkspaceContextChange = this.onWorkspaceContextChangeEmitter.event;
 
     constructor(
         private readonly channel: vscode.OutputChannel,
@@ -106,6 +113,18 @@ export class VbNetLanguageClient implements vscode.Disposable {
                     this.restart().catch((error) => {
                         this.channel.appendLine(`Failed to restart language server after config change: ${error}`);
                     });
+                }
+            });
+
+            this.workspaceConfigDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+                if (event.affectsConfiguration('vbnet.workspace.solutionPath') ||
+                    event.affectsConfiguration('vbnet.solutionPath') ||
+                    event.affectsConfiguration('vbnet.workspace.projectPaths') ||
+                    event.affectsConfiguration('vbnet.workspace.ignoreSolutionFiles') ||
+                    event.affectsConfiguration('vbnet.workspace.projectSearchPaths') ||
+                    event.affectsConfiguration('vbnet.workspace.excludePaths') ||
+                    event.affectsConfiguration('vbnet.workspace.maxProjectResults')) {
+                    this.scheduleWorkspaceContextRestart();
                 }
             });
             this.channel.appendLine('VB.NET Language Client started successfully');
@@ -260,6 +279,12 @@ export class VbNetLanguageClient implements vscode.Disposable {
         this.traceConfigDisposable = undefined;
         this.serverConfigDisposable?.dispose();
         this.serverConfigDisposable = undefined;
+        this.workspaceConfigDisposable?.dispose();
+        this.workspaceConfigDisposable = undefined;
+        if (this.workspaceRestartTimer) {
+            clearTimeout(this.workspaceRestartTimer);
+            this.workspaceRestartTimer = undefined;
+        }
 
         await this.serverLauncher.stopServer();
     }
@@ -292,6 +317,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
      */
     public dispose(): void {
         this.onStateChangeEmitter.dispose();
+        this.onWorkspaceContextChangeEmitter.dispose();
         this.stop().catch((error) => {
             this.channel.appendLine(`Error during disposal: ${error}`);
         });
@@ -315,9 +341,24 @@ export class VbNetLanguageClient implements vscode.Disposable {
         this.channel.appendLine(`Language client trace level set to ${traceLevel}`);
     }
 
+    private scheduleWorkspaceContextRestart(): void {
+        if (this.workspaceRestartTimer) {
+            clearTimeout(this.workspaceRestartTimer);
+        }
+
+        this.workspaceRestartTimer = setTimeout(() => {
+            this.workspaceRestartTimer = undefined;
+            this.channel.appendLine('Workspace context configuration changed. Restarting language server...');
+            this.restart().catch((error) => {
+                this.channel.appendLine(`Failed to restart language server after workspace context change: ${error}`);
+            });
+        }, 300);
+    }
+
     private async buildInitializationOptions(): Promise<object | undefined> {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders || workspaceFolders.length === 0) {
+            this.setWorkspaceContext({ kind: 'empty' });
             return undefined;
         }
 
@@ -327,6 +368,9 @@ export class VbNetLanguageClient implements vscode.Disposable {
         const maxProjectResults = config.get<number>('workspace.maxProjectResults', 250);
         const configuredSolution = (config.get<string>('workspace.solutionPath', '') || '').trim();
         const legacySolution = (config.get<string>('solutionPath', '') || '').trim();
+        const configuredProjectPaths = (config.get<string[]>('workspace.projectPaths', []) || [])
+            .map((projectPath) => projectPath.trim())
+            .filter((projectPath) => projectPath.length > 0);
         const ignoreSolutionFiles = config.get<boolean>('workspace.ignoreSolutionFiles', false);
         const projectSearchPaths = config.get<string[]>('workspace.projectSearchPaths', []);
         const excludePaths = config.get<string[]>('workspace.excludePaths', []);
@@ -352,6 +396,37 @@ export class VbNetLanguageClient implements vscode.Disposable {
                 this.channel.appendLine('Using legacy vbnet.solutionPath; prefer vbnet.workspace.solutionPath.');
             }
             workspaceOptions.solutionPath = effectiveSolution;
+            this.setWorkspaceContext({
+                kind: 'solution',
+                workspaceRoot: workspaceFolders[0].uri.fsPath,
+                solutionPath: path.resolve(workspaceFolders[0].uri.fsPath, effectiveSolution)
+            });
+        } else if (configuredProjectPaths.length > 0) {
+            const resolvedProjectPaths = configuredProjectPaths.map((projectPath) =>
+                path.resolve(workspaceFolders[0].uri.fsPath, projectPath)
+            );
+            workspaceOptions.projectPaths = configuredProjectPaths;
+            workspaceOptions.ignoreSolutionFiles = true;
+            this.setWorkspaceContext({
+                kind: resolvedProjectPaths.length === 1 ? 'singleProject' : 'allProjects',
+                workspaceRoot: workspaceFolders[0].uri.fsPath,
+                projectPaths: resolvedProjectPaths
+            });
+        } else if (ignoreSolutionFiles) {
+            const projectPaths = await this.findWorkspaceProjectPaths(excludePattern, maxProjectResults);
+            if (projectPaths.length > 0) {
+                workspaceOptions.projectPaths = projectPaths;
+                this.setWorkspaceContext({
+                    kind: projectPaths.length === 1 ? 'singleProject' : 'allProjects',
+                    workspaceRoot: workspaceFolders[0].uri.fsPath,
+                    projectPaths
+                });
+            } else {
+                this.setWorkspaceContext({
+                    kind: 'empty',
+                    workspaceRoot: workspaceFolders[0].uri.fsPath
+                });
+            }
         } else {
             const resources = await vscode.workspace.findFiles(
                 '{**/*.sln,**/*.slnf,**/*.slnx,**/*.vbproj}',
@@ -359,17 +434,55 @@ export class VbNetLanguageClient implements vscode.Disposable {
             );
 
             const solutionCandidates = resources.filter((resource) => /\.(sln|slnf|slnx)$/i.test(resource.fsPath));
-            const vbProjectFiles = resources.filter((resource) => /\.vbproj$/i.test(resource.fsPath));
+            const vbProjectFiles = this.sortUris(resources.filter((resource) => /\.vbproj$/i.test(resource.fsPath)));
 
-            const solutionPath = await this.pickSolutionWithVbProjects(solutionCandidates);
-            if (solutionPath && !ignoreSolutionFiles) {
+            const vbSolutionCandidates = await this.filterSolutionsWithVbProjects(solutionCandidates);
+            if (vbSolutionCandidates.length === 1) {
+                const solutionPath = vbSolutionCandidates[0].fsPath;
                 workspaceOptions.solutionPath = solutionPath;
+                this.setWorkspaceContext({
+                    kind: 'solution',
+                    workspaceRoot: workspaceFolders[0].uri.fsPath,
+                    solutionPath
+                });
+            } else if (vbSolutionCandidates.length > 1) {
+                const projectPaths = vbProjectFiles
+                    .map((resource) => resource.fsPath)
+                    .slice(0, Math.max(0, maxProjectResults));
+                workspaceOptions.ignoreSolutionFiles = true;
+                if (projectPaths.length > 0) {
+                    workspaceOptions.projectPaths = projectPaths;
+                }
+                const candidatePaths = vbSolutionCandidates.map((candidate) => candidate.fsPath);
+                this.channel.appendLine('Multiple VB.NET solution candidates found; not selecting one automatically.');
+                for (const candidatePath of candidatePaths) {
+                    this.channel.appendLine(`  Candidate solution: ${candidatePath}`);
+                }
+                this.setWorkspaceContext({
+                    kind: 'selectContext',
+                    workspaceRoot: workspaceFolders[0].uri.fsPath,
+                    projectPaths,
+                    solutionCandidates: candidatePaths
+                });
+                this.showAmbiguousContextNotification().catch((error) => {
+                    this.channel.appendLine(`Failed to show workspace context notification: ${error}`);
+                });
             } else {
                 const projectPaths = vbProjectFiles
                     .map((resource) => resource.fsPath)
                     .slice(0, Math.max(0, maxProjectResults));
                 if (projectPaths.length > 0) {
                     workspaceOptions.projectPaths = projectPaths;
+                    this.setWorkspaceContext({
+                        kind: projectPaths.length === 1 ? 'singleProject' : 'allProjects',
+                        workspaceRoot: workspaceFolders[0].uri.fsPath,
+                        projectPaths
+                    });
+                } else {
+                    this.setWorkspaceContext({
+                        kind: 'empty',
+                        workspaceRoot: workspaceFolders[0].uri.fsPath
+                    });
                 }
             }
         }
@@ -387,13 +500,13 @@ export class VbNetLanguageClient implements vscode.Disposable {
         };
     }
 
-    private async pickSolutionWithVbProjects(candidates: vscode.Uri[]): Promise<string | undefined> {
+    private async filterSolutionsWithVbProjects(candidates: vscode.Uri[]): Promise<vscode.Uri[]> {
         if (candidates.length === 0) {
-            return undefined;
+            return [];
         }
 
-        const filtered = [];
-        for (const candidate of candidates) {
+        const filtered: vscode.Uri[] = [];
+        for (const candidate of this.sortUris(candidates)) {
             try {
                 const extension = path.extname(candidate.fsPath).toLowerCase();
                 if (extension === '.slnx') {
@@ -410,16 +523,56 @@ export class VbNetLanguageClient implements vscode.Disposable {
             }
         }
 
-        if (filtered.length === 0) {
-            return undefined;
+        return filtered;
+    }
+
+    private async findWorkspaceProjectPaths(excludePattern: string, maxProjectResults: number): Promise<string[]> {
+        const resources = await vscode.workspace.findFiles(
+            '**/*.vbproj',
+            `{${excludePattern}}`
+        );
+        return this.sortUris(resources)
+            .map((resource) => resource.fsPath)
+            .slice(0, Math.max(0, maxProjectResults));
+    }
+
+    private sortUris(resources: vscode.Uri[]): vscode.Uri[] {
+        return resources.slice().sort((a, b) => {
+            const depth = a.fsPath.split(/\\|\//).length - b.fsPath.split(/\\|\//).length;
+            return depth !== 0 ? depth : a.fsPath.localeCompare(b.fsPath);
+        });
+    }
+
+    private setWorkspaceContext(context: WorkspaceContext): void {
+        this.currentWorkspaceContext = context;
+        this.onWorkspaceContextChangeEmitter.fire(context);
+    }
+
+    private async showAmbiguousContextNotification(): Promise<void> {
+        if (this.ambiguousContextNotificationShown) {
+            return;
         }
 
-        filtered.sort((a, b) => a.fsPath.split(/\\|\//).length - b.fsPath.split(/\\|\//).length);
-        return filtered[0].fsPath;
+        this.ambiguousContextNotificationShown = true;
+        const action = await vscode.window.showInformationMessage(
+            'Multiple VB.NET solutions were found. Select the workspace context to avoid ambiguous project loading.',
+            'Select Context',
+            'Show Output'
+        );
+
+        if (action === 'Select Context') {
+            await vscode.commands.executeCommand('vbnet.selectWorkspaceContext');
+        } else if (action === 'Show Output') {
+            this.channel.show();
+        }
     }
 
     public getStateName(): string {
         return State[this.currentState];
+    }
+
+    public getWorkspaceContext(): WorkspaceContext {
+        return this.currentWorkspaceContext;
     }
 
     public async waitForReady(timeoutMs = 30000): Promise<void> {
