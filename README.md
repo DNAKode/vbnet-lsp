@@ -56,6 +56,7 @@ Packaging guidance for native channels is documented in
 ## What You Get
 
 - Roslyn-backed semantic analysis and project loading (`.sln`, `.slnf`, `.slnx`, `.vbproj`)
+- Best-effort fallback support for old-style / non-SDK VB.NET Framework project files, including project-level imports, framework references, restored packages, and common `My.Application` project-system symbols
 - Core language features: diagnostics, completion, hover, definition, references, rename, symbols
 - Advanced navigation: type definition, implementation, call hierarchy, type hierarchy
 - Editing support: formatting, semantic tokens, signature help, folding ranges, code actions, and Roslyn-backed Extract Method
@@ -83,6 +84,10 @@ The status bar shows the active VB.NET context: a loaded solution, one selected 
 all discovered projects in Workspace Dev Mode, or `Select Context` when multiple solutions
 are present and an explicit choice is needed. Restore and test commands follow the selected
 context when no active file gives a more specific project target.
+
+For GitHub issue reports or shared logs, set `vbnet.output.language` to `en-US` to request
+English diagnostics and build output from the language server, .NET CLI, MSBuild, and Roslyn
+where supported.
 
 ### Non-VS Code (LSP client)
 

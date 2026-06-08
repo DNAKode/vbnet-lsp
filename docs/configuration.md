@@ -112,6 +112,21 @@ specific project target.
 
 View traces: "View > Output" > "`VB.NET` Language Support"
 
+#### `vbnet.output.language`
+**Type**: `enum`
+**Values**: `"auto"`, `"en-US"`
+**Default**: `"auto"`
+**Description**: Controls the language requested for extension output, language-server diagnostics, .NET CLI output, MSBuild, and Roslyn where supported.
+
+```json
+{
+  "vbnet.output.language": "en-US"
+}
+```
+
+Use `en-US` when sharing logs or compiler diagnostics in GitHub issues. Changing this
+setting restarts the language server so the new process environment is applied.
+
 ---
 
 ### Server Overrides (Advanced)

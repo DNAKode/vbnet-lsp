@@ -16,6 +16,24 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.12
+
+### Added
+- Legacy non-SDK-style VB.NET Framework fallback loading now projects old project-file artifacts through an SDK-style-equivalent model that can be hardened over time.
+- Fallback-generated VB project-system source now covers `My.Application.Info.DirectoryPath` and WinForms `MyApplication` base behavior used by legacy `Application.Designer.vb` files.
+- `vbnet.output.language` setting for requesting English (`en-US`) language-server, .NET CLI, MSBuild, and Roslyn output when collecting diagnostics for support.
+- Tests for the latest legacy project repro shapes: console `My.Application.Info.DirectoryPath`, WinForms `Application.Designer.vb`, Roslyn package alias imports, and mixed `.slnx` solutions containing legacy net48 plus SDK-style net10 projects.
+
+### Changed
+- `.slnx` fallback loading now preserves SDK-style projects by loading them normally before layering projected legacy projects into the workspace.
+- Legacy package resolution now records package identity/version in the projection and considers `netstandard2.0` package assets with the .NET Framework `netstandard.dll` facade when available.
+
+### Fixed
+- Old-style net48 projects using Roslyn package assemblies from `packages.config` can now resolve common `Microsoft.CodeAnalysis`, C#, and VB alias imports through the fallback path when packages are restored.
+
+### Known issues
+- Legacy project fallback remains best-effort and does not fully evaluate arbitrary imported MSBuild targets or all conditional project logic.
+
 ## 0.1.11
 
 ### Added
