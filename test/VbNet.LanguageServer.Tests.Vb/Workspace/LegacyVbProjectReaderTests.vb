@@ -375,9 +375,7 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
         Private Shared Sub CopyGlobalPackageAssembly(projectRoot As String, packageId As String, version As String, assemblyName As String)
             Dim globalPackageAssembly = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".nuget",
-                "packages",
+                GetNuGetPackageRoot(),
                 packageId.ToLowerInvariant(),
                 version.ToLowerInvariant(),
                 "lib",
@@ -394,6 +392,18 @@ Namespace VbNet.LanguageServer.Tests.Workspace
             Directory.CreateDirectory(localPackageLib)
             File.Copy(globalPackageAssembly, Path.Combine(localPackageLib, assemblyName), overwrite:=True)
         End Sub
+
+        Private Shared Function GetNuGetPackageRoot() As String
+            Dim configuredRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
+            If Not String.IsNullOrWhiteSpace(configuredRoot) Then
+                Return configuredRoot
+            End If
+
+            Return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".nuget",
+                "packages")
+        End Function
 
         Private Shared Function GetNet48ReferenceAssembly(fileName As String) As String
             Return Path.Combine(
