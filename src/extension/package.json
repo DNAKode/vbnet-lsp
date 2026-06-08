@@ -134,6 +134,19 @@
             "default": "off",
             "description": "Traces the communication between VS Code and the VB.NET language server."
           },
+          "vbnet.output.language": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "en-US"
+            ],
+            "default": "auto",
+            "enumDescriptions": [
+              "Use the operating system and process default language.",
+              "Request English output from the language server, .NET CLI, MSBuild, and Roslyn diagnostics where supported."
+            ],
+            "description": "Controls the language used for VB.NET extension output, warnings, and diagnostics. Use en-US when sharing logs in GitHub issues."
+          },
           "vbnet.roslyn.server.path": {
             "type": "string",
             "default": "",

@@ -107,6 +107,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
                 if (event.affectsConfiguration('vbnet.server.backend') ||
                     event.affectsConfiguration('vbnet.server.path') ||
                     event.affectsConfiguration('vbnet.server.transportType') ||
+                    event.affectsConfiguration('vbnet.output.language') ||
                     event.affectsConfiguration('vbnet.roslyn.server.path') ||
                     event.affectsConfiguration('vbnet.roslyn.server.extensionPath')) {
                     this.channel.appendLine('Server configuration changed. Restarting language server...');

@@ -2,6 +2,8 @@
 ' Host/CLI layer as defined in docs/architecture.md Section 5.5
 
 Imports System.IO
+Imports System.Globalization
+Imports System.Threading
 Imports Microsoft.Build.Locator
 Imports Microsoft.Extensions.Logging
 Imports VbNet.LanguageServer.Core
@@ -19,11 +21,16 @@ Public Module Program
 
     Private Async Function MainAsync(args As String()) As Task(Of Integer)
         Dim options = ParseArguments(args)
+        Dim appliedCulture = ApplyConfiguredUiCulture()
 
         Using loggerFactory = CreateLoggerFactory(options)
             Dim logger = loggerFactory.CreateLogger("VbNet.LanguageServer")
 
             Try
+                If Not String.IsNullOrWhiteSpace(appliedCulture) Then
+                    logger.LogInformation("Using configured UI culture: {Culture}", appliedCulture)
+                End If
+
                 RegisterMSBuild(logger, options.MsbuildPath)
 
                 If options.WaitForDebugger Then
@@ -58,6 +65,32 @@ Public Module Program
                 Return 1
             End Try
         End Using
+    End Function
+
+    Private Function ApplyConfiguredUiCulture() As String
+        Dim cultureName = Environment.GetEnvironmentVariable("VBNET_UI_CULTURE")
+        If String.IsNullOrWhiteSpace(cultureName) Then
+            cultureName = Environment.GetEnvironmentVariable("DOTNET_CLI_UI_LANGUAGE")
+        End If
+
+        If String.IsNullOrWhiteSpace(cultureName) Then
+            cultureName = Environment.GetEnvironmentVariable("PreferredUILang")
+        End If
+
+        If String.IsNullOrWhiteSpace(cultureName) Then
+            Return Nothing
+        End If
+
+        Try
+            Dim culture = CultureInfo.GetCultureInfo(cultureName.Trim())
+            CultureInfo.DefaultThreadCurrentCulture = culture
+            CultureInfo.DefaultThreadCurrentUICulture = culture
+            Thread.CurrentThread.CurrentCulture = culture
+            Thread.CurrentThread.CurrentUICulture = culture
+            Return culture.Name
+        Catch ex As CultureNotFoundException
+            Return Nothing
+        End Try
     End Function
 
     ''' <summary>

@@ -109,8 +109,22 @@ Namespace VbNet.Extension.Tests
             Dim properties = root.GetProperty("contributes").GetProperty("configuration")(0).GetProperty("properties")
 
             Assert.True(properties.TryGetProperty("vbnet.logLevel", Nothing), "Expected vbnet.logLevel setting.")
+            Assert.True(properties.TryGetProperty("vbnet.output.language", Nothing), "Expected vbnet.output.language setting.")
             Assert.True(properties.TryGetProperty("vbnet.msbuildPath", Nothing), "Expected vbnet.msbuildPath setting.")
             Assert.True(properties.TryGetProperty("vbnet.maxMemoryMB", Nothing), "Expected vbnet.maxMemoryMB setting.")
+        End Sub
+
+        <Fact>
+        Public Sub OutputLanguageSettingSupportsAutoAndEnglish()
+            Dim root = LoadPackageJson()
+            Dim properties = root.GetProperty("contributes").GetProperty("configuration")(0).GetProperty("properties")
+            Dim outputLanguage = properties.GetProperty("vbnet.output.language")
+
+            Assert.Equal("auto", outputLanguage.GetProperty("default").GetString())
+
+            Dim values = outputLanguage.GetProperty("enum").EnumerateArray().Select(Function(item) item.GetString()).ToArray()
+            Assert.Contains("auto", values)
+            Assert.Contains("en-US", values)
         End Sub
 
         <Fact>

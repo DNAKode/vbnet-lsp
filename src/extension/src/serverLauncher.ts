@@ -10,6 +10,7 @@ import * as cp from 'child_process';
 import * as net from 'net';
 import { PlatformInformation } from './platform';
 import { DotnetRuntimeResolver, HostExecutableInfo } from './dotnetRuntime';
+import { getConfiguredOutputLanguage, getProcessEnvironmentWithOutputLanguage } from './outputLanguage';
 
 /**
  * Transport type for language server communication.
@@ -57,6 +58,10 @@ export class ServerLauncher {
         this.channel.appendLine(`Starting ${backend} language server at: ${serverPath}`);
 
         const hostInfo = await this.runtimeResolver.getHostExecutableInfo();
+        const outputLanguage = getConfiguredOutputLanguage();
+        if (outputLanguage !== 'auto') {
+            this.channel.appendLine(`Forcing language server output language: ${outputLanguage}`);
+        }
 
         // Determine actual transport to use
         const actualTransport = this.resolveTransport(transportType);
@@ -246,7 +251,7 @@ export class ServerLauncher {
         hostInfo: HostExecutableInfo
     ): cp.ChildProcess {
         const cpOptions: cp.SpawnOptions = {
-            env: hostInfo.env,
+            env: getProcessEnvironmentWithOutputLanguage(hostInfo.env),
             cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
             stdio: ['pipe', 'pipe', 'pipe']
         };

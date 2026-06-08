@@ -11,6 +11,7 @@ import { PlatformInformation } from './platform';
 import { VbNetLanguageClient } from './languageClient';
 import { VbNetStatusBar } from './statusBar';
 import { activateDebugging } from './debugger';
+import { getProcessEnvironmentWithOutputLanguage } from './outputLanguage';
 
 // Global instances
 let languageClient: VbNetLanguageClient | undefined;
@@ -582,7 +583,7 @@ async function runDotnetTestForItem(
     outputChannel?.appendLine(`Running: dotnet ${args.join(' ')}`);
 
     await new Promise<void>((resolve, reject) => {
-        const child = cp.spawn('dotnet', args, { cwd: workspaceRoot, env: process.env });
+        const child = cp.spawn('dotnet', args, { cwd: workspaceRoot, env: getProcessEnvironmentWithOutputLanguage(process.env) });
 
         const onExit = (code: number | null) => {
             if (code === 0) {
@@ -1135,7 +1136,7 @@ async function runDotnetCommand(args: string[], cwd: string, title: string, succ
             cancellable: false
         },
         () => new Promise<void>((resolve, reject) => {
-            const child = cp.spawn('dotnet', args, { cwd, env: process.env });
+            const child = cp.spawn('dotnet', args, { cwd, env: getProcessEnvironmentWithOutputLanguage(process.env) });
 
             child.stdout?.on('data', (data: Buffer) => {
                 outputChannel?.appendLine(data.toString().trimEnd());

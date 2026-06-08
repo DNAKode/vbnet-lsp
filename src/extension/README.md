@@ -25,6 +25,9 @@ This extension bundles `netcoredbg` for supported platforms. To override with a 
 
 Note: On macOS arm64 the bundled debugger is sourced from the Cliffback community build (see notices in the extension package).
 
+## Troubleshooting
+When sharing diagnostics or logs in GitHub issues, set `vbnet.output.language` to `en-US` to request English output from the language server, .NET CLI, MSBuild, and Roslyn where supported.
+
 ## Resources
 - Repository: https://github.com/DNAKode/vbnet-lsp
 - Issues: https://github.com/DNAKode/vbnet-lsp/issues
