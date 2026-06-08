@@ -6,6 +6,7 @@ Imports Microsoft.CodeAnalysis.MSBuild
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic
 Imports Microsoft.Extensions.Logging
+Imports System.Collections.Immutable
 
 Namespace Workspace
 
@@ -126,6 +127,8 @@ Namespace Workspace
                 Return False
             End If
 
+            Dim shouldUseFallback = False
+
             Await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(False)
             Try
                 _logger.LogInformation("Loading solution: {Path}", solutionPath)
@@ -158,10 +161,21 @@ Namespace Workspace
             Catch ex As Exception
                 _logger.LogError(ex, "Failed to load solution: {Path}", solutionPath)
                 If solutionPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) Then
-                    Return LoadLegacyProjectsFromSolution(solutionPath, changeKind)
+                    shouldUseFallback = True
+                Else
+                    Return False
                 End If
+            Finally
+                _loadLock.Release()
+            End Try
 
+            If Not shouldUseFallback Then
                 Return False
+            End If
+
+            Await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(False)
+            Try
+                Return Await LoadProjectsFromSolutionFallbackAsync(solutionPath, changeKind, cancellationToken).ConfigureAwait(False)
             Finally
                 _loadLock.Release()
             End Try
@@ -221,14 +235,44 @@ Namespace Workspace
             End Try
         End Function
 
-        Private Function LoadLegacyProjectsFromSolution(solutionPath As String, changeKind As SolutionChangeKind) As Boolean
+        Private Async Function LoadProjectsFromSolutionFallbackAsync(solutionPath As String, changeKind As SolutionChangeKind, cancellationToken As CancellationToken) As Task(Of Boolean)
             Dim projectPaths = LegacyVbProjectReader.GetProjectPathsFromSlnx(solutionPath)
             If projectPaths.Length = 0 Then
                 Return False
             End If
 
             Dim loaded = False
+            Dim legacyProjectPaths = ImmutableArray.CreateBuilder(Of String)()
+            Dim sdkStyleProjectPaths = ImmutableArray.CreateBuilder(Of String)()
+
             For Each projectPath In projectPaths
+                If LegacyVbProjectReader.TryRead(projectPath) Is Nothing Then
+                    sdkStyleProjectPaths.Add(projectPath)
+                Else
+                    legacyProjectPaths.Add(projectPath)
+                End If
+            Next
+
+            For Each projectPath In sdkStyleProjectPaths
+                Try
+                    Dim project = Await _workspace.OpenProjectAsync(projectPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
+                    If project.Language <> LanguageNames.VisualBasic Then
+                        Continue For
+                    End If
+
+                    _currentSolution = _workspace.CurrentSolution
+                    If Not IsProjectLoaded(projectPath) Then
+                        _loadedProjectPaths.Add(projectPath)
+                    End If
+
+                    _logger.LogInformation("SDK-style VB.NET project loaded during solution fallback: {Name} ({DocumentCount} documents)", project.Name, project.DocumentIds.Count)
+                    loaded = True
+                Catch ex As Exception
+                    _logger.LogWarning(ex, "Failed to load project during solution fallback: {Path}", projectPath)
+                End Try
+            Next
+
+            For Each projectPath In legacyProjectPaths
                 loaded = LoadLegacyProject(projectPath, changeKind, raiseEventOnLoad:=False) OrElse loaded
             Next
 
@@ -280,12 +324,12 @@ Namespace Workspace
                     filePath:=documentPath)
             Next
 
-            If Not String.IsNullOrWhiteSpace(legacyProject.MyType) Then
+            For Each generatedSource In legacyProject.GeneratedSources
                 solution = solution.AddDocument(
-                    DocumentId.CreateNewId(newProjectId, debugName:="LegacyMyApplication.g.vb"),
-                    "LegacyMyApplication.g.vb",
-                    SourceText.From(GetLegacyMyApplicationSource()))
-            End If
+                    DocumentId.CreateNewId(newProjectId, debugName:=generatedSource.FileName),
+                    generatedSource.FileName,
+                    SourceText.From(generatedSource.Source))
+            Next
 
             _currentSolution = solution
             _loadedProjectPaths.Add(legacyProject.ProjectPath)
@@ -311,7 +355,7 @@ Namespace Workspace
             Return True
         End Function
 
-        Private Sub ReportLegacyProjectWarnings(legacyProject As LegacyVbProjectInfo)
+        Private Sub ReportLegacyProjectWarnings(legacyProject As LegacyVbProjectProjection)
             Dim projectName = Path.GetFileName(legacyProject.ProjectPath)
             RaiseWorkspaceWarning(
                 $"Loaded legacy non-SDK VB.NET project '{projectName}' in limited fallback mode. For best language-server support, consider converting to an SDK-style project file; SDK-style projects can still target .NET Framework, for example TargetFramework=net48.")
@@ -327,78 +371,6 @@ Namespace Workspace
                 Me,
                 New WorkspaceDiagnosticEventArgs(New WorkspaceDiagnostic(WorkspaceDiagnosticKind.Warning, message)))
         End Sub
-
-        Private Shared Function GetLegacyMyApplicationSource() As String
-            Return String.Join(
-                Environment.NewLine,
-                "Namespace Global.My",
-                "    Friend Module MyProject",
-                "        Friend ReadOnly Property Application As LegacyApplicationShim",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "    End Module",
-                "",
-                "    Friend Class LegacyApplicationShim",
-                "        Friend ReadOnly Property Info As LegacyAssemblyInfoShim",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "    End Class",
-                "",
-                "    Friend Class LegacyAssemblyInfoShim",
-                "        Friend ReadOnly Property Title As String",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "",
-                "        Friend ReadOnly Property Version As System.Version",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "",
-                "        Friend ReadOnly Property AssemblyName As String",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "",
-                "        Friend ReadOnly Property CompanyName As String",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "",
-                "        Friend ReadOnly Property Copyright As String",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "",
-                "        Friend ReadOnly Property Description As String",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "",
-                "        Friend ReadOnly Property ProductName As String",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "",
-                "        Friend ReadOnly Property Trademark As String",
-                "            Get",
-                "                Return Nothing",
-                "            End Get",
-                "        End Property",
-                "    End Class",
-                "End Namespace")
-        End Function
 
         ''' <summary>
         ''' Signals that the initial workspace load attempt has completed.

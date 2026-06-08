@@ -6,10 +6,23 @@ Imports Microsoft.CodeAnalysis.VisualBasic
 
 Namespace Workspace
 
-    Friend NotInheritable Class LegacyVbProjectInfo
+    Friend NotInheritable Class LegacyGeneratedSource
+        Public Property FileName As String
+        Public Property Source As String
+    End Class
+
+    Friend NotInheritable Class LegacyPackageReference
+        Public Property Id As String
+        Public Property Version As String
+        Public Property Source As String
+    End Class
+
+    ' Stores SDK-style-equivalent project concepts so the fallback loader and a future converter can share the same legacy mapping.
+    Friend NotInheritable Class LegacyVbProjectProjection
         Public Property ProjectPath As String
         Public Property AssemblyName As String
         Public Property RootNamespace As String
+        Public Property TargetFramework As String
         Public Property OutputKind As OutputKind
         Public Property MyType As String
         Public Property OptionStrict As OptionStrict
@@ -20,6 +33,8 @@ Namespace Workspace
         Public Property Documents As ImmutableArray(Of String)
         Public Property References As ImmutableArray(Of MetadataReference)
         Public Property ProjectReferences As ImmutableArray(Of String)
+        Public Property PackageReferences As ImmutableArray(Of LegacyPackageReference)
+        Public Property GeneratedSources As ImmutableArray(Of LegacyGeneratedSource)
         Public Property Warnings As ImmutableArray(Of String)
     End Class
 
@@ -27,7 +42,7 @@ Namespace Workspace
         Private Sub New()
         End Sub
 
-        Public Shared Function TryRead(projectPath As String) As LegacyVbProjectInfo
+        Public Shared Function TryRead(projectPath As String) As LegacyVbProjectProjection
             If String.IsNullOrWhiteSpace(projectPath) OrElse Not File.Exists(projectPath) Then
                 Return Nothing
             End If
@@ -62,12 +77,15 @@ Namespace Workspace
                 assemblyName = Path.GetFileNameWithoutExtension(projectPath)
             End If
 
-            Return New LegacyVbProjectInfo With {
+            Dim myType = GetProperty(root, "MyType")
+
+            Return New LegacyVbProjectProjection With {
                 .ProjectPath = Path.GetFullPath(projectPath),
                 .AssemblyName = assemblyName,
                 .RootNamespace = GetProperty(root, "RootNamespace"),
+                .TargetFramework = MapTargetFramework(targetFrameworkVersion),
                 .OutputKind = GetOutputKind(GetProperty(root, "OutputType")),
-                .MyType = GetProperty(root, "MyType"),
+                .MyType = myType,
                 .OptionStrict = GetOptionStrict(GetProperty(root, "OptionStrict")),
                 .OptionInfer = GetBooleanProperty(GetProperty(root, "OptionInfer"), defaultValue:=True),
                 .OptionExplicit = GetBooleanProperty(GetProperty(root, "OptionExplicit"), defaultValue:=True),
@@ -76,6 +94,8 @@ Namespace Workspace
                 .Documents = ResolveCompileItems(root, projectDir),
                 .References = references,
                 .ProjectReferences = ResolveProjectReferences(root, projectDir),
+                .PackageReferences = ResolvePackageReferences(root, projectDir),
+                .GeneratedSources = ResolveGeneratedSources(myType),
                 .Warnings = warnings.ToImmutable()
             }
         End Function
@@ -151,6 +171,50 @@ Namespace Workspace
             Return builder.ToImmutable()
         End Function
 
+        Private Shared Function ResolveGeneratedSources(myType As String) As ImmutableArray(Of LegacyGeneratedSource)
+            Dim builder = ImmutableArray.CreateBuilder(Of LegacyGeneratedSource)()
+
+            If Not String.IsNullOrWhiteSpace(myType) Then
+                builder.Add(New LegacyGeneratedSource With {
+                    .FileName = "SdkEquivalentMyApplication.g.vb",
+                    .Source = GetMyApplicationSource(myType)
+                })
+            End If
+
+            Return builder.ToImmutable()
+        End Function
+
+        Private Shared Function GetMyApplicationSource(myType As String) As String
+            Dim baseType = If(
+                String.Equals(myType, "WindowsForms", StringComparison.OrdinalIgnoreCase),
+                "Global.Microsoft.VisualBasic.ApplicationServices.WindowsFormsApplicationBase",
+                "Global.Microsoft.VisualBasic.ApplicationServices.ConsoleApplicationBase")
+
+            Return String.Join(
+                Environment.NewLine,
+                "Option Strict Off",
+                "Option Explicit On",
+                "",
+                "Namespace Global.My",
+                "    <Global.Microsoft.VisualBasic.HideModuleNameAttribute(),",
+                "     Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),",
+                "     Global.System.Runtime.CompilerServices.CompilerGeneratedAttribute()>",
+                "    Friend Module MyProject",
+                "        Private ReadOnly _application As New MyApplication()",
+                "",
+                "        Friend ReadOnly Property Application As MyApplication",
+                "            Get",
+                "                Return _application",
+                "            End Get",
+                "        End Property",
+                "    End Module",
+                "",
+                "    Partial Friend Class MyApplication",
+                $"        Inherits {baseType}",
+                "    End Class",
+                "End Namespace")
+        End Function
+
         Private Shared Function ResolveReferences(root As XElement, projectDir As String, targetFrameworkVersion As String, warnings As ImmutableArray(Of String).Builder) As ImmutableArray(Of MetadataReference)
             Dim referenceDir = GetReferenceAssemblyDirectory(targetFrameworkVersion)
             If String.IsNullOrWhiteSpace(referenceDir) OrElse Not Directory.Exists(referenceDir) Then
@@ -200,6 +264,7 @@ Namespace Workspace
             End If
 
             AddPackageReferences(builder, addedPaths, root, projectDir, targetFrameworkVersion, warnings)
+            AddReference(builder, addedPaths, System.IO.Path.Combine(referenceDir, "Facades", "netstandard.dll"))
             AddComReferences(builder, addedPaths, root, projectDir, warnings)
 
             Return builder.ToImmutable()
@@ -251,6 +316,57 @@ Namespace Workspace
                 warnings.Add("PackageReference items were found, but no compatible package assemblies were resolved from the global NuGet cache. Run restore if package symbols are missing.")
             End If
         End Sub
+
+        Private Shared Function ResolvePackageReferences(root As XElement, projectDir As String) As ImmutableArray(Of LegacyPackageReference)
+            Return ResolvePackagesConfigPackageReferences(projectDir).
+                Concat(ResolvePackageReferenceItems(root)).
+                GroupBy(Function(reference) reference.Id, StringComparer.OrdinalIgnoreCase).
+                Select(Function(group) group.First()).
+                ToImmutableArray()
+        End Function
+
+        Private Shared Function ResolvePackagesConfigPackageReferences(projectDir As String) As IEnumerable(Of LegacyPackageReference)
+            Dim packagesConfig = System.IO.Path.Combine(projectDir, "packages.config")
+            If Not File.Exists(packagesConfig) Then
+                Return Enumerable.Empty(Of LegacyPackageReference)()
+            End If
+
+            Dim document As XDocument
+            Try
+                document = XDocument.Load(packagesConfig)
+            Catch
+                Return Enumerable.Empty(Of LegacyPackageReference)()
+            End Try
+
+            Return document.Descendants().
+                Where(Function(e) String.Equals(e.Name.LocalName, "package", StringComparison.OrdinalIgnoreCase)).
+                Select(Function(e)
+                           Return New LegacyPackageReference With {
+                               .Id = e.Attribute("id")?.Value,
+                               .Version = e.Attribute("version")?.Value,
+                               .Source = "packages.config"
+                           }
+                       End Function).
+                Where(Function(reference) Not String.IsNullOrWhiteSpace(reference.Id) AndAlso Not String.IsNullOrWhiteSpace(reference.Version))
+        End Function
+
+        Private Shared Function ResolvePackageReferenceItems(root As XElement) As IEnumerable(Of LegacyPackageReference)
+            Return root.Descendants().
+                Where(Function(e) String.Equals(e.Name.LocalName, "PackageReference", StringComparison.OrdinalIgnoreCase)).
+                Select(Function(e)
+                           Dim version = e.Attribute("Version")?.Value
+                           If String.IsNullOrWhiteSpace(version) Then
+                               version = e.Elements().FirstOrDefault(Function(child) String.Equals(child.Name.LocalName, "Version", StringComparison.OrdinalIgnoreCase))?.Value
+                           End If
+
+                           Return New LegacyPackageReference With {
+                               .Id = e.Attribute("Include")?.Value,
+                               .Version = version,
+                               .Source = "PackageReference"
+                           }
+                       End Function).
+                Where(Function(reference) Not String.IsNullOrWhiteSpace(reference.Id) AndAlso Not String.IsNullOrWhiteSpace(reference.Version))
+        End Function
 
         Private Shared Function ResolvePackagesConfigAssemblies(projectDir As String, targetFrameworkVersion As String) As IEnumerable(Of String)
             Dim packagesConfig = System.IO.Path.Combine(projectDir, "packages.config")
@@ -336,7 +452,20 @@ Namespace Workspace
                 normalized = "net" & normalized
             End If
 
-            Return {normalized, "net481", "net48", "net472", "net471", "net47", "net462", "net461", "net46", "net452", "net451", "net45", "net40", "net35", "net20"}
+            Return {normalized, "net481", "net48", "net472", "net471", "net47", "net462", "net461", "net46", "net452", "net451", "net45", "net40", "net35", "net20", "netstandard2.0", "netstandard1.3"}
+        End Function
+
+        Private Shared Function MapTargetFramework(targetFrameworkVersion As String) As String
+            Dim normalized = targetFrameworkVersion.Trim()
+            If normalized.StartsWith("v", StringComparison.OrdinalIgnoreCase) Then
+                normalized = normalized.Substring(1)
+            End If
+
+            If normalized.StartsWith("4", StringComparison.OrdinalIgnoreCase) Then
+                Return "net" & normalized.Replace(".", String.Empty)
+            End If
+
+            Return targetFrameworkVersion
         End Function
 
         Private Shared Sub AddComReferences(builder As ImmutableArray(Of MetadataReference).Builder, addedPaths As HashSet(Of String), root As XElement, projectDir As String, warnings As ImmutableArray(Of String).Builder)

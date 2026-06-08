@@ -144,6 +144,87 @@ Namespace VbNet.LanguageServer.Tests.Workspace
         End Function
 
         <Fact>
+        Public Async Function LoadSolutionAsync_MixedSlnx_LoadsSdkStyleAndProjectedLegacyProjects() As Task
+            Dim root = Path.Combine(Path.GetTempPath(), "vbnet-lsp-tests", Guid.NewGuid().ToString("N"))
+
+            Try
+                Dim legacyDir = Path.Combine(root, "Legacy")
+                Dim sdkDir = Path.Combine(root, "Sdk")
+                Directory.CreateDirectory(legacyDir)
+                Directory.CreateDirectory(sdkDir)
+
+                File.WriteAllText(
+                    Path.Combine(legacyDir, "Program.vb"),
+                    "Module Program" & Environment.NewLine &
+                    "    Sub Main()" & Environment.NewLine &
+                    "        Dim pathValue As String = My.Application.Info.DirectoryPath" & Environment.NewLine &
+                    "    End Sub" & Environment.NewLine &
+                    "End Module")
+                File.WriteAllText(
+                    Path.Combine(legacyDir, "LegacyProjected.vbproj"),
+                    "<?xml version=""1.0"" encoding=""utf-8""?>" & Environment.NewLine &
+                    "<Project ToolsVersion=""15.0"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <OutputType>Exe</OutputType>" & Environment.NewLine &
+                    "    <AssemblyName>LegacyProjected</AssemblyName>" & Environment.NewLine &
+                    "    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>" & Environment.NewLine &
+                    "    <MyType>Console</MyType>" & Environment.NewLine &
+                    "    <OptionStrict>On</OptionStrict>" & Environment.NewLine &
+                    "    <OptionInfer>On</OptionInfer>" & Environment.NewLine &
+                    "    <OptionExplicit>On</OptionExplicit>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Reference Include=""System"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Import Include=""Microsoft.VisualBasic"" />" & Environment.NewLine &
+                    "    <Import Include=""System"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Compile Include=""Program.vb"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "</Project>")
+
+                File.WriteAllText(
+                    Path.Combine(sdkDir, "Program.vb"),
+                    "Module Program" & Environment.NewLine &
+                    "    Sub Main()" & Environment.NewLine &
+                    "        System.Console.WriteLine(""sdk"")" & Environment.NewLine &
+                    "    End Sub" & Environment.NewLine &
+                    "End Module")
+                File.WriteAllText(
+                    Path.Combine(sdkDir, "SdkProject.vbproj"),
+                    "<Project Sdk=""Microsoft.NET.Sdk"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <OutputType>Exe</OutputType>" & Environment.NewLine &
+                    "    <TargetFramework>net10.0</TargetFramework>" & Environment.NewLine &
+                    "    <RootNamespace></RootNamespace>" & Environment.NewLine &
+                    "    <AssemblyName>SdkProject</AssemblyName>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "</Project>")
+
+                Dim slnxPath = Path.Combine(root, "Mixed.slnx")
+                File.WriteAllText(
+                    slnxPath,
+                    "<Solution>" & Environment.NewLine &
+                    "  <Project Path=""Legacy/LegacyProjected.vbproj"" Id=""11111111-1111-1111-1111-111111111111"" />" & Environment.NewLine &
+                    "  <Project Path=""Sdk/SdkProject.vbproj"" Id=""22222222-2222-2222-2222-222222222222"" />" & Environment.NewLine &
+                    "</Solution>")
+
+                Dim result = Await _workspaceManager.LoadSolutionAsync(slnxPath).ConfigureAwait(False)
+
+                Assert.True(result)
+                Dim projectNames = _workspaceManager.GetVbNetProjects().Select(Function(project) project.Name).ToList()
+                Assert.Contains("LegacyProjected", projectNames)
+                Assert.Contains("SdkProject", projectNames)
+            Finally
+                If Directory.Exists(root) Then
+                    Directory.Delete(root, recursive:=True)
+                End If
+            End Try
+        End Function
+
+        <Fact>
         Public Async Function GetVbNetProjects_ReturnsOnlyVbProjects() As Task
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
 
