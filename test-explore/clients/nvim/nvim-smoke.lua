@@ -225,27 +225,32 @@ if pending_project_init then
     vim.lsp.buf_request(bufnr, "textDocument/diagnostic", params, function() end)
 end
 
-local function request_sync(method, params)
-    local result = vim.lsp.buf_request_sync(bufnr, method, params, 10000)
+local function request_sync_for_buf(target_bufnr, method, params, timeout_ms)
+    local result = vim.lsp.buf_request_sync(target_bufnr, method, params, timeout_ms or 10000)
     if not result or not result[client_id] then
+        log(string.format("LSP no response for %s on buffer %s", method, tostring(target_bufnr)))
         return nil
     end
     if result[client_id].error then
-        log(string.format("LSP error for %s: %s", method, vim.inspect(result[client_id].error)))
+        log(string.format("LSP error for %s on buffer %s: %s", method, tostring(target_bufnr), vim.inspect(result[client_id].error)))
         return nil
     end
     if result[client_id].result == nil then
-        log(string.format("LSP nil result for %s", method))
+        log(string.format("LSP nil result for %s on buffer %s", method, tostring(target_bufnr)))
         return nil
     end
     return result[client_id].result
 end
 
-local function request_with_retry(method, params, attempts, delay_ms)
+local function request_sync(method, params)
+    return request_sync_for_buf(bufnr, method, params, 10000)
+end
+
+local function request_with_retry_for_buf(target_bufnr, method, params, attempts, delay_ms, timeout_ms)
     local remaining = attempts or 5
     local delay = delay_ms or 500
     while remaining > 0 do
-        local result = request_sync(method, params)
+        local result = request_sync_for_buf(target_bufnr, method, params, timeout_ms or 10000)
         if result then
             return result
         end
@@ -255,6 +260,10 @@ local function request_with_retry(method, params, attempts, delay_ms)
         end
     end
     return nil
+end
+
+local function request_with_retry(method, params, attempts, delay_ms)
+    return request_with_retry_for_buf(bufnr, method, params, attempts, delay_ms, 10000)
 end
 
 
@@ -427,21 +436,20 @@ if suite == "vbnet" then
         fail("Unable to locate 'Add(1, 2)' column in Helper.vb.")
     end
 
-    local signature = vim.lsp.buf_request_sync(helper_buf, "textDocument/signatureHelp", {
+    local signature = request_with_retry_for_buf(helper_buf, "textDocument/signatureHelp", {
         textDocument = { uri = vim.uri_from_bufnr(helper_buf) },
         position = { line = helper_line_index, character = add_col + 4 },
-    }, 10000)
+    }, 6, 500, 10000)
 
-    if not signature or not signature[client_id] or not signature[client_id].result then
+    if not signature then
         fail("SignatureHelp request returned no result.")
     end
 
-    local completion = vim.lsp.buf_request_sync(helper_buf, "textDocument/completion", {
+    local completion_result = request_with_retry_for_buf(helper_buf, "textDocument/completion", {
         textDocument = { uri = vim.uri_from_bufnr(helper_buf) },
         position = { line = helper_line_index, character = add_col + 4 },
-    }, 10000)
+    }, 6, 500, 10000)
 
-    local completion_result = completion and completion[client_id] and completion[client_id].result or nil
     if not completion_result then
         fail("Completion request returned no result.")
     end
@@ -453,28 +461,25 @@ if suite == "vbnet" then
 
     local first_item = items[1]
     if first_item and first_item.data then
-        local resolved = vim.lsp.buf_request_sync(helper_buf, "completionItem/resolve", first_item, 10000)
-        local resolved_item = resolved and resolved[client_id] and resolved[client_id].result or nil
+        local resolved_item = request_with_retry_for_buf(helper_buf, "completionItem/resolve", first_item, 3, 500, 10000)
         if not resolved_item then
             fail("Completion resolve returned no result.")
         end
     end
 
-    local code_actions = vim.lsp.buf_request_sync(helper_buf, "textDocument/codeAction", {
+    local code_action_result = request_with_retry_for_buf(helper_buf, "textDocument/codeAction", {
         textDocument = { uri = vim.uri_from_bufnr(helper_buf) },
         range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 0 } },
         context = { diagnostics = {} },
-    }, 10000)
+    }, 6, 500, 10000)
 
-    local code_action_result = code_actions and code_actions[client_id] and code_actions[client_id].result or nil
     if not code_action_result or type(code_action_result) ~= "table" or #code_action_result == 0 then
         fail("CodeAction request returned no results.")
     end
 
     local action = code_action_result[1]
     if action and action.data then
-        local resolved_action = vim.lsp.buf_request_sync(helper_buf, "codeAction/resolve", action, 10000)
-        local resolved = resolved_action and resolved_action[client_id] and resolved_action[client_id].result or nil
+        local resolved = request_with_retry_for_buf(helper_buf, "codeAction/resolve", action, 3, 500, 10000)
         if not resolved then
             fail("CodeAction resolve returned no result.")
         end

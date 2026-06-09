@@ -26,6 +26,15 @@ jobs:
         run: |
           test-explore/clients/nvim/run-tests.ps1 -Suite vbnet `
             -VbNetLspDll src\VbNet.LanguageServer.Vb\bin\Debug\net10.0\VbNet.LanguageServer.dll
+      - name: Upload Neovim smoke logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nvim-smoke-logs
+          path: |
+            test-explore/clients/nvim/logs/*.log
+            **/lsp.log
+          if-no-files-found: ignore
 
   emacs-smoke:
     runs-on: windows-latest
