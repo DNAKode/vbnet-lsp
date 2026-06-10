@@ -56,7 +56,7 @@ Packaging guidance for native channels is documented in
 ## What You Get
 
 - Roslyn-backed semantic analysis and project loading (`.sln`, `.slnf`, `.slnx`, `.vbproj`)
-- Best-effort fallback support for old-style / non-SDK VB.NET Framework project files, including project-level imports, framework references, restored packages, and common `My.Application` project-system symbols
+- Best-effort fallback support for old-style / non-SDK VB.NET Framework project files, including project-level imports, framework references, restored packages, WinForms application-framework startup artifacts, and common `My.Application` project-system symbols
 - Core language features: diagnostics, completion, hover, definition, references, rename, symbols
 - Advanced navigation: type definition, implementation, call hierarchy, type hierarchy
 - Editing support: formatting, semantic tokens, signature help, folding ranges, code actions, and Roslyn-backed Extract Method

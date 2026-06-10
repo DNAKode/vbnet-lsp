@@ -16,6 +16,16 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.13
+
+### Fixed
+- Legacy WinForms fallback projection now avoids false diagnostics from old-style `My Project\Application.Designer.vb` startup artifacts while preserving application-framework entry point behavior.
+- Legacy `packages.config` package resolution now falls back to the global NuGet cache when solution-local package folders are missing, covering shared repros that omit large restored packages.
+- Exact issue #9 sample projects now load cleanly for the previously reported `My.Application.Info.DirectoryPath`, WinForms application-framework, and Roslyn alias/package-reference cases; intentionally removed third-party assemblies can still produce dependency diagnostics.
+
+### Known issues
+- Legacy project fallback remains best-effort and does not fully evaluate arbitrary imported MSBuild targets or all conditional project logic.
+
 ## 0.1.12
 
 ### Added

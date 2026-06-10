@@ -12,7 +12,7 @@ First-class Visual Basic (.NET) support for Visual Studio Code, powered by a cus
 - Type definition + implementation
 - Call/type hierarchy + document highlights
 - Selection ranges + document links
-- Best-effort fallback support for old-style / non-SDK VB.NET Framework project files
+- Best-effort fallback support for old-style / non-SDK VB.NET Framework project files, including common WinForms and `My.Application` project-system artifacts
 - Debugging with bundled netcoredbg
 
 ## Getting Started

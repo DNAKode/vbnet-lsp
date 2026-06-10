@@ -134,9 +134,13 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
                 Assert.NotNull(info)
                 Assert.Contains("WindowsFormsApplicationBase", info.GeneratedSources(0).Source)
+                Assert.Equal("My.MyApplication", info.MainTypeName)
+                Assert.DoesNotContain(info.Documents, Function(documentPath) documentPath.EndsWith(Path.Combine("My Project", "Application.Designer.vb"), StringComparison.OrdinalIgnoreCase))
 
                 Dim diagnostics = CreateCompilation(info).GetDiagnostics()
 
+                Assert.DoesNotContain(diagnostics, Function(diagnostic) IsErrorContaining(diagnostic, "Sub Main"))
+                Assert.DoesNotContain(diagnostics, Function(diagnostic) IsErrorContaining(diagnostic, "Form1"))
                 Assert.DoesNotContain(diagnostics, Function(diagnostic) IsErrorContaining(diagnostic, "Too many arguments"))
                 Assert.DoesNotContain(diagnostics, Function(diagnostic) IsErrorContaining(diagnostic, "IsSingleInstance"))
                 Assert.DoesNotContain(diagnostics, Function(diagnostic) IsErrorContaining(diagnostic, "EnableVisualStyles"))
@@ -244,6 +248,25 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
                 Assert.NotNull(info)
                 Assert.Contains(info.References, Function(reference) reference.Display.EndsWith("Example.Package.dll", StringComparison.OrdinalIgnoreCase))
+            Finally
+                Directory.Delete(Path.GetDirectoryName(root), recursive:=True)
+            End Try
+        End Sub
+
+        <Fact>
+        Public Sub TryRead_ResolvesPackagesConfigAssembliesFromGlobalNuGetCache()
+            Const roslynVersion = "4.12.0"
+            Dim root = CreateLegacyProject()
+
+            Try
+                File.WriteAllText(
+                    Path.Combine(root, "packages.config"),
+                    "<packages><package id=""Microsoft.CodeAnalysis.Common"" version=""" & roslynVersion & """ targetFramework=""net48"" /></packages>")
+
+                Dim info = LegacyVbProjectReader.TryRead(Path.Combine(root, "Sample.vbproj"))
+
+                Assert.NotNull(info)
+                Assert.Contains(info.References, Function(reference) reference.Display.EndsWith("Microsoft.CodeAnalysis.dll", StringComparison.OrdinalIgnoreCase))
             Finally
                 Directory.Delete(Path.GetDirectoryName(root), recursive:=True)
             End Try
@@ -364,6 +387,9 @@ Namespace VbNet.LanguageServer.Tests.Workspace
                 WithOptionExplicit(info.OptionExplicit).
                 WithOptionCompareText(info.OptionCompareText).
                 WithGlobalImports(info.GlobalImports)
+            If Not String.IsNullOrWhiteSpace(info.MainTypeName) Then
+                options = options.WithMainTypeName(info.MainTypeName)
+            End If
 
             Return VisualBasicCompilation.Create(info.AssemblyName, syntaxTrees, info.References, options)
         End Function

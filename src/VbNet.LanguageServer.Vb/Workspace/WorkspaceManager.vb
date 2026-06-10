@@ -302,6 +302,9 @@ Namespace Workspace
                 WithOptionExplicit(legacyProject.OptionExplicit).
                 WithOptionCompareText(legacyProject.OptionCompareText).
                 WithGlobalImports(legacyProject.GlobalImports)
+            If Not String.IsNullOrWhiteSpace(legacyProject.MainTypeName) Then
+                compilationOptions = compilationOptions.WithMainTypeName(legacyProject.MainTypeName)
+            End If
 
             Dim projectInfo As ProjectInfo = ProjectInfo.Create(
                 newProjectId,

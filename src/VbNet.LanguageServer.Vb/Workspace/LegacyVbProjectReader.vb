@@ -17,6 +17,11 @@ Namespace Workspace
         Public Property Source As String
     End Class
 
+    Friend NotInheritable Class PackageSearchRoot
+        Public Property Path As String
+        Public Property IsGlobalPackagesFolder As Boolean
+    End Class
+
     ' Stores SDK-style-equivalent project concepts so the fallback loader and a future converter can share the same legacy mapping.
     Friend NotInheritable Class LegacyVbProjectProjection
         Public Property ProjectPath As String
@@ -24,6 +29,7 @@ Namespace Workspace
         Public Property RootNamespace As String
         Public Property TargetFramework As String
         Public Property OutputKind As OutputKind
+        Public Property MainTypeName As String
         Public Property MyType As String
         Public Property OptionStrict As OptionStrict
         Public Property OptionInfer As Boolean
@@ -85,13 +91,14 @@ Namespace Workspace
                 .RootNamespace = GetProperty(root, "RootNamespace"),
                 .TargetFramework = MapTargetFramework(targetFrameworkVersion),
                 .OutputKind = GetOutputKind(GetProperty(root, "OutputType")),
+                .MainTypeName = GetMainTypeName(myType),
                 .MyType = myType,
                 .OptionStrict = GetOptionStrict(GetProperty(root, "OptionStrict")),
                 .OptionInfer = GetBooleanProperty(GetProperty(root, "OptionInfer"), defaultValue:=True),
                 .OptionExplicit = GetBooleanProperty(GetProperty(root, "OptionExplicit"), defaultValue:=True),
                 .OptionCompareText = String.Equals(GetProperty(root, "OptionCompare"), "Text", StringComparison.OrdinalIgnoreCase),
                 .GlobalImports = ResolveImports(root),
-                .Documents = ResolveCompileItems(root, projectDir),
+                .Documents = ResolveCompileItems(root, projectDir, myType),
                 .References = references,
                 .ProjectReferences = ResolveProjectReferences(root, projectDir),
                 .PackageReferences = ResolvePackageReferences(root, projectDir),
@@ -135,11 +142,15 @@ Namespace Workspace
             Return If(element?.Value, String.Empty).Trim()
         End Function
 
-        Private Shared Function ResolveCompileItems(root As XElement, projectDir As String) As ImmutableArray(Of String)
+        Private Shared Function ResolveCompileItems(root As XElement, projectDir As String, myType As String) As ImmutableArray(Of String)
             Dim builder = ImmutableArray.CreateBuilder(Of String)()
             For Each element In root.Descendants().Where(Function(e) String.Equals(e.Name.LocalName, "Compile", StringComparison.OrdinalIgnoreCase))
                 Dim include = element.Attribute("Include")?.Value
                 If String.IsNullOrWhiteSpace(include) Then
+                    Continue For
+                End If
+
+                If IsApplicationDesignerCompileItem(include, myType) Then
                     Continue For
                 End If
 
@@ -150,6 +161,15 @@ Namespace Workspace
             Next
 
             Return builder.Distinct(StringComparer.OrdinalIgnoreCase).ToImmutableArray()
+        End Function
+
+        Private Shared Function IsApplicationDesignerCompileItem(include As String, myType As String) As Boolean
+            If String.IsNullOrWhiteSpace(myType) Then
+                Return False
+            End If
+
+            Dim normalized = include.Replace("/"c, "\"c)
+            Return normalized.EndsWith("My Project\Application.Designer.vb", StringComparison.OrdinalIgnoreCase)
         End Function
 
         Private Shared Function ResolveImports(root As XElement) As ImmutableArray(Of GlobalImport)
@@ -190,6 +210,19 @@ Namespace Workspace
                 "Global.Microsoft.VisualBasic.ApplicationServices.WindowsFormsApplicationBase",
                 "Global.Microsoft.VisualBasic.ApplicationServices.ConsoleApplicationBase")
 
+            Dim mainSource = If(
+                String.Equals(myType, "WindowsForms", StringComparison.OrdinalIgnoreCase),
+                String.Join(
+                    Environment.NewLine,
+                    "        <Global.System.STAThreadAttribute(),",
+                    "         Global.System.Diagnostics.DebuggerHiddenAttribute(),",
+                    "         Global.System.ComponentModel.EditorBrowsableAttribute(Global.System.ComponentModel.EditorBrowsableState.Advanced)>",
+                    "        Friend Shared Sub Main(args As String())",
+                    "            Global.My.MyProject.Application.Run(args)",
+                    "        End Sub",
+                    ""),
+                String.Empty)
+
             Return String.Join(
                 Environment.NewLine,
                 "Option Strict Off",
@@ -211,8 +244,17 @@ Namespace Workspace
                 "",
                 "    Partial Friend Class MyApplication",
                 $"        Inherits {baseType}",
+                mainSource,
                 "    End Class",
                 "End Namespace")
+        End Function
+
+        Private Shared Function GetMainTypeName(myType As String) As String
+            If String.Equals(myType, "WindowsForms", StringComparison.OrdinalIgnoreCase) Then
+                Return "My.MyApplication"
+            End If
+
+            Return Nothing
         End Function
 
         Private Shared Function ResolveReferences(root As XElement, projectDir As String, targetFrameworkVersion As String, warnings As ImmutableArray(Of String).Builder) As ImmutableArray(Of MetadataReference)
@@ -223,6 +265,7 @@ Namespace Workspace
 
             Dim builder = ImmutableArray.CreateBuilder(Of MetadataReference)()
             Dim addedPaths As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            Dim packagesConfigReferences = ResolvePackagesConfigPackageReferences(projectDir).ToList()
             Dim referenceNames = root.Descendants().
                 Where(Function(e) String.Equals(e.Name.LocalName, "Reference", StringComparison.OrdinalIgnoreCase)).
                 Select(Function(e) e.Attribute("Include")?.Value).
@@ -237,7 +280,8 @@ Namespace Workspace
                 End If
 
                 Dim resolvedHintPath = If(System.IO.Path.IsPathRooted(hintPath), hintPath, System.IO.Path.Combine(projectDir, hintPath))
-                If Not AddReference(builder, addedPaths, resolvedHintPath) Then
+                If Not AddReference(builder, addedPaths, resolvedHintPath) AndAlso
+                    Not AddGlobalPackageHintReference(builder, addedPaths, hintPath, packagesConfigReferences) Then
                     warnings.Add($"Assembly reference hint path was not resolved: {hintPath}.")
                 End If
             Next
@@ -259,15 +303,61 @@ Namespace Workspace
                 End If
             Next
 
-            If unresolvedReferences.Count > 0 Then
-                warnings.Add($"Some assembly references were not resolved by the legacy fallback: {String.Join(", ", unresolvedReferences.Distinct(StringComparer.OrdinalIgnoreCase))}.")
-            End If
-
             AddPackageReferences(builder, addedPaths, root, projectDir, targetFrameworkVersion, warnings)
             AddReference(builder, addedPaths, System.IO.Path.Combine(referenceDir, "Facades", "netstandard.dll"))
             AddComReferences(builder, addedPaths, root, projectDir, warnings)
 
+            Dim stillUnresolvedReferences = unresolvedReferences.
+                Distinct(StringComparer.OrdinalIgnoreCase).
+                Where(Function(referenceName) Not HasAssemblyReference(builder, referenceName)).
+                ToList()
+            If stillUnresolvedReferences.Count > 0 Then
+                warnings.Add($"Some assembly references were not resolved by the legacy fallback: {String.Join(", ", stillUnresolvedReferences)}.")
+            End If
+
             Return builder.ToImmutable()
+        End Function
+
+        Private Shared Function AddGlobalPackageHintReference(builder As ImmutableArray(Of MetadataReference).Builder, addedPaths As HashSet(Of String), hintPath As String, packageReferences As IEnumerable(Of LegacyPackageReference)) As Boolean
+            Dim globalPackages = GetGlobalPackagesFolder()
+            If String.IsNullOrWhiteSpace(globalPackages) Then
+                Return False
+            End If
+
+            Dim normalizedParts = hintPath.Replace("/"c, "\"c).Split("\"c)
+            Dim packagesIndex = Array.FindIndex(normalizedParts, Function(part) String.Equals(part, "packages", StringComparison.OrdinalIgnoreCase))
+            If packagesIndex < 0 OrElse packagesIndex + 1 >= normalizedParts.Length Then
+                Return False
+            End If
+
+            Dim packageFolder = normalizedParts(packagesIndex + 1)
+            Dim packageReference = packageReferences.FirstOrDefault(
+                Function(reference) String.Equals(packageFolder, reference.Id & "." & reference.Version, StringComparison.OrdinalIgnoreCase))
+            If packageReference Is Nothing Then
+                Return False
+            End If
+
+            Dim remainingPath = If(
+                packagesIndex + 2 < normalizedParts.Length,
+                System.IO.Path.Combine(normalizedParts.Skip(packagesIndex + 2).ToArray()),
+                String.Empty)
+            Dim globalPath = System.IO.Path.Combine(
+                globalPackages,
+                packageReference.Id.ToLowerInvariant(),
+                packageReference.Version.ToLowerInvariant(),
+                remainingPath)
+
+            Return AddReference(builder, addedPaths, globalPath)
+        End Function
+
+        Private Shared Function HasAssemblyReference(references As IEnumerable(Of MetadataReference), referenceName As String) As Boolean
+            Dim expectedFileName = referenceName & ".dll"
+            Return references.Any(
+                Function(reference)
+                    Dim display = reference.Display
+                    Return Not String.IsNullOrWhiteSpace(display) AndAlso
+                        String.Equals(System.IO.Path.GetFileName(display), expectedFileName, StringComparison.OrdinalIgnoreCase)
+                End Function)
         End Function
 
         Private Shared Sub AddProjectModelWarnings(root As XElement, warnings As ImmutableArray(Of String).Builder)
@@ -381,7 +471,7 @@ Namespace Workspace
                 Return Enumerable.Empty(Of String)()
             End Try
 
-            Dim packagesRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(projectDir, "..", "packages"))
+            Dim packagesRoots = GetPackagesConfigSearchRoots(projectDir)
             Return document.Descendants().
                 Where(Function(e) String.Equals(e.Name.LocalName, "package", StringComparison.OrdinalIgnoreCase)).
                 SelectMany(Function(e)
@@ -391,14 +481,38 @@ Namespace Workspace
                                    Return Enumerable.Empty(Of String)()
                                End If
 
-                               Return ResolvePackageLibAssemblies(System.IO.Path.Combine(packagesRoot, id & "." & version), targetFrameworkVersion)
+                               Return packagesRoots.SelectMany(
+                                   Function(packagesRoot)
+                                       Dim packageDir = If(packagesRoot.IsGlobalPackagesFolder,
+                                           System.IO.Path.Combine(packagesRoot.Path, id.ToLowerInvariant(), version.ToLowerInvariant()),
+                                           System.IO.Path.Combine(packagesRoot.Path, id & "." & version))
+                                       Return ResolvePackageLibAssemblies(packageDir, targetFrameworkVersion)
+                                   End Function)
                            End Function)
         End Function
 
+        Private Shared Function GetPackagesConfigSearchRoots(projectDir As String) As ImmutableArray(Of PackageSearchRoot)
+            Dim builder = ImmutableArray.CreateBuilder(Of PackageSearchRoot)()
+            builder.Add(New PackageSearchRoot With {
+                .Path = System.IO.Path.GetFullPath(System.IO.Path.Combine(projectDir, "..", "packages")),
+                .IsGlobalPackagesFolder = False
+            })
+
+            Dim globalPackages = GetGlobalPackagesFolder()
+            If Not String.IsNullOrWhiteSpace(globalPackages) Then
+                builder.Add(New PackageSearchRoot With {
+                    .Path = globalPackages,
+                    .IsGlobalPackagesFolder = True
+                })
+            End If
+
+            Return builder.ToImmutable()
+        End Function
+
         Private Shared Function ResolvePackageReferenceAssemblies(root As XElement, targetFrameworkVersion As String) As IEnumerable(Of String)
-            Dim globalPackages = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
+            Dim globalPackages = GetGlobalPackagesFolder()
             If String.IsNullOrWhiteSpace(globalPackages) Then
-                globalPackages = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages")
+                Return Enumerable.Empty(Of String)()
             End If
 
             Return root.Descendants().
@@ -416,6 +530,15 @@ Namespace Workspace
 
                                Return ResolvePackageLibAssemblies(System.IO.Path.Combine(globalPackages, id.ToLowerInvariant(), version.ToLowerInvariant()), targetFrameworkVersion)
                            End Function)
+        End Function
+
+        Private Shared Function GetGlobalPackagesFolder() As String
+            Dim globalPackages = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
+            If String.IsNullOrWhiteSpace(globalPackages) Then
+                globalPackages = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages")
+            End If
+
+            Return globalPackages
         End Function
 
         Private Shared Function ResolvePackageLibAssemblies(packageDir As String, targetFrameworkVersion As String) As IEnumerable(Of String)
