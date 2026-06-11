@@ -16,6 +16,17 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.14
+
+### Changed
+- GitHub release workflow now publishes non-draft VSIX packages to the VS Code Marketplace after creating the GitHub Release.
+
+### Fixed
+- Roslyn backend startup now uses stdio transport instead of the extension-managed named-pipe path, avoiding Roslyn failures from launching with a bare `--pipe` argument.
+
+### Known issues
+- _None yet._
+
 ## 0.1.13
 
 ### Fixed

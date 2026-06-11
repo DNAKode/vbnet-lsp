@@ -95,6 +95,8 @@ Behavior:
 - Triggered by tag push matching `v*`, or manual `workflow_dispatch`.
 - Builds all language server archives and VSIX packages.
 - Publishes all artifacts to a GitHub Release for the selected tag.
+- Publishes all non-draft VSIX packages to the VS Code Marketplace using the
+  `marketplace` environment and `VSCE_PAT` secret.
 
 Adapter validation workflow:
 

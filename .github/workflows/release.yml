@@ -244,3 +244,69 @@ jobs:
           generate_release_notes: true
           files: |
             out/release/*
+
+  publish-vsix-marketplace:
+    needs:
+      - prepare
+      - publish-release
+    if: ${{ needs.prepare.outputs.draft != 'true' }}
+    runs-on: ubuntu-latest
+    environment: marketplace
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-packages
+          path: out/marketplace
+
+      - name: Publish VSIX packages to Marketplace
+        shell: pwsh
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) {
+            throw "VSCE_PAT secret is required to publish VSIX packages to the Marketplace."
+          }
+
+          $vsixFiles = Get-ChildItem -Path "out/marketplace" -Filter "vbnet-language-support-*.vsix" |
+            Sort-Object Name
+          if ($vsixFiles.Count -eq 0) {
+            throw "No VSIX packages found in out/marketplace."
+          }
+
+          foreach ($vsix in $vsixFiles) {
+            Write-Host "Publishing $($vsix.Name) to Marketplace..."
+            $vsceArgs = @(
+              "--yes",
+              "@vscode/vsce@3.7.1",
+              "publish",
+              "--skip-duplicate",
+              "--packagePath",
+              $vsix.FullName,
+              "--pat",
+              $env:VSCE_PAT
+            )
+
+            if ('${{ needs.prepare.outputs.prerelease }}' -eq 'true') {
+              $vsceArgs = @(
+                "--yes",
+                "@vscode/vsce@3.7.1",
+                "publish",
+                "--pre-release",
+                "--skip-duplicate",
+                "--packagePath",
+                $vsix.FullName,
+                "--pat",
+                $env:VSCE_PAT
+              )
+            }
+
+            npx @vsceArgs
+          }

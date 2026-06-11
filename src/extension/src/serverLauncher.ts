@@ -64,7 +64,7 @@ export class ServerLauncher {
         }
 
         // Determine actual transport to use
-        const actualTransport = this.resolveTransport(transportType);
+        const actualTransport = this.resolveTransport(transportType, backend);
         this.channel.appendLine(`Using transport: ${actualTransport}`);
 
         if (actualTransport === 'namedPipe') {
@@ -77,7 +77,16 @@ export class ServerLauncher {
     /**
      * Resolves 'auto' transport to the actual transport type.
      */
-    private resolveTransport(transportType: TransportType): 'namedPipe' | 'stdio' {
+    private resolveTransport(transportType: TransportType, backend: ServerBackend): 'namedPipe' | 'stdio' {
+        if (backend === 'roslyn') {
+            if (transportType === 'namedPipe') {
+                this.channel.appendLine(
+                    'Roslyn backend named pipe transport requires a client-supplied pipe name; using stdio instead.'
+                );
+            }
+            return 'stdio';
+        }
+
         if (transportType === 'auto') {
             // Follow C# extension: named pipes on all platforms (Unix domain sockets on macOS/Linux).
             return 'namedPipe';

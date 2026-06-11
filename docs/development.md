@@ -697,8 +697,8 @@ Current scope: Windows-only (multi-platform planned).
 Workflows available via `workflow_dispatch` (manual trigger):
 - **editor-adapters.yml**: Run Neovim + Emacs smoke tests against current server build.
 - **package-vsix.yml**: Build a VSIX artifact for a selected target.
-- **publish-vsix.yml**: Build and publish a VSIX to the Marketplace.
-- **release.yml**: Build standalone language server archives + VSIX files and publish a GitHub Release.
+- **publish-vsix.yml**: Build and publish a single VSIX target to the Marketplace for manual republish/recovery.
+- **release.yml**: Build standalone language server archives + VSIX files, publish a GitHub Release, and publish non-draft VSIX packages to the Marketplace.
 - **publish-dotnet-tool.yml**: Pack and publish the `DNAKode.VbNet.Lsp` global tool package (command: `vbnet-ls`) to NuGet.
 
 Adapter repo sync/publish guidance:
@@ -709,7 +709,8 @@ Adapter repo sync/publish guidance:
 
 All workflows bundle the curated netcoredbg assets listed in `src/extension/scripts/netcoredbg-assets.json`,
 bundle Roslyn LSP assets via NuGet, and validate that `.roslyn` + `.roslyn-vb` are present in the VSIX.
-`publish-vsix.yml` requires the `VSCE_PAT` secret (Marketplace PAT with publish rights).
+Marketplace publishing through `release.yml` and `publish-vsix.yml` requires the `VSCE_PAT` secret
+(Marketplace PAT with publish rights) in the `marketplace` environment.
 `publish-dotnet-tool.yml` publishes only when `NUGET_API_KEY` is configured.
 
 ### CI Duration Note (Tracking)
@@ -722,7 +723,7 @@ CI runs on GitHub Actions have been longer than expected in some recent runs. Tr
 2. Select **editor-adapters**, **package-vsix**, **publish-vsix**, **release**, or **publish-dotnet-tool**.
 3. Click **Run workflow** and set:
    - `target`: `win32-x64` (default) or one of the listed targets.
-4. For **publish-vsix**, ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
+4. For **release** and **publish-vsix**, ensure the `marketplace` environment is approved and `VSCE_PAT` is set when publishing to Marketplace.
 5. For **release**, provide a `tag` (for example `v0.1.9`) and choose `pre_release`/`draft` flags.
 6. For **publish-dotnet-tool**, provide `version` only when running manually without a `v*` tag context.
 
@@ -812,14 +813,15 @@ Follow Semantic Versioning (SemVer 2.0):
 
 4. **Run the release workflow**
    - Push a tag (`v*`) to trigger `.github/workflows/release.yml`, or run it manually via `workflow_dispatch`.
-   - The workflow builds language server archives (`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`) and VSIX packages, then attaches them to a GitHub Release.
+   - The workflow builds language server archives (`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`) and VSIX packages, attaches them to a GitHub Release, and publishes non-draft VSIX packages to the Marketplace.
+   - Ensure the `marketplace` environment is approved and `VSCE_PAT` is configured before expecting Marketplace publication.
 
 5. **Optional: publish dotnet tool package**
    - Run `.github/workflows/publish-dotnet-tool.yml`, or rely on the same `v*` tag trigger.
    - Ensure `NUGET_API_KEY` is configured to publish to NuGet.
 
-6. **Optional: publish to Marketplace**
-   - Run `.github/workflows/publish-vsix.yml` for the target you want to publish.
+6. **Optional: manually republish a VSIX target**
+   - Run `.github/workflows/publish-vsix.yml` only when a single target needs recovery or republishing.
    - Ensure the `marketplace` environment is approved and `VSCE_PAT` is set.
 
 7. **Announce release**

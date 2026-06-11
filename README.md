@@ -143,6 +143,8 @@ Downstream snapshot sync guidance (adapters + Claude plugin) is documented in
 [docs/downstream-repositories.md](docs/downstream-repositories.md).
 
 The release workflow runs on tag push (`v*`) and can also be run manually with `workflow_dispatch`.
+For non-draft releases it publishes VSIX packages to the VS Code Marketplace after
+creating the GitHub Release.
 
 ## Backend Model
 
@@ -152,6 +154,11 @@ The extension supports backend selection:
 - `roslyn`
 
 Only one backend is active at a time by design (single active backend) to reduce regression risk.
+
+The Roslyn backend currently uses stdio transport even when `vbnet.server.transportType`
+is set to `auto` or `namedPipe`. Roslyn named-pipe mode requires the client to provide
+the pipe name; the extension-managed pipe handshake is only used by the default `vbnet`
+backend.
 
 For Roslyn packaging constraints (`.roslyn` + `.roslyn-vb` split), see [docs/roslyn-packaging.md](docs/roslyn-packaging.md).
 
