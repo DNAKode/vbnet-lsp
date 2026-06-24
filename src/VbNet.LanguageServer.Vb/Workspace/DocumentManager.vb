@@ -81,17 +81,10 @@ Namespace Workspace
 
             Dim sourceText As SourceText = SourceText.From(text)
 
-            Dim document = _workspaceManager.GetDocumentByUri(uri)
-            Dim documentId As DocumentId = Nothing
-            If document IsNot Nothing Then
-                documentId = document.Id
-            End If
-
-            Dim openDoc As New OpenDocument(uri, languageId, version, sourceText, documentId)
+            Dim openDoc As New OpenDocument(uri, languageId, version, sourceText, Nothing)
             _openDocuments(uri) = openDoc
 
-            If document IsNot Nothing Then
-                _workspaceManager.ApplyTextChange(document.Id, sourceText)
+            If SynchronizeOpenDocumentWithWorkspace(openDoc) IsNot Nothing Then
                 _logger.LogDebug("Document found in workspace, text synchronized: {Uri}", uri)
             Else
                 _logger.LogDebug("Document not in workspace (standalone file): {Uri}", uri)
@@ -126,16 +119,7 @@ Namespace Workspace
             openDoc.Text = newText
             openDoc.Version = version
 
-            If openDoc.DocumentId IsNot Nothing Then
-                _workspaceManager.ApplyTextChange(openDoc.DocumentId, newText)
-            Else
-                Dim document = _workspaceManager.GetDocumentByUri(uri)
-                If document IsNot Nothing Then
-                    openDoc.DocumentId = document.Id
-                    _workspaceManager.ApplyTextChange(document.Id, newText)
-                    _logger.LogDebug("Late-associated document on change: {Uri} -> {DocumentId}", uri, document.Id)
-                End If
-            End If
+            SynchronizeOpenDocumentWithWorkspace(openDoc)
 
             RaiseEvent DocumentChanged(Me, New DocumentChangedEventArgs(uri, newText, version, DocumentChangeKind.Changed))
         End Sub
@@ -172,11 +156,9 @@ Namespace Workspace
             If parameters.Text IsNot Nothing Then
                 Dim newText = SourceText.From(parameters.Text)
                 openDoc.Text = newText
-
-                If openDoc.DocumentId IsNot Nothing Then
-                    _workspaceManager.ApplyTextChange(openDoc.DocumentId, newText)
-                End If
             End If
+
+            SynchronizeOpenDocumentWithWorkspace(openDoc)
 
             RaiseEvent DocumentChanged(Me, New DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version, DocumentChangeKind.Saved))
         End Sub
@@ -191,20 +173,7 @@ Namespace Workspace
                 Return _workspaceManager.GetDocumentByUri(uri)
             End If
 
-            If openDoc.DocumentId Is Nothing Then
-                Dim document = _workspaceManager.GetDocumentByUri(uri)
-                If document IsNot Nothing Then
-                    openDoc.DocumentId = document.Id
-                    _workspaceManager.ApplyTextChange(document.Id, openDoc.Text)
-
-                    _logger.LogDebug("Late-associated document: {Uri} -> {DocumentId}", uri, document.Id)
-                    Return _workspaceManager.CurrentSolution?.GetDocument(document.Id)
-                End If
-
-                Return Nothing
-            End If
-
-            Return _workspaceManager.CurrentSolution?.GetDocument(openDoc.DocumentId)
+            Return SynchronizeOpenDocumentWithWorkspace(openDoc)
         End Function
 
         ''' <summary>
@@ -345,20 +314,15 @@ Namespace Workspace
                 Dim uri = kvp.Key
                 Dim openDoc = kvp.Value
 
-                If openDoc.DocumentId IsNot Nothing Then
-                    Continue For
-                End If
-
-                Dim document = _workspaceManager.GetDocumentByUri(uri)
+                Dim reassociated = False
+                Dim document = SynchronizeOpenDocumentWithWorkspace(openDoc, reassociated)
                 If document IsNot Nothing Then
-                    openDoc.DocumentId = document.Id
+                    If reassociated Then
+                        _logger.LogDebug("Reassociated document: {Uri} -> {DocumentId}", uri, document.Id)
+                        reassociatedCount += 1
 
-                    _workspaceManager.ApplyTextChange(document.Id, openDoc.Text)
-
-                    _logger.LogDebug("Reassociated document: {Uri} -> {DocumentId}", uri, document.Id)
-                    reassociatedCount += 1
-
-                    RaiseEvent DocumentChanged(Me, New DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version, DocumentChangeKind.Changed))
+                        RaiseEvent DocumentChanged(Me, New DocumentChangedEventArgs(uri, openDoc.Text, openDoc.Version, DocumentChangeKind.Changed))
+                    End If
                 End If
             Next
 
@@ -366,6 +330,44 @@ Namespace Workspace
                 _logger.LogInformation("Reassociated {Count} open document(s) with workspace", reassociatedCount)
             End If
         End Sub
+
+        Private Function SynchronizeOpenDocumentWithWorkspace(openDoc As OpenDocument) As Document
+            Dim reassociated = False
+            Return SynchronizeOpenDocumentWithWorkspace(openDoc, reassociated)
+        End Function
+
+        Private Function SynchronizeOpenDocumentWithWorkspace(openDoc As OpenDocument, ByRef reassociated As Boolean) As Document
+            reassociated = False
+
+            If openDoc Is Nothing Then
+                Return Nothing
+            End If
+
+            Dim document As Document = Nothing
+            If openDoc.DocumentId IsNot Nothing Then
+                document = _workspaceManager.CurrentSolution?.GetDocument(openDoc.DocumentId)
+                If document Is Nothing Then
+                    _logger.LogDebug("Open document association is stale, attempting reassociation: {Uri} -> {DocumentId}", openDoc.Uri, openDoc.DocumentId)
+                    openDoc.DocumentId = Nothing
+                    reassociated = True
+                End If
+            End If
+
+            If document Is Nothing Then
+                document = _workspaceManager.GetDocumentByUri(openDoc.Uri)
+                If document Is Nothing Then
+                    Return Nothing
+                End If
+
+                If openDoc.DocumentId Is Nothing OrElse Not openDoc.DocumentId.Equals(document.Id) Then
+                    openDoc.DocumentId = document.Id
+                    reassociated = True
+                End If
+            End If
+
+            Dim updatedDocument = _workspaceManager.ApplyTextChange(document.Id, openDoc.Text)
+            Return If(updatedDocument, _workspaceManager.CurrentSolution?.GetDocument(document.Id))
+        End Function
     End Class
 
     ''' <summary>

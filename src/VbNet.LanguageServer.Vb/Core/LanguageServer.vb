@@ -82,7 +82,7 @@ Namespace Core
         ''' <summary>
         ''' Server version reported in initialize response.
         ''' </summary>
-        Public Const ServerVersion As String = "0.1.11"
+        Public Const ServerVersion As String = "0.1.15"
 
         Public Sub New(transport As ITransport, loggerFactory As ILoggerFactory)
             If transport Is Nothing Then
@@ -826,6 +826,7 @@ Namespace Core
 
             If _loadProjectsOnStart AndAlso needReload AndAlso _workspaceRootUri IsNot Nothing Then
                 _logger.LogInformation("Workspace configuration changed; reloading workspace")
+                Await _workspaceManager.ResetWorkspaceAsync(ct).ConfigureAwait(False)
                 Await LoadWorkspaceAsync(_workspaceRootUri, ct).ConfigureAwait(False)
             End If
 
@@ -2101,15 +2102,9 @@ Namespace Core
         End Function
 
         Private Shared Function AreEquivalent(leftValues As String(), rightValues As String()) As Boolean
-            If leftValues Is Nothing AndAlso rightValues Is Nothing Then
-                Return True
-            End If
-
-            If leftValues Is Nothing OrElse rightValues Is Nothing Then
-                Return False
-            End If
-
-            Return leftValues.SequenceEqual(rightValues, StringComparer.OrdinalIgnoreCase)
+            Dim normalizedLeft = If(leftValues, Array.Empty(Of String)())
+            Dim normalizedRight = If(rightValues, Array.Empty(Of String)())
+            Return normalizedLeft.SequenceEqual(normalizedRight, StringComparer.OrdinalIgnoreCase)
         End Function
 
         Private Shared Function TryGetBooleanSetting(root As JsonElement, section As String, name As String, ByRef value As Boolean) As Boolean

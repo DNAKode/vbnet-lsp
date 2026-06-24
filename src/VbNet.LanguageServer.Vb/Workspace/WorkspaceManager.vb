@@ -91,6 +91,10 @@ Namespace Workspace
                 Return
             End If
 
+            CreateWorkspace()
+        End Sub
+
+        Private Sub CreateWorkspace()
             _logger.LogDebug("Creating MSBuildWorkspace")
 
             Dim properties As New Dictionary(Of String, String) From {
@@ -113,6 +117,37 @@ Namespace Workspace
 
             _logger.LogInformation("MSBuildWorkspace created successfully")
         End Sub
+
+        Private Sub RecreateWorkspace()
+            If _workspace IsNot Nothing Then
+                RemoveHandler _workspace.WorkspaceFailed, AddressOf OnWorkspaceFailed
+                _workspace.Dispose()
+                _workspace = Nothing
+            End If
+
+            _currentSolution = Nothing
+            _loadedSolutionPath = Nothing
+            _loadedProjectPaths.Clear()
+
+            CreateWorkspace()
+        End Sub
+
+        ''' <summary>
+        ''' Clears Roslyn workspace state so the next load evaluates projects from scratch.
+        ''' </summary>
+        Public Async Function ResetWorkspaceAsync(Optional cancellationToken As CancellationToken = Nothing) As Task
+            If _workspace Is Nothing Then
+                Throw New InvalidOperationException("WorkspaceManager not initialized. Call Initialize() first.")
+            End If
+
+            Await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(False)
+            Try
+                _logger.LogInformation("Recreating MSBuildWorkspace")
+                RecreateWorkspace()
+            Finally
+                _loadLock.Release()
+            End Try
+        End Function
 
         ''' <summary>
         ''' Loads a solution file.
@@ -529,21 +564,26 @@ Namespace Workspace
         ''' Reloads the currently loaded solution or projects.
         ''' </summary>
         Public Async Function ReloadWorkspaceAsync(Optional cancellationToken As CancellationToken = Nothing) As Task(Of Boolean)
-            If Not String.IsNullOrEmpty(_loadedSolutionPath) Then
-                Return Await LoadSolutionAsync(_loadedSolutionPath, cancellationToken, SolutionChangeKind.Reloaded).ConfigureAwait(False)
-            End If
+            Dim loadedSolutionPath = _loadedSolutionPath
+            Dim loadedProjectPaths = _loadedProjectPaths.ToList()
 
-            If _loadedProjectPaths.Count = 0 Then
+            If String.IsNullOrEmpty(loadedSolutionPath) AndAlso loadedProjectPaths.Count = 0 Then
                 Return False
             End If
 
+            Await ResetWorkspaceAsync(cancellationToken).ConfigureAwait(False)
+
+            If Not String.IsNullOrEmpty(loadedSolutionPath) Then
+                Return Await LoadSolutionAsync(loadedSolutionPath, cancellationToken, SolutionChangeKind.Reloaded).ConfigureAwait(False)
+            End If
+
             Dim reloadedAny = False
-            For Each projectPath In _loadedProjectPaths.ToList()
+            For Each projectPath In loadedProjectPaths
                 Dim reloaded = Await LoadProjectAsync(projectPath, cancellationToken, SolutionChangeKind.Reloaded).ConfigureAwait(False)
                 reloadedAny = reloadedAny OrElse reloaded
             Next
 
-            If Not reloadedAny AndAlso CurrentSolution?.ProjectIds.Count > 0 Then
+            If Not reloadedAny Then
                 RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, SolutionChangeKind.Reloaded))
             End If
 

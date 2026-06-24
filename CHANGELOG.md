@@ -16,6 +16,16 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.15
+
+### Fixed
+- Open documents are now rebound to the current Roslyn workspace after workspace reloads, preventing false missing-reference diagnostics when VS Code restores tabs while reopening a folder.
+- Project-mode workspace reloads now recreate the MSBuild workspace before reloading projects, so open document associations cannot point at stale Roslyn document IDs.
+- Workspace configuration reload checks now treat missing and empty path arrays equivalently, avoiding no-op reloads from default VS Code settings payloads.
+
+### Known issues
+- _None yet._
+
 ## 0.1.14
 
 ### Changed

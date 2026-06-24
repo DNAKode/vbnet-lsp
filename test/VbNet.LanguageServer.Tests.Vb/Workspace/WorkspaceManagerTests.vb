@@ -304,6 +304,30 @@ Namespace VbNet.LanguageServer.Tests.Workspace
         End Function
 
         <Fact>
+        Public Async Function ReloadWorkspaceAsync_ProjectMode_ReopensProjectInFreshWorkspace() As Task
+            Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
+            Dim module1Path = Path.Combine(TestProjectsRoot, "SmallProject", "Module1.vb")
+
+            If Not File.Exists(projectPath) Then
+                Return
+            End If
+
+            Await _workspaceManager.LoadProjectAsync(projectPath).ConfigureAwait(False)
+
+            Dim originalDocument = _workspaceManager.GetDocumentByPath(module1Path)
+            Assert.NotNull(originalDocument)
+            Dim originalDocumentId = originalDocument.Id
+
+            Dim result = Await _workspaceManager.ReloadWorkspaceAsync().ConfigureAwait(False)
+
+            Assert.True(result)
+
+            Dim reloadedDocument = _workspaceManager.GetDocumentByPath(module1Path)
+            Assert.NotNull(reloadedDocument)
+            Assert.False(originalDocumentId.Equals(reloadedDocument.Id))
+        End Function
+
+        <Fact>
         Public Async Function WorkspaceDiagnostic_EventFired_OnLoadFailure() As Task
             Dim diagnosticReceived = False
             AddHandler _workspaceManager.WorkspaceDiagnostic, Sub(sender, args) diagnosticReceived = True
