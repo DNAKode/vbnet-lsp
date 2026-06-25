@@ -322,6 +322,189 @@ Namespace VbNet.LanguageServer.Tests.Workspace
             End Try
         End Sub
 
+        <Fact>
+        Public Sub GetProjectPathsFromSlnx_MatchesPathAttributeCaseInsensitively()
+            Dim root = CreateLegacyProject()
+
+            Try
+                Dim slnxPath = Path.Combine(root, "Sample.slnx")
+                File.WriteAllText(slnxPath, "<Solution><Project path=""Sample.vbproj"" Id=""11111111-1111-1111-1111-111111111111"" /></Solution>")
+
+                Dim paths = LegacyVbProjectReader.GetProjectPathsFromSlnx(slnxPath)
+
+                Assert.Single(paths)
+                Assert.Equal(Path.Combine(root, "Sample.vbproj"), paths(0), ignoreCase:=True)
+            Finally
+                Directory.Delete(root, recursive:=True)
+            End Try
+        End Sub
+
+        <Fact>
+        Public Sub GetProjectPathsFromSolution_ReturnsVbProjectPathsFromSln()
+            Dim root = CreateLegacyProject()
+
+            Try
+                Dim slnPath = Path.Combine(root, "Sample.sln")
+                File.WriteAllText(
+                    slnPath,
+                    "Microsoft Visual Studio Solution File, Format Version 12.00" & Environment.NewLine &
+                    "# Visual Studio Version 18" & Environment.NewLine &
+                    "Project(""{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"") = ""Sample"", ""Sample.vbproj"", ""{11111111-1111-1111-1111-111111111111}""" & Environment.NewLine &
+                    "EndProject" & Environment.NewLine &
+                    "Project(""{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"") = ""CSharp"", ""CSharp.csproj"", ""{22222222-2222-2222-2222-222222222222}""" & Environment.NewLine &
+                    "EndProject")
+
+                Dim paths = LegacyVbProjectReader.GetProjectPathsFromSolution(slnPath)
+
+                Assert.Single(paths)
+                Assert.Equal(Path.Combine(root, "Sample.vbproj"), paths(0), ignoreCase:=True)
+            Finally
+                Directory.Delete(root, recursive:=True)
+            End Try
+        End Sub
+
+        <Fact>
+        Public Sub GetProjectPathsFromSolution_ReturnsFilteredVbProjectPathsFromSlnf()
+            Dim root = CreateLegacyProject()
+
+            Try
+                Dim slnPath = Path.Combine(root, "Sample.sln")
+                File.WriteAllText(
+                    slnPath,
+                    "Microsoft Visual Studio Solution File, Format Version 12.00" & Environment.NewLine &
+                    "# Visual Studio Version 18" & Environment.NewLine &
+                    "Project(""{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"") = ""Sample"", ""Sample.vbproj"", ""{11111111-1111-1111-1111-111111111111}""" & Environment.NewLine &
+                    "EndProject")
+
+                Dim slnfPath = Path.Combine(root, "Sample.slnf")
+                File.WriteAllText(
+                    slnfPath,
+                    "{" & Environment.NewLine &
+                    "  ""solution"": {" & Environment.NewLine &
+                    "    ""path"": ""Sample.sln""," & Environment.NewLine &
+                    "    ""projects"": [" & Environment.NewLine &
+                    "      ""Sample.vbproj""" & Environment.NewLine &
+                    "    ]" & Environment.NewLine &
+                    "  }" & Environment.NewLine &
+                    "}")
+
+                Dim paths = LegacyVbProjectReader.GetProjectPathsFromSolution(slnfPath)
+
+                Assert.Single(paths)
+                Assert.Equal(Path.Combine(root, "Sample.vbproj"), paths(0), ignoreCase:=True)
+            Finally
+                Directory.Delete(root, recursive:=True)
+            End Try
+        End Sub
+
+        <Fact>
+        Public Sub GetProjectPathsFromSolution_ReturnsAllVbProjectPathsFromSlnfWithoutProjectFilter()
+            Dim root = CreateLegacyProject()
+
+            Try
+                Dim slnPath = Path.Combine(root, "Sample.sln")
+                File.WriteAllText(
+                    slnPath,
+                    "Microsoft Visual Studio Solution File, Format Version 12.00" & Environment.NewLine &
+                    "# Visual Studio Version 18" & Environment.NewLine &
+                    "Project(""{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"") = ""Sample"", ""Sample.vbproj"", ""{11111111-1111-1111-1111-111111111111}""" & Environment.NewLine &
+                    "EndProject")
+
+                Dim slnfPath = Path.Combine(root, "Sample.slnf")
+                File.WriteAllText(
+                    slnfPath,
+                    "{" & Environment.NewLine &
+                    "  ""solution"": {" & Environment.NewLine &
+                    "    ""path"": ""Sample.sln""" & Environment.NewLine &
+                    "  }" & Environment.NewLine &
+                    "}")
+
+                Dim paths = LegacyVbProjectReader.GetProjectPathsFromSolution(slnfPath)
+
+                Assert.Single(paths)
+                Assert.Equal(Path.Combine(root, "Sample.vbproj"), paths(0), ignoreCase:=True)
+            Finally
+                Directory.Delete(root, recursive:=True)
+            End Try
+        End Sub
+
+        <Fact>
+        Public Sub GetProjectPathsFromSolution_TrimsSlnfProjectPathsBeforeResolving()
+            Dim root = CreateLegacyProject()
+
+            Try
+                Dim slnPath = Path.Combine(root, "Sample.sln")
+                File.WriteAllText(slnPath, "Microsoft Visual Studio Solution File, Format Version 12.00")
+
+                Dim slnfPath = Path.Combine(root, "Sample.slnf")
+                File.WriteAllText(
+                    slnfPath,
+                    "{" & Environment.NewLine &
+                    "  ""solution"": {" & Environment.NewLine &
+                    "    ""path"": ""Sample.sln""," & Environment.NewLine &
+                    "    ""projects"": [""  Sample.vbproj  ""]" & Environment.NewLine &
+                    "  }" & Environment.NewLine &
+                    "}")
+
+                Dim paths = LegacyVbProjectReader.GetProjectPathsFromSolution(slnfPath)
+
+                Assert.Single(paths)
+                Assert.Equal(Path.Combine(root, "Sample.vbproj"), paths(0), ignoreCase:=True)
+            Finally
+                Directory.Delete(root, recursive:=True)
+            End Try
+        End Sub
+
+        <Fact>
+        Public Sub GetProjectPathsFromSolution_TrimsSlnfSolutionPathBeforeResolving()
+            Dim root = CreateLegacyProject()
+
+            Try
+                Dim slnPath = Path.Combine(root, "Sample.sln")
+                File.WriteAllText(
+                    slnPath,
+                    "Microsoft Visual Studio Solution File, Format Version 12.00" & Environment.NewLine &
+                    "# Visual Studio Version 18" & Environment.NewLine &
+                    "Project(""{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"") = ""Sample"", ""Sample.vbproj"", ""{11111111-1111-1111-1111-111111111111}""" & Environment.NewLine &
+                    "EndProject")
+
+                Dim slnfPath = Path.Combine(root, "Sample.slnf")
+                File.WriteAllText(
+                    slnfPath,
+                    "{" & Environment.NewLine &
+                    "  ""solution"": {" & Environment.NewLine &
+                    "    ""path"": ""  Sample.sln  """ & Environment.NewLine &
+                    "  }" & Environment.NewLine &
+                    "}")
+
+                Dim paths = LegacyVbProjectReader.GetProjectPathsFromSolution(slnfPath)
+
+                Assert.Single(paths)
+                Assert.Equal(Path.Combine(root, "Sample.vbproj"), paths(0), ignoreCase:=True)
+            Finally
+                Directory.Delete(root, recursive:=True)
+            End Try
+        End Sub
+
+        <Fact>
+        Public Sub GetProjectPathsFromSolution_IgnoresNonProjectSlnLinesThatMentionVbproj()
+            Dim root = CreateLegacyProject()
+
+            Try
+                Dim slnPath = Path.Combine(root, "Sample.sln")
+                File.WriteAllText(
+                    slnPath,
+                    "Microsoft Visual Studio Solution File, Format Version 12.00" & Environment.NewLine &
+                    "NotAProject = ""Sample"", ""Sample.vbproj""" & Environment.NewLine)
+
+                Dim paths = LegacyVbProjectReader.GetProjectPathsFromSolution(slnPath)
+
+                Assert.Empty(paths)
+            Finally
+                Directory.Delete(root, recursive:=True)
+            End Try
+        End Sub
+
         Private Shared Function CreateLegacyProject(Optional projectReference As String = Nothing, Optional comReference As String = Nothing, Optional extraProjectXml As String = Nothing, Optional extraReferenceXml As String = Nothing, Optional myType As String = Nothing, Optional programSource As String = Nothing, Optional extraCompileXml As String = Nothing) As String
             Dim root = Path.Combine(Path.GetTempPath(), "vbnet-lsp-tests", Guid.NewGuid().ToString("N"), "App")
             Directory.CreateDirectory(root)

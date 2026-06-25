@@ -162,55 +162,65 @@ Namespace Workspace
                 Return False
             End If
 
-            Dim shouldUseFallback = False
+            Dim fallbackProjectPaths = LegacyVbProjectReader.GetProjectPathsFromSolution(solutionPath)
 
             Await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(False)
             Try
                 _logger.LogInformation("Loading solution: {Path}", solutionPath)
 
-                Dim solution = Await _workspace.OpenSolutionAsync(solutionPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
-                _currentSolution = solution
+                Try
+                    Dim solution = Await _workspace.OpenSolutionAsync(solutionPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
+                    _currentSolution = solution
 
-                _loadedSolutionPath = solutionPath
-                _loadedProjectPaths.Clear()
+                    _loadedSolutionPath = solutionPath
+                    _loadedProjectPaths.Clear()
 
-                Dim vbProjects = solution.Projects.Where(Function(p) p.Language = LanguageNames.VisualBasic).ToList()
-                Dim csharpProjects = solution.Projects.Where(Function(p) p.Language = LanguageNames.CSharp).ToList()
+                    Dim vbProjects = solution.Projects.Where(Function(p) p.Language = LanguageNames.VisualBasic).ToList()
+                    Dim csharpProjects = solution.Projects.Where(Function(p) p.Language = LanguageNames.CSharp).ToList()
 
-                _logger.LogInformation("Solution loaded: {VbCount} VB.NET projects, {CsCount} C# projects", vbProjects.Count, csharpProjects.Count)
+                    _logger.LogInformation("Solution loaded: {VbCount} VB.NET projects, {CsCount} C# projects", vbProjects.Count, csharpProjects.Count)
 
-                For Each project In vbProjects
-                    _logger.LogDebug("  VB.NET project: {Name}", project.Name)
-                    If project.FilePath IsNot Nothing Then
-                        _loadedProjectPaths.Add(project.FilePath)
+                    For Each project In vbProjects
+                        _logger.LogDebug("  VB.NET project: {Name}", project.Name)
+                        If project.FilePath IsNot Nothing Then
+                            _loadedProjectPaths.Add(project.FilePath)
+                        End If
+                    Next
+
+                    If csharpProjects.Count > 0 Then
+                        _logger.LogInformation("Note: C# projects loaded but not served (VB.NET only in current phase)")
                     End If
-                Next
 
-                If csharpProjects.Count > 0 Then
-                    _logger.LogInformation("Note: C# projects loaded but not served (VB.NET only in current phase)")
-                End If
+                    Dim missingFallbackProjectPaths = fallbackProjectPaths.
+                        Where(Function(projectPath) Not IsProjectLoaded(projectPath)).
+                        ToList()
 
-                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(_currentSolution, changeKind))
+                    If missingFallbackProjectPaths.Count = 0 Then
+                        RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(_currentSolution, changeKind))
 
-                Return vbProjects.Count > 0
-            Catch ex As Exception
-                _logger.LogError(ex, "Failed to load solution: {Path}", solutionPath)
-                If solutionPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) Then
-                    shouldUseFallback = True
-                Else
+                        Return vbProjects.Count > 0
+                    End If
+
+                    _logger.LogWarning(
+                        "Solution loaded but {Count} VB.NET project(s) were missing; trying project-level fallback: {Path}",
+                        missingFallbackProjectPaths.Count,
+                        solutionPath)
+                Catch ex As OperationCanceledException When cancellationToken.IsCancellationRequested
+                    Throw
+                Catch ex As Exception
+                    _logger.LogError(ex, "Failed to load solution: {Path}", solutionPath)
+                    If fallbackProjectPaths.Length = 0 Then
+                        Return False
+                    End If
+                End Try
+
+                If fallbackProjectPaths.Length = 0 Then
                     Return False
                 End If
-            Finally
-                _loadLock.Release()
-            End Try
 
-            If Not shouldUseFallback Then
-                Return False
-            End If
-
-            Await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(False)
-            Try
-                Return Await LoadProjectsFromSolutionFallbackAsync(solutionPath, changeKind, cancellationToken).ConfigureAwait(False)
+                _logger.LogInformation("Loading solution projects through fallback: {Path}", solutionPath)
+                RecreateWorkspace()
+                Return Await LoadProjectsFromSolutionFallbackAsync(solutionPath, fallbackProjectPaths, changeKind, cancellationToken).ConfigureAwait(False)
             Finally
                 _loadLock.Release()
             End Try
@@ -258,6 +268,8 @@ Namespace Workspace
                 RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, changeKind))
 
                 Return True
+            Catch ex As OperationCanceledException When cancellationToken.IsCancellationRequested
+                Throw
             Catch ex As Exception
                 If TypeOf ex Is ArgumentException AndAlso ex.Message.Contains("already part of the workspace", StringComparison.OrdinalIgnoreCase) Then
                     _logger.LogDebug(ex, "Project already part of workspace: {Path}", projectPath)
@@ -270,8 +282,7 @@ Namespace Workspace
             End Try
         End Function
 
-        Private Async Function LoadProjectsFromSolutionFallbackAsync(solutionPath As String, changeKind As SolutionChangeKind, cancellationToken As CancellationToken) As Task(Of Boolean)
-            Dim projectPaths = LegacyVbProjectReader.GetProjectPathsFromSlnx(solutionPath)
+        Private Async Function LoadProjectsFromSolutionFallbackAsync(solutionPath As String, projectPaths As ImmutableArray(Of String), changeKind As SolutionChangeKind, cancellationToken As CancellationToken) As Task(Of Boolean)
             If projectPaths.Length = 0 Then
                 Return False
             End If
@@ -302,6 +313,8 @@ Namespace Workspace
 
                     _logger.LogInformation("SDK-style VB.NET project loaded during solution fallback: {Name} ({DocumentCount} documents)", project.Name, project.DocumentIds.Count)
                     loaded = True
+                Catch ex As OperationCanceledException When cancellationToken.IsCancellationRequested
+                    Throw
                 Catch ex As Exception
                     _logger.LogWarning(ex, "Failed to load project during solution fallback: {Path}", projectPath)
                 End Try

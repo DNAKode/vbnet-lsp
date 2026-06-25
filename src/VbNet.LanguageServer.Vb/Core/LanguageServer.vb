@@ -82,7 +82,7 @@ Namespace Core
         ''' <summary>
         ''' Server version reported in initialize response.
         ''' </summary>
-        Public Const ServerVersion As String = "0.1.15"
+        Public Const ServerVersion As String = "0.1.16"
 
         Public Sub New(transport As ITransport, loggerFactory As ILoggerFactory)
             If transport Is Nothing Then
@@ -1472,9 +1472,10 @@ Namespace Core
 
         Private Shared Function SolutionContainsVbProject(solutionPath As String) As Boolean
             Try
-                If solutionPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) Then
+                If LegacyVbProjectReader.GetProjectPathsFromSolution(solutionPath).Length > 0 Then
                     Return True
                 End If
+
                 Dim content = File.ReadAllText(solutionPath)
                 Return content.IndexOf(".vbproj", StringComparison.OrdinalIgnoreCase) >= 0
             Catch
@@ -1483,78 +1484,7 @@ Namespace Core
         End Function
 
         Private Shared Function GetSolutionProjectPaths(solutionPath As String) As List(Of String)
-            Dim results As New List(Of String)()
-            If String.IsNullOrWhiteSpace(solutionPath) OrElse Not File.Exists(solutionPath) Then
-                Return results
-            End If
-
-            Dim extension = Path.GetExtension(solutionPath).ToLowerInvariant()
-            Dim resolvedSolutionPath = solutionPath
-
-            If extension = ".slnf" Then
-                Dim filterSolutionPath = TryResolveSolutionPathFromFilter(solutionPath)
-                If Not String.IsNullOrWhiteSpace(filterSolutionPath) Then
-                    resolvedSolutionPath = filterSolutionPath
-                End If
-            ElseIf extension = ".slnx" Then
-                Return results
-            End If
-
-            If String.IsNullOrWhiteSpace(resolvedSolutionPath) OrElse Not File.Exists(resolvedSolutionPath) Then
-                Return results
-            End If
-
-            Dim solutionDir = Path.GetDirectoryName(resolvedSolutionPath)
-            For Each line In File.ReadLines(resolvedSolutionPath)
-                If line.IndexOf(".vbproj", StringComparison.OrdinalIgnoreCase) < 0 Then
-                    Continue For
-                End If
-
-                Dim parts = line.Split(","c)
-                If parts.Length < 2 Then
-                    Continue For
-                End If
-
-                Dim relativePath = parts(1).Trim().Trim(""""c)
-                If Not relativePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) Then
-                    Continue For
-                End If
-
-                Dim projectPath = If(Path.IsPathRooted(relativePath), relativePath, Path.Combine(solutionDir, relativePath))
-                results.Add(projectPath)
-            Next
-
-            Return results
-        End Function
-
-        Private Shared Function TryResolveSolutionPathFromFilter(solutionFilterPath As String) As String
-            Try
-                Dim json = File.ReadAllText(solutionFilterPath)
-                Dim document = JsonDocument.Parse(json)
-                Using document
-                    Dim root = document.RootElement
-                    Dim solutionElement As JsonElement
-                    If root.ValueKind <> JsonValueKind.Object OrElse Not root.TryGetProperty("solution", solutionElement) Then
-                        Return Nothing
-                    End If
-
-                    Dim pathElement As JsonElement
-                    If solutionElement.ValueKind <> JsonValueKind.Object OrElse Not solutionElement.TryGetProperty("path", pathElement) Then
-                        Return Nothing
-                    End If
-
-                    Dim relativePath = pathElement.GetString()
-                    If String.IsNullOrWhiteSpace(relativePath) Then
-                        Return Nothing
-                    End If
-
-                    Dim filterDir = Path.GetDirectoryName(solutionFilterPath)
-                    Dim resolved = If(Path.IsPathRooted(relativePath), relativePath, Path.Combine(filterDir, relativePath))
-                    Return resolved
-                End Using
-            Catch
-                Return Nothing
-            End Try
+            Return LegacyVbProjectReader.GetProjectPathsFromSolution(solutionPath).ToList()
         End Function
 
         Private Function GetProjectSearchRoots(rootPath As String) As IEnumerable(Of String)

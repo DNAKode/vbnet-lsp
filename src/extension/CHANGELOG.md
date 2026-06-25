@@ -16,6 +16,16 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.16
+
+### Fixed
+- `.sln` workspaces that contain classic VB.NET ASP.NET Web Application projects now fall back to project-level loading when Roslyn/MSBuildWorkspace fails or omits VB projects, matching the behavior that already worked for `.slnx` and direct `.vbproj` loading.
+- Solution and solution-filter project discovery now shares one parser for `.sln`, `.slnf`, and `.slnx` files, including filtered `.slnf` project lists and fallback to the base `.sln` when no filter list is present.
+- Workspace loading now keeps fallback recovery under the same load lock and preserves cancellation semantics during solution and project loads.
+
+### Known issues
+- Legacy project fallback remains best-effort and does not fully evaluate arbitrary imported MSBuild targets or all conditional project logic.
+
 ## 0.1.15
 
 ### Fixed

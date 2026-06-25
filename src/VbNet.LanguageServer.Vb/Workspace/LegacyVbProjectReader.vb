@@ -1,5 +1,6 @@
 Imports System.Collections.Immutable
 Imports System.IO
+Imports System.Text.Json
 Imports System.Xml.Linq
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.VisualBasic
@@ -123,18 +124,156 @@ Namespace Workspace
             Dim builder = ImmutableArray.CreateBuilder(Of String)()
 
             For Each element In document.Descendants().Where(Function(e) String.Equals(e.Name.LocalName, "Project", StringComparison.OrdinalIgnoreCase))
-                Dim relativePath = element.Attribute("Path")?.Value
-                If String.IsNullOrWhiteSpace(relativePath) OrElse Not relativePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) Then
-                    Continue For
-                End If
-
-                Dim projectPath = If(System.IO.Path.IsPathRooted(relativePath), relativePath, System.IO.Path.Combine(solutionDir, relativePath))
-                If File.Exists(projectPath) Then
-                    builder.Add(System.IO.Path.GetFullPath(projectPath))
-                End If
+                Dim relativePath = GetXmlAttributeValue(element, "Path")
+                TryAddProjectPath(builder, solutionDir, relativePath)
             Next
 
             Return builder.Distinct(StringComparer.OrdinalIgnoreCase).ToImmutableArray()
+        End Function
+
+        Public Shared Function GetProjectPathsFromSolution(solutionPath As String) As ImmutableArray(Of String)
+            If String.IsNullOrWhiteSpace(solutionPath) OrElse Not File.Exists(solutionPath) Then
+                Return ImmutableArray(Of String).Empty
+            End If
+
+            Select Case Path.GetExtension(solutionPath).ToLowerInvariant()
+                Case ".sln"
+                    Return GetProjectPathsFromSln(solutionPath)
+                Case ".slnf"
+                    Return GetProjectPathsFromSlnf(solutionPath)
+                Case ".slnx"
+                    Return GetProjectPathsFromSlnx(solutionPath)
+                Case Else
+                    Return ImmutableArray(Of String).Empty
+            End Select
+        End Function
+
+        Private Shared Function GetProjectPathsFromSln(solutionPath As String) As ImmutableArray(Of String)
+            Dim solutionDir = Path.GetDirectoryName(Path.GetFullPath(solutionPath))
+            Dim builder = ImmutableArray.CreateBuilder(Of String)()
+
+            Try
+                For Each line In File.ReadLines(solutionPath)
+                    If line.IndexOf(".vbproj", StringComparison.OrdinalIgnoreCase) < 0 Then
+                        Continue For
+                    End If
+
+                    TryAddProjectPath(builder, solutionDir, GetProjectPathFromSlnLine(line))
+                Next
+            Catch
+                Return ImmutableArray(Of String).Empty
+            End Try
+
+            Return builder.Distinct(StringComparer.OrdinalIgnoreCase).ToImmutableArray()
+        End Function
+
+        Private Shared Function GetProjectPathsFromSlnf(solutionFilterPath As String) As ImmutableArray(Of String)
+            Dim filterDir = Path.GetDirectoryName(Path.GetFullPath(solutionFilterPath))
+
+            Try
+                Using document = JsonDocument.Parse(File.ReadAllText(solutionFilterPath))
+                    Dim solutionElement As JsonElement
+                    If Not TryGetJsonProperty(document.RootElement, "solution", solutionElement) OrElse solutionElement.ValueKind <> JsonValueKind.Object Then
+                        Return ImmutableArray(Of String).Empty
+                    End If
+
+                    Dim solutionPathElement As JsonElement
+                    If Not TryGetJsonProperty(solutionElement, "path", solutionPathElement) OrElse solutionPathElement.ValueKind <> JsonValueKind.String Then
+                        Return ImmutableArray(Of String).Empty
+                    End If
+
+                    Dim solutionRelativePath = solutionPathElement.GetString()?.Trim()
+                    If String.IsNullOrWhiteSpace(solutionRelativePath) Then
+                        Return ImmutableArray(Of String).Empty
+                    End If
+
+                    Dim resolvedSolutionPath = If(Path.IsPathRooted(solutionRelativePath), solutionRelativePath, Path.Combine(filterDir, solutionRelativePath))
+                    resolvedSolutionPath = Path.GetFullPath(resolvedSolutionPath)
+                    If Not File.Exists(resolvedSolutionPath) Then
+                        Return ImmutableArray(Of String).Empty
+                    End If
+
+                    Dim projectsElement As JsonElement
+                    If Not TryGetJsonProperty(solutionElement, "projects", projectsElement) OrElse projectsElement.ValueKind <> JsonValueKind.Array Then
+                        Return GetProjectPathsFromSln(resolvedSolutionPath)
+                    End If
+
+                    Dim builder = ImmutableArray.CreateBuilder(Of String)()
+                    Dim solutionDir = Path.GetDirectoryName(resolvedSolutionPath)
+                    For Each projectElement In projectsElement.EnumerateArray()
+                        If projectElement.ValueKind <> JsonValueKind.String Then
+                            Continue For
+                        End If
+
+                        Dim relativePath = projectElement.GetString()
+                        If Not TryAddProjectPath(builder, solutionDir, relativePath) Then
+                            TryAddProjectPath(builder, filterDir, relativePath)
+                        End If
+                    Next
+
+                    Return builder.Distinct(StringComparer.OrdinalIgnoreCase).ToImmutableArray()
+                End Using
+            Catch
+                Return ImmutableArray(Of String).Empty
+            End Try
+        End Function
+
+        Private Shared Function GetProjectPathFromSlnLine(line As String) As String
+            If String.IsNullOrWhiteSpace(line) OrElse Not line.TrimStart().StartsWith("Project(", StringComparison.OrdinalIgnoreCase) Then
+                Return Nothing
+            End If
+
+            Dim equalsIndex = line.IndexOf("="c)
+            If equalsIndex < 0 Then
+                Return Nothing
+            End If
+
+            Dim fields = System.Text.RegularExpressions.Regex.Matches(line.Substring(equalsIndex + 1), """([^""]+)""")
+            If fields.Count < 2 Then
+                Return Nothing
+            End If
+
+            Return fields(1).Groups(1).Value
+        End Function
+
+        Private Shared Function TryAddProjectPath(builder As ImmutableArray(Of String).Builder, baseDirectory As String, relativePath As String) As Boolean
+            If String.IsNullOrWhiteSpace(relativePath) Then
+                Return False
+            End If
+
+            Dim trimmedPath = relativePath.Trim()
+            If Not trimmedPath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) Then
+                Return False
+            End If
+
+            Dim projectPath = If(Path.IsPathRooted(trimmedPath), trimmedPath, Path.Combine(baseDirectory, trimmedPath))
+            If Not File.Exists(projectPath) Then
+                Return False
+            End If
+
+            builder.Add(Path.GetFullPath(projectPath))
+            Return True
+        End Function
+
+        Private Shared Function TryGetJsonProperty(element As JsonElement, propertyName As String, ByRef value As JsonElement) As Boolean
+            If element.ValueKind <> JsonValueKind.Object Then
+                Return False
+            End If
+
+            For Each prop In element.EnumerateObject()
+                If String.Equals(prop.Name, propertyName, StringComparison.OrdinalIgnoreCase) Then
+                    value = prop.Value
+                    Return True
+                End If
+            Next
+
+            Return False
+        End Function
+
+        Private Shared Function GetXmlAttributeValue(element As XElement, attributeName As String) As String
+            Return element.Attributes().
+                FirstOrDefault(Function(attribute) String.Equals(attribute.Name.LocalName, attributeName, StringComparison.OrdinalIgnoreCase))?.
+                Value
         End Function
 
         Private Shared Function GetProperty(root As XElement, name As String) As String
