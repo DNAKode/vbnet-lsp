@@ -2,11 +2,14 @@
 ' Workspace Layer as defined in docs/architecture.md Section 5.3
 
 Imports Microsoft.CodeAnalysis
+Imports Microsoft.CodeAnalysis.Emit
+Imports Microsoft.CodeAnalysis.Host.Mef
 Imports Microsoft.CodeAnalysis.MSBuild
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic
 Imports Microsoft.Extensions.Logging
 Imports System.Collections.Immutable
+Imports System.Reflection
 
 Namespace Workspace
 
@@ -111,11 +114,30 @@ Namespace Workspace
                 _logger.LogInformation("Disabled NuGet fallback package folders for non-Windows hosts.")
             End If
 
-            _workspace = MSBuildWorkspace.Create(properties)
+            _workspace = MSBuildWorkspace.Create(properties, CreateHostServices())
             _currentSolution = _workspace.CurrentSolution
             AddHandler _workspace.WorkspaceFailed, AddressOf OnWorkspaceFailed
 
             _logger.LogInformation("MSBuildWorkspace created successfully")
+        End Sub
+
+        Private Shared Function CreateHostServices() As MefHostServices
+            Dim assemblies = MefHostServices.DefaultAssemblies.ToList()
+            ' Mixed VB/C# solutions need C# workspace services even though only VB documents are served.
+            AddAssemblyIfAvailable(assemblies, "Microsoft.CodeAnalysis.CSharp.Workspaces")
+
+            Return MefHostServices.Create(assemblies)
+        End Function
+
+        Private Shared Sub AddAssemblyIfAvailable(assemblies As List(Of Assembly), assemblyName As String)
+            If assemblies.Any(Function(assembly) String.Equals(assembly.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase)) Then
+                Return
+            End If
+
+            Try
+                assemblies.Add(Assembly.Load(New AssemblyName(assemblyName)))
+            Catch
+            End Try
         End Sub
 
         Private Sub RecreateWorkspace()
@@ -241,42 +263,54 @@ Namespace Workspace
 
             Await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(False)
             Try
-                If IsProjectLoaded(projectPath) Then
-                    _logger.LogDebug("Project already loaded, skipping: {Path}", projectPath)
-                    If changeKind = SolutionChangeKind.Reloaded Then
-                        RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, changeKind))
+                Dim loadLegacyFallback = False
+
+                Try
+                    If IsProjectLoaded(projectPath) Then
+                        _logger.LogDebug("Project already loaded, skipping: {Path}", projectPath)
+                        If changeKind = SolutionChangeKind.Reloaded Then
+                            RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, changeKind))
+                        End If
+                        Return True
                     End If
+
+                    _logger.LogInformation("Loading project: {Path}", projectPath)
+
+                    Dim project = Await _workspace.OpenProjectAsync(projectPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
+                    _currentSolution = _workspace.CurrentSolution
+
+                    If project.Language <> LanguageNames.VisualBasic Then
+                        _logger.LogWarning("Project is not VB.NET: {Name} ({Language})", project.Name, project.Language)
+                        Return False
+                    End If
+
+                    If Not IsProjectLoaded(projectPath) Then
+                        _loadedProjectPaths.Add(projectPath)
+                    End If
+
+                    _logger.LogInformation("Project loaded: {Name} ({DocumentCount} documents)", project.Name, project.DocumentIds.Count)
+
+                    RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, changeKind))
+
                     Return True
+                Catch ex As OperationCanceledException When cancellationToken.IsCancellationRequested
+                    Throw
+                Catch ex As Exception
+                    If TypeOf ex Is ArgumentException AndAlso ex.Message.Contains("already part of the workspace", StringComparison.OrdinalIgnoreCase) Then
+                        _logger.LogDebug(ex, "Project already part of workspace: {Path}", projectPath)
+                    Else
+                        _logger.LogError(ex, "Failed to load project: {Path}", projectPath)
+                    End If
+
+                    loadLegacyFallback = True
+                End Try
+
+                If loadLegacyFallback Then
+                    Await PreloadReferencedNonLegacyProjectsAsync({projectPath}, cancellationToken).ConfigureAwait(False)
+                    Return LoadLegacyProject(projectPath, changeKind)
                 End If
 
-                _logger.LogInformation("Loading project: {Path}", projectPath)
-
-                Dim project = Await _workspace.OpenProjectAsync(projectPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
-                _currentSolution = _workspace.CurrentSolution
-
-                If project.Language <> LanguageNames.VisualBasic Then
-                    _logger.LogWarning("Project is not VB.NET: {Name} ({Language})", project.Name, project.Language)
-                    Return False
-                End If
-
-                If Not IsProjectLoaded(projectPath) Then
-                    _loadedProjectPaths.Add(projectPath)
-                End If
-
-                _logger.LogInformation("Project loaded: {Name} ({DocumentCount} documents)", project.Name, project.DocumentIds.Count)
-
-                RaiseEvent SolutionChanged(Me, New SolutionChangedEventArgs(CurrentSolution, changeKind))
-
-                Return True
-            Catch ex As OperationCanceledException When cancellationToken.IsCancellationRequested
-                Throw
-            Catch ex As Exception
-                If TypeOf ex Is ArgumentException AndAlso ex.Message.Contains("already part of the workspace", StringComparison.OrdinalIgnoreCase) Then
-                    _logger.LogDebug(ex, "Project already part of workspace: {Path}", projectPath)
-                Else
-                    _logger.LogError(ex, "Failed to load project: {Path}", projectPath)
-                End If
-                Return LoadLegacyProject(projectPath, changeKind)
+                Return False
             Finally
                 _loadLock.Release()
             End Try
@@ -298,6 +332,8 @@ Namespace Workspace
                     legacyProjectPaths.Add(projectPath)
                 End If
             Next
+
+            Await PreloadReferencedNonLegacyProjectsAsync(legacyProjectPaths, cancellationToken).ConfigureAwait(False)
 
             For Each projectPath In sdkStyleProjectPaths
                 Try
@@ -332,6 +368,60 @@ Namespace Workspace
             Return loaded
         End Function
 
+        Private Async Function PreloadReferencedNonLegacyProjectsAsync(projectPaths As IEnumerable(Of String), cancellationToken As CancellationToken) As Task
+            Dim referencedProjectPaths As New SortedSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            Dim visitedLegacyProjectPaths As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+
+            For Each projectPath In projectPaths
+                CollectReferencedNonLegacyProjectPaths(projectPath, referencedProjectPaths, visitedLegacyProjectPaths)
+            Next
+
+            For Each referencedProjectPath In referencedProjectPaths
+                If GetProjectByPath(referencedProjectPath) IsNot Nothing Then
+                    Continue For
+                End If
+
+                Try
+                    Dim project = Await _workspace.OpenProjectAsync(referencedProjectPath, cancellationToken:=cancellationToken).ConfigureAwait(False)
+                    _currentSolution = _workspace.CurrentSolution
+                    _logger.LogInformation("Referenced non-legacy project loaded during legacy fallback: {Name} ({Language})", project.Name, project.Language)
+                Catch ex As OperationCanceledException When cancellationToken.IsCancellationRequested
+                    Throw
+                Catch ex As Exception
+                    _logger.LogWarning(ex, "Failed to load referenced non-legacy project during legacy fallback: {Path}", referencedProjectPath)
+                End Try
+            Next
+        End Function
+
+        Private Shared Sub CollectReferencedNonLegacyProjectPaths(projectPath As String, referencedProjectPaths As ISet(Of String), visitedLegacyProjectPaths As ISet(Of String))
+            If String.IsNullOrWhiteSpace(projectPath) OrElse Not File.Exists(projectPath) Then
+                Return
+            End If
+
+            Dim fullProjectPath = Path.GetFullPath(projectPath)
+            If Not visitedLegacyProjectPaths.Add(fullProjectPath) Then
+                Return
+            End If
+
+            Dim legacyProject = LegacyVbProjectReader.TryRead(fullProjectPath)
+            If legacyProject Is Nothing Then
+                Return
+            End If
+
+            For Each referencedProjectPath In legacyProject.ProjectReferences
+                If String.IsNullOrWhiteSpace(referencedProjectPath) OrElse Not File.Exists(referencedProjectPath) Then
+                    Continue For
+                End If
+
+                Dim fullReferencedProjectPath = Path.GetFullPath(referencedProjectPath)
+                If LegacyVbProjectReader.TryRead(fullReferencedProjectPath) Is Nothing Then
+                    referencedProjectPaths.Add(fullReferencedProjectPath)
+                Else
+                    CollectReferencedNonLegacyProjectPaths(fullReferencedProjectPath, referencedProjectPaths, visitedLegacyProjectPaths)
+                End If
+            Next
+        End Sub
+
         Private Function LoadLegacyProject(projectPath As String, changeKind As SolutionChangeKind, Optional raiseEventOnLoad As Boolean = True) As Boolean
             Dim legacyProject = LegacyVbProjectReader.TryRead(projectPath)
             If legacyProject Is Nothing Then
@@ -354,6 +444,19 @@ Namespace Workspace
                 compilationOptions = compilationOptions.WithMainTypeName(legacyProject.MainTypeName)
             End If
 
+            Dim loadedReferencedProjects = legacyProject.ProjectReferences.
+                Select(Function(referencedProjectPath) GetProjectByPath(referencedProjectPath)).
+                Where(Function(referencedProject) referencedProject IsNot Nothing).
+                ToList()
+            Dim loadedProjectReferences = loadedReferencedProjects.
+                Select(Function(referencedProject) New ProjectReference(referencedProject.Id)).
+                ToImmutableArray()
+            ' Manual legacy projects do not always materialize project references into compilations.
+            Dim metadataReferences = legacyProject.References.AddRange(
+                loadedReferencedProjects.
+                    Select(Function(referencedProject) CreateCompilationReference(referencedProject, legacyProject.References)).
+                    Where(Function(reference) reference IsNot Nothing))
+
             Dim projectInfo As ProjectInfo = ProjectInfo.Create(
                 newProjectId,
                 VersionStamp.Create(),
@@ -362,7 +465,8 @@ Namespace Workspace
                 LanguageNames.VisualBasic,
                 filePath:=legacyProject.ProjectPath,
                 compilationOptions:=compilationOptions,
-                metadataReferences:=legacyProject.References)
+                projectReferences:=loadedProjectReferences,
+                metadataReferences:=metadataReferences)
 
             Dim solution = CurrentSolution.AddProject(projectInfo)
 
@@ -391,8 +495,15 @@ Namespace Workspace
                 End If
 
                 Dim referencedProject = GetProjectByPath(referencedProjectPath)
-                If referencedProject IsNot Nothing Then
+                Dim currentProject = CurrentSolution.GetProject(newProjectId)
+                If referencedProject IsNot Nothing AndAlso
+                    currentProject IsNot Nothing AndAlso
+                    Not currentProject.ProjectReferences.Any(Function(reference) reference.ProjectId = referencedProject.Id) Then
                     _currentSolution = CurrentSolution.AddProjectReference(newProjectId, New ProjectReference(referencedProject.Id))
+                    Dim compilationReference = CreateCompilationReference(referencedProject, currentProject.MetadataReferences)
+                    If compilationReference IsNot Nothing Then
+                        _currentSolution = CurrentSolution.AddMetadataReference(newProjectId, compilationReference)
+                    End If
                 End If
             Next
 
@@ -404,6 +515,58 @@ Namespace Workspace
             End If
 
             Return True
+        End Function
+
+        Private Function CreateCompilationReference(referencedProject As Project, fallbackReferences As IEnumerable(Of MetadataReference)) As MetadataReference
+            Try
+                Dim compilation = referencedProject.GetCompilationAsync().GetAwaiter().GetResult()
+                If compilation Is Nothing Then
+                    Return Nothing
+                End If
+
+                Dim emittedReference = TryEmitCompilationReference(compilation, referencedProject.FilePath, logFailure:=False)
+                If emittedReference IsNot Nothing Then
+                    Return emittedReference
+                End If
+
+                Dim referencesToAdd = fallbackReferences.
+                    Where(Function(reference) reference IsNot Nothing).
+                    Where(Function(reference) Not compilation.References.Any(Function(existing) String.Equals(existing.Display, reference.Display, StringComparison.OrdinalIgnoreCase))).
+                    ToArray()
+                If referencesToAdd.Length > 0 Then
+                    emittedReference = TryEmitCompilationReference(compilation.AddReferences(referencesToAdd), referencedProject.FilePath)
+                    If emittedReference IsNot Nothing Then
+                        Return emittedReference
+                    End If
+                End If
+            Catch ex As Exception
+                _logger.LogWarning(ex, "Failed to create compilation reference for project: {Path}", referencedProject.FilePath)
+            End Try
+
+            Return Nothing
+        End Function
+
+        Private Function TryEmitCompilationReference(compilation As Compilation, projectPath As String, Optional logFailure As Boolean = True) As MetadataReference
+            Using stream As New MemoryStream()
+                Dim emitResult = compilation.Emit(stream, options:=New EmitOptions(metadataOnly:=True))
+                If emitResult.Success Then
+                    Return MetadataReference.CreateFromImage(stream.ToArray())
+                End If
+
+                If Not logFailure Then
+                    Return Nothing
+                End If
+
+                Dim errors = String.Join(
+                    "; ",
+                    emitResult.Diagnostics.
+                        Where(Function(diagnostic) diagnostic.Severity = DiagnosticSeverity.Error).
+                        Take(3).
+                        Select(Function(diagnostic) diagnostic.ToString()))
+                _logger.LogWarning("Failed to emit metadata reference for project: {Path}. {Diagnostics}", projectPath, errors)
+            End Using
+
+            Return Nothing
         End Function
 
         Private Sub ReportLegacyProjectWarnings(legacyProject As LegacyVbProjectProjection)

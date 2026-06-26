@@ -32,6 +32,7 @@
     <Import Include="System.Collections.Generic" />
     <Import Include="System.Collections.Concurrent" />
     <!-- Roslyn Workspace APIs for VB.NET language services -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.12.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.12.0" />
     <!-- Roslyn Features for Completion, Hover, etc. -->

@@ -54,6 +54,10 @@ Namespace Workspace
                 Return Nothing
             End If
 
+            If Not String.Equals(Path.GetExtension(projectPath), ".vbproj", StringComparison.OrdinalIgnoreCase) Then
+                Return Nothing
+            End If
+
             Dim document As XDocument
             Try
                 document = XDocument.Load(projectPath)

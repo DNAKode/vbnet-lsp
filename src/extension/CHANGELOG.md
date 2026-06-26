@@ -16,6 +16,14 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.17
+
+### Fixed
+- Classic VB.NET ASP.NET Web Application projects that reference SDK-style C# `netstandard2.0` projects now keep those C# project symbols visible through the legacy fallback path, resolving false `Imports MyLib` and `Utils is not declared` diagnostics in the issue #14 sample.
+
+### Known issues
+- Legacy project fallback remains best-effort and does not fully evaluate arbitrary imported MSBuild targets or all conditional project logic.
+
 ## 0.1.16
 
 ### Fixed

@@ -1,4 +1,5 @@
 Imports System.IO
+Imports Microsoft.CodeAnalysis
 Imports Microsoft.Extensions.Logging.Abstractions
 Imports VbNet.LanguageServer.Workspace
 Imports Xunit
@@ -324,6 +325,50 @@ Namespace VbNet.LanguageServer.Tests.Workspace
         End Function
 
         <Fact>
+        Public Async Function LoadSolutionAsync_LegacyWebSlnxWithCSharpNetStandardReference_ResolvesReferencedSymbols() As Task
+            If Not HasReferenceAssemblyDirectory("v4.7.2") Then
+                Return
+            End If
+
+            Dim fixture = CreateLegacyWebCSharpReferenceFixture()
+            Dim workspaceDiagnostics As New List(Of String)()
+            CaptureWorkspaceDiagnostics(workspaceDiagnostics)
+
+            Try
+                Dim result = Await _workspaceManager.LoadSolutionAsync(fixture.SolutionPath).ConfigureAwait(False)
+
+                Assert.True(result)
+                Await AssertLegacyWebCSharpReferenceResolvedAsync(fixture.PagePath, workspaceDiagnostics).ConfigureAwait(False)
+            Finally
+                If Directory.Exists(fixture.RootPath) Then
+                    Directory.Delete(fixture.RootPath, recursive:=True)
+                End If
+            End Try
+        End Function
+
+        <Fact>
+        Public Async Function LoadProjectAsync_LegacyWebProjectWithCSharpNetStandardReference_ResolvesReferencedSymbols() As Task
+            If Not HasReferenceAssemblyDirectory("v4.7.2") Then
+                Return
+            End If
+
+            Dim fixture = CreateLegacyWebCSharpReferenceFixture()
+            Dim workspaceDiagnostics As New List(Of String)()
+            CaptureWorkspaceDiagnostics(workspaceDiagnostics)
+
+            Try
+                Dim result = Await _workspaceManager.LoadProjectAsync(fixture.WebProjectPath).ConfigureAwait(False)
+
+                Assert.True(result)
+                Await AssertLegacyWebCSharpReferenceResolvedAsync(fixture.PagePath, workspaceDiagnostics).ConfigureAwait(False)
+            Finally
+                If Directory.Exists(fixture.RootPath) Then
+                    Directory.Delete(fixture.RootPath, recursive:=True)
+                End If
+            End Try
+        End Function
+
+        <Fact>
         Public Async Function GetVbNetProjects_ReturnsOnlyVbProjects() As Task
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
 
@@ -441,6 +486,183 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
             Assert.False(diagnosticReceived)
         End Function
+
+        Private Sub CaptureWorkspaceDiagnostics(workspaceDiagnostics As IList(Of String))
+            AddHandler _workspaceManager.WorkspaceDiagnostic,
+                Sub(sender, args)
+                    If args?.Diagnostic IsNot Nothing Then
+                        workspaceDiagnostics.Add(args.Diagnostic.Message)
+                    End If
+                End Sub
+        End Sub
+
+        Private Async Function AssertLegacyWebCSharpReferenceResolvedAsync(pagePath As String, workspaceDiagnostics As IEnumerable(Of String)) As Task
+            Assert.True(
+                _workspaceManager.CurrentSolution.Projects.Any(Function(project) project.Language = LanguageNames.CSharp AndAlso project.Name = "MyLib"),
+                "Expected MyLib C# project to load. Diagnostics: " & String.Join(" | ", workspaceDiagnostics))
+
+            Dim document = _workspaceManager.GetDocumentByPath(pagePath)
+            Assert.NotNull(document)
+            Assert.True(
+                document.Project.ProjectReferences.Any(Function(reference) _workspaceManager.CurrentSolution.GetProject(reference.ProjectId)?.Name = "MyLib"),
+                "Expected WebApplication to reference MyLib. Project references: " &
+                String.Join(", ", document.Project.ProjectReferences.Select(Function(reference) _workspaceManager.CurrentSolution.GetProject(reference.ProjectId)?.Name)))
+            Dim referencedProject = document.Project.ProjectReferences.
+                Select(Function(reference) _workspaceManager.CurrentSolution.GetProject(reference.ProjectId)).
+                First(Function(project) project?.Name = "MyLib")
+            Dim referencedCompilation = Await referencedProject.GetCompilationAsync().ConfigureAwait(False)
+            Assert.NotNull(referencedCompilation.GetTypeByMetadataName("MyLib.Utils"))
+            Dim vbCompilation = Await document.Project.GetCompilationAsync().ConfigureAwait(False)
+            Assert.True(
+                vbCompilation.GetTypeByMetadataName("MyLib.Utils") IsNot Nothing,
+                "Expected VB compilation to see MyLib.Utils. References: " &
+                String.Join(", ", vbCompilation.References.Select(Function(reference) reference.Display)))
+
+            Dim semanticModel = Await document.GetSemanticModelAsync().ConfigureAwait(False)
+            Assert.NotNull(semanticModel)
+
+            Dim diagnostics = semanticModel.GetDiagnostics().ToList()
+            Assert.DoesNotContain(diagnostics, Function(diagnostic) diagnostic.Id = "BC40056")
+            Assert.DoesNotContain(diagnostics, Function(diagnostic) diagnostic.Id = "BC30451")
+        End Function
+
+        Private Shared Function CreateLegacyWebCSharpReferenceFixture() As LegacyWebCSharpReferenceFixture
+            Dim root = Path.Combine(Path.GetTempPath(), "vbnet-lsp-tests", Guid.NewGuid().ToString("N"))
+
+            Try
+                Dim webDir = Path.Combine(root, "Web", "WebApplication")
+                Dim libDir = Path.Combine(root, "lib", "MyLib")
+                Directory.CreateDirectory(webDir)
+                Directory.CreateDirectory(libDir)
+
+                Dim pagePath = Path.Combine(webDir, "Default.aspx.vb")
+                Dim webProjectPath = Path.Combine(webDir, "WebApplication.vbproj")
+                Dim solutionPath = Path.Combine(webDir, "WebApplication.slnx")
+
+                File.WriteAllText(
+                    pagePath,
+                    "Imports MyLib" & Environment.NewLine &
+                    Environment.NewLine &
+                    "Public Partial Class _Default" & Environment.NewLine &
+                    "    Inherits Page" & Environment.NewLine &
+                    Environment.NewLine &
+                    "    Protected Sub Page_Load(sender As Object, e As EventArgs)" & Environment.NewLine &
+                    "        Dim message As String = Utils.GetMessage()" & Environment.NewLine &
+                    "    End Sub" & Environment.NewLine &
+                    "End Class")
+                File.WriteAllText(
+                    Path.Combine(webDir, "Default.aspx.designer.vb"),
+                    "Option Strict Off" & Environment.NewLine &
+                    "Option Explicit On" & Environment.NewLine &
+                    Environment.NewLine &
+                    "Partial Public Class _Default" & Environment.NewLine &
+                    "End Class")
+                File.WriteAllText(
+                    webProjectPath,
+                    "<?xml version=""1.0"" encoding=""utf-8""?>" & Environment.NewLine &
+                    "<Project ToolsVersion=""12.0"" DefaultTargets=""Build"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <ProjectGuid>{CD8E53D2-B177-494B-AE08-1CEEF98E43D7}</ProjectGuid>" & Environment.NewLine &
+                    "    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{F184B08F-C81C-45F6-A57F-5ABD9991F28F}</ProjectTypeGuids>" & Environment.NewLine &
+                    "    <OutputType>Library</OutputType>" & Environment.NewLine &
+                    "    <RootNamespace>WebApplication</RootNamespace>" & Environment.NewLine &
+                    "    <AssemblyName>WebApplication</AssemblyName>" & Environment.NewLine &
+                    "    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>" & Environment.NewLine &
+                    "    <MyType>Custom</MyType>" & Environment.NewLine &
+                    "    <OptionExplicit>On</OptionExplicit>" & Environment.NewLine &
+                    "    <OptionStrict>Off</OptionStrict>" & Environment.NewLine &
+                    "    <OptionInfer>On</OptionInfer>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Reference Include=""System"" />" & Environment.NewLine &
+                    "    <Reference Include=""System.Core"" />" & Environment.NewLine &
+                    "    <Reference Include=""System.Web"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Import Include=""Microsoft.VisualBasic"" />" & Environment.NewLine &
+                    "    <Import Include=""System"" />" & Environment.NewLine &
+                    "    <Import Include=""System.Web"" />" & Environment.NewLine &
+                    "    <Import Include=""System.Web.UI"" />" & Environment.NewLine &
+                    "    <Import Include=""System.Web.UI.WebControls"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Compile Include=""Default.aspx.designer.vb"">" & Environment.NewLine &
+                    "      <DependentUpon>Default.aspx</DependentUpon>" & Environment.NewLine &
+                    "    </Compile>" & Environment.NewLine &
+                    "    <Compile Include=""Default.aspx.vb"">" & Environment.NewLine &
+                    "      <DependentUpon>Default.aspx</DependentUpon>" & Environment.NewLine &
+                    "      <SubType>ASPXCodebehind</SubType>" & Environment.NewLine &
+                    "    </Compile>" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <ProjectReference Include=""..\..\lib\MyLib\MyLib.csproj"">" & Environment.NewLine &
+                    "      <Name>MyLib</Name>" & Environment.NewLine &
+                    "    </ProjectReference>" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "</Project>")
+
+                File.WriteAllText(
+                    Path.Combine(libDir, "Utils.cs"),
+                    "namespace MyLib" & Environment.NewLine &
+                    "{" & Environment.NewLine &
+                    "    public static class Utils" & Environment.NewLine &
+                    "    {" & Environment.NewLine &
+                    "        public static string GetMessage()" & Environment.NewLine &
+                    "        {" & Environment.NewLine &
+                    "            return ""Hello from MyLib"";" & Environment.NewLine &
+                    "        }" & Environment.NewLine &
+                    "    }" & Environment.NewLine &
+                    "}")
+                File.WriteAllText(
+                    Path.Combine(libDir, "MyLib.csproj"),
+                    "<Project Sdk=""Microsoft.NET.Sdk"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <TargetFramework>netstandard2.0</TargetFramework>" & Environment.NewLine &
+                    "    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>" & Environment.NewLine &
+                    "    <RootNamespace>MyLib</RootNamespace>" & Environment.NewLine &
+                    "    <AssemblyName>MyLib</AssemblyName>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "</Project>")
+                File.WriteAllText(
+                    solutionPath,
+                    "<Solution>" & Environment.NewLine &
+                    "  <Project Path=""WebApplication.vbproj"" Id=""cd8e53d2-b177-494b-ae08-1ceef98e43d7"" />" & Environment.NewLine &
+                    "  <Project Path=""..\..\lib\MyLib\MyLib.csproj"" Id=""094121eb-82c8-4c12-95db-e591ee45633c"" />" & Environment.NewLine &
+                    "</Solution>")
+
+                Return New LegacyWebCSharpReferenceFixture With {
+                    .RootPath = root,
+                    .PagePath = pagePath,
+                    .WebProjectPath = webProjectPath,
+                    .SolutionPath = solutionPath
+                }
+            Catch
+                If Directory.Exists(root) Then
+                    Directory.Delete(root, recursive:=True)
+                End If
+
+                Throw
+            End Try
+        End Function
+
+        Private Shared Function HasReferenceAssemblyDirectory(targetFrameworkVersion As String) As Boolean
+            Dim referenceAssemblyDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                "Reference Assemblies",
+                "Microsoft",
+                "Framework",
+                ".NETFramework",
+                targetFrameworkVersion)
+
+            Return Directory.Exists(referenceAssemblyDir)
+        End Function
+
+        Private NotInheritable Class LegacyWebCSharpReferenceFixture
+            Public Property RootPath As String
+            Public Property PagePath As String
+            Public Property WebProjectPath As String
+            Public Property SolutionPath As String
+        End Class
     End Class
 
 End Namespace

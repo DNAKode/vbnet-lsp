@@ -35,6 +35,38 @@ Namespace VbNet.LanguageServer.Tests.Workspace
         End Sub
 
         <Fact>
+        Public Sub TryRead_CSharpProject_ReturnsNull()
+            Dim root = Path.Combine(Path.GetTempPath(), "vbnet-lsp-tests", Guid.NewGuid().ToString("N"))
+
+            Try
+                Directory.CreateDirectory(root)
+                Dim projectPath = Path.Combine(root, "Library.csproj")
+                File.WriteAllText(
+                    projectPath,
+                    "<?xml version=""1.0"" encoding=""utf-8""?>" & Environment.NewLine &
+                    "<Project ToolsVersion=""15.0"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <OutputType>Library</OutputType>" & Environment.NewLine &
+                    "    <AssemblyName>Library</AssemblyName>" & Environment.NewLine &
+                    "    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Reference Include=""System"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <Compile Include=""Class1.cs"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "</Project>")
+
+                Assert.Null(LegacyVbProjectReader.TryRead(projectPath))
+            Finally
+                If Directory.Exists(root) Then
+                    Directory.Delete(root, recursive:=True)
+                End If
+            End Try
+        End Sub
+
+        <Fact>
         Public Sub TryRead_ConsoleMyType_GeneratesApplicationInfoProjection()
             Dim source = String.Join(
                 Environment.NewLine,
