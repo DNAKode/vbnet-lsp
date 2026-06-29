@@ -140,14 +140,18 @@ Namespace Services
 
             Dim definitionSymbol = If(symbol.OriginalDefinition, symbol)
 
-            For Each syntaxRef In definitionSymbol.DeclaringSyntaxReferences
-                cancellationToken.ThrowIfCancellationRequested()
+            Await AddLocationsForSymbolAsync(definitionSymbol, locations, cancellationToken).ConfigureAwait(False)
 
-                Dim location = Await CreateLocationFromSyntaxReferenceAsync(syntaxRef, solution, cancellationToken).ConfigureAwait(False)
-                If location IsNot Nothing Then
-                    locations.Add(location)
+            If locations.Count = 0 AndAlso definitionSymbol.Locations.Any(Function(l) l.IsInMetadata) Then
+                Dim sourceSymbol = Await SymbolFinder.FindSourceDefinitionAsync(definitionSymbol, solution, cancellationToken).ConfigureAwait(False)
+                If sourceSymbol Is Nothing Then
+                    sourceSymbol = Await FindMatchingSourceSymbolAsync(definitionSymbol, solution, cancellationToken).ConfigureAwait(False)
                 End If
-            Next
+
+                If sourceSymbol IsNot Nothing Then
+                    Await AddLocationsForSymbolAsync(sourceSymbol, locations, cancellationToken).ConfigureAwait(False)
+                End If
+            End If
 
             If locations.Count = 0 AndAlso definitionSymbol.Locations.Any(Function(l) l.IsInMetadata) Then
                 _logger.LogTrace("Symbol {Symbol} is defined in metadata, no source location available", definitionSymbol.Name)
@@ -156,10 +160,53 @@ Namespace Services
             Return locations.ToArray()
         End Function
 
+        Private Async Function AddLocationsForSymbolAsync(symbol As ISymbol, locations As IList(Of Protocol.Location), cancellationToken As CancellationToken) As Task
+            Dim definitionSymbol = If(symbol.OriginalDefinition, symbol)
+
+            For Each syntaxRef In definitionSymbol.DeclaringSyntaxReferences
+                cancellationToken.ThrowIfCancellationRequested()
+
+                Dim location = Await CreateLocationFromSyntaxReferenceAsync(syntaxRef, cancellationToken).ConfigureAwait(False)
+                If location IsNot Nothing Then
+                    locations.Add(location)
+                End If
+            Next
+        End Function
+
+        Private Shared Async Function FindMatchingSourceSymbolAsync(symbol As ISymbol, solution As Solution, cancellationToken As CancellationToken) As Task(Of ISymbol)
+            Dim documentationId = DocumentationCommentId.CreateDeclarationId(symbol)
+            If String.IsNullOrWhiteSpace(documentationId) Then
+                Return Nothing
+            End If
+
+            Dim containingAssemblyName = symbol.ContainingAssembly?.Name
+
+            For Each project In solution.Projects
+                cancellationToken.ThrowIfCancellationRequested()
+
+                If Not String.IsNullOrWhiteSpace(containingAssemblyName) AndAlso
+                    Not String.Equals(project.AssemblyName, containingAssemblyName, StringComparison.OrdinalIgnoreCase) Then
+                    Continue For
+                End If
+
+                Dim compilation = Await project.GetCompilationAsync(cancellationToken).ConfigureAwait(False)
+                If compilation Is Nothing Then
+                    Continue For
+                End If
+
+                Dim sourceSymbol = DocumentationCommentId.GetFirstSymbolForDeclarationId(documentationId, compilation)
+                If sourceSymbol IsNot Nothing AndAlso sourceSymbol.DeclaringSyntaxReferences.Length > 0 Then
+                    Return sourceSymbol
+                End If
+            Next
+
+            Return Nothing
+        End Function
+
         ''' <summary>
         ''' Creates an LSP Location from a Roslyn SyntaxReference.
         ''' </summary>
-        Private Async Function CreateLocationFromSyntaxReferenceAsync(syntaxRef As SyntaxReference, solution As Solution, cancellationToken As CancellationToken) As Task(Of Protocol.Location)
+        Private Async Function CreateLocationFromSyntaxReferenceAsync(syntaxRef As SyntaxReference, cancellationToken As CancellationToken) As Task(Of Protocol.Location)
             Dim syntaxTree = syntaxRef.SyntaxTree
             Dim filePath = syntaxTree.FilePath
 
@@ -190,17 +237,22 @@ Namespace Services
         ''' </summary>
         Private Shared Function GetIdentifierSpan(node As SyntaxNode) As TextSpan?
             For Each child In node.ChildTokens()
-                If child.IsKind(Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.IdentifierToken) Then
+                If IsIdentifierToken(child) Then
                     Return child.Span
                 End If
             Next
 
             Dim firstToken = node.GetFirstToken()
-            If firstToken.IsKind(Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.IdentifierToken) Then
+            If IsIdentifierToken(firstToken) Then
                 Return firstToken.Span
             End If
 
             Return Nothing
+        End Function
+
+        Private Shared Function IsIdentifierToken(token As SyntaxToken) As Boolean
+            Return token.RawKind = CInt(Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.IdentifierToken) OrElse
+                token.RawKind = CInt(Microsoft.CodeAnalysis.CSharp.SyntaxKind.IdentifierToken)
         End Function
 
         ''' <summary>

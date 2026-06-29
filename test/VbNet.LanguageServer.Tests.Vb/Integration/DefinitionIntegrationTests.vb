@@ -1,4 +1,5 @@
 Imports System
+Imports System.Diagnostics
 Imports System.IO
 Imports System.Threading
 Imports System.Threading.Tasks
@@ -179,6 +180,57 @@ Namespace VbNet.LanguageServer.Tests.Integration
         End Function
 
         <Fact>
+        Public Async Function GetDefinitionAsync_SdkVbConsoleWithCSharpNetStandardReference_NavigatesToCSharpSource() As Task
+            Dim fixture = CreateSdkVbConsoleCSharpReferenceFixture()
+
+            Try
+                Await RestoreProjectAsync(fixture.SolutionPath).ConfigureAwait(False)
+
+                Dim loaded = Await _workspaceManager.LoadSolutionAsync(fixture.SolutionPath).ConfigureAwait(False)
+                Assert.True(loaded)
+
+                Dim programUri = New Uri(fixture.ProgramPath).ToString()
+                Dim text = Await File.ReadAllTextAsync(fixture.ProgramPath).ConfigureAwait(False)
+
+                _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                    .TextDocument = New TextDocumentItem With {
+                        .Uri = programUri,
+                        .LanguageId = "vb",
+                        .Version = 1,
+                        .Text = text
+                    }
+                })
+
+                Dim lines = text.Split(ControlChars.Lf)
+                Dim lineIndex = Array.FindIndex(lines, Function(line) line.Contains("Utils.GetMessage", StringComparison.Ordinal))
+                Assert.True(lineIndex >= 0)
+
+                Dim getMessageIndex = lines(lineIndex).IndexOf("GetMessage", StringComparison.Ordinal)
+                Dim request = New DefinitionParams With {
+                    .TextDocument = New TextDocumentIdentifier With {.Uri = programUri},
+                    .Position = New Position With {.Line = lineIndex, .Character = getMessageIndex + 2}
+                }
+
+                Dim result = Await _definitionService.GetDefinitionAsync(request, CancellationToken.None).ConfigureAwait(False)
+
+                Assert.NotEmpty(result)
+                Dim sourceLocation = result.FirstOrDefault(Function(location) Uri.UnescapeDataString(New Uri(location.Uri).LocalPath).EndsWith("Utils.cs", StringComparison.OrdinalIgnoreCase))
+                Assert.NotNull(sourceLocation)
+
+                Dim utilsLines = (Await File.ReadAllTextAsync(fixture.UtilsPath).ConfigureAwait(False)).Split(ControlChars.Lf)
+                Dim expectedLine = Array.FindIndex(utilsLines, Function(line) line.Contains("GetMessage()", StringComparison.Ordinal))
+                Dim expectedCharacter = utilsLines(expectedLine).IndexOf("GetMessage", StringComparison.Ordinal)
+
+                Assert.Equal(expectedLine, sourceLocation.Range.Start.Line)
+                Assert.Equal(expectedCharacter, sourceLocation.Range.Start.Character)
+            Finally
+                If Directory.Exists(fixture.RootPath) Then
+                    Directory.Delete(fixture.RootPath, recursive:=True)
+                End If
+            End Try
+        End Function
+
+        <Fact>
         Public Async Function GetDefinitionAsync_ReturnsValidRange() As Task
             Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
             Dim helperPath = Path.Combine(TestProjectsRoot, "SmallProject", "Helper.vb")
@@ -223,6 +275,134 @@ Namespace VbNet.LanguageServer.Tests.Integration
                 Assert.True(location.Range.Start.Character >= 0)
                 Assert.True(location.Range.End.Line >= location.Range.Start.Line)
             End If
+        End Function
+
+        Private Shared Function CreateSdkVbConsoleCSharpReferenceFixture() As SdkVbConsoleCSharpReferenceFixture
+            Dim root = Path.Combine(Path.GetTempPath(), "vbnet-lsp-tests", Guid.NewGuid().ToString("N"))
+
+            Try
+                Dim consoleDir = Path.Combine(root, "Console", "CoreConsole2")
+                Dim libDir = Path.Combine(root, "lib", "MyLib")
+                Directory.CreateDirectory(consoleDir)
+                Directory.CreateDirectory(libDir)
+
+                Dim programPath = Path.Combine(consoleDir, "Program.vb")
+                Dim utilsPath = Path.Combine(libDir, "Utils.cs")
+                Dim solutionPath = Path.Combine(consoleDir, "CoreConsole2.slnx")
+
+                File.WriteAllText(
+                    programPath,
+                    "Imports System" & Environment.NewLine &
+                    "Imports MyLib" & Environment.NewLine &
+                    Environment.NewLine &
+                    "Module Program" & Environment.NewLine &
+                    "    Sub Main(args As String())" & Environment.NewLine &
+                    "        Console.WriteLine(Utils.GetMessage())" & Environment.NewLine &
+                    "    End Sub" & Environment.NewLine &
+                    "End Module")
+                File.WriteAllText(
+                    Path.Combine(consoleDir, "CoreConsole2.vbproj"),
+                    "<Project Sdk=""Microsoft.NET.Sdk"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <OutputType>Exe</OutputType>" & Environment.NewLine &
+                    "    <RootNamespace>CoreConsole2</RootNamespace>" & Environment.NewLine &
+                    "    <TargetFramework>net10.0</TargetFramework>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "  <ItemGroup>" & Environment.NewLine &
+                    "    <ProjectReference Include=""..\..\lib\MyLib\MyLib.csproj"" />" & Environment.NewLine &
+                    "  </ItemGroup>" & Environment.NewLine &
+                    "</Project>")
+                File.WriteAllText(
+                    utilsPath,
+                    "using System;" & Environment.NewLine &
+                    Environment.NewLine &
+                    "namespace MyLib" & Environment.NewLine &
+                    "{" & Environment.NewLine &
+                    "    public static class Utils" & Environment.NewLine &
+                    "    {" & Environment.NewLine &
+                    "        public static string GetMessage()" & Environment.NewLine &
+                    "        {" & Environment.NewLine &
+                    "            return ""Hello from MyLib (netstandard)"";" & Environment.NewLine &
+                    "        }" & Environment.NewLine &
+                    "    }" & Environment.NewLine &
+                    "}")
+                File.WriteAllText(
+                    Path.Combine(libDir, "MyLib.csproj"),
+                    "<Project Sdk=""Microsoft.NET.Sdk"">" & Environment.NewLine &
+                    "  <PropertyGroup>" & Environment.NewLine &
+                    "    <TargetFramework>netstandard2.0</TargetFramework>" & Environment.NewLine &
+                    "    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>" & Environment.NewLine &
+                    "    <RootNamespace>MyLib</RootNamespace>" & Environment.NewLine &
+                    "    <AssemblyName>MyLib</AssemblyName>" & Environment.NewLine &
+                    "  </PropertyGroup>" & Environment.NewLine &
+                    "</Project>")
+                File.WriteAllText(
+                    solutionPath,
+                    "<Solution>" & Environment.NewLine &
+                    "  <Project Path=""..\..\lib\MyLib\MyLib.csproj"" />" & Environment.NewLine &
+                    "  <Project Path=""CoreConsole2.vbproj"" />" & Environment.NewLine &
+                    "</Solution>")
+
+                Return New SdkVbConsoleCSharpReferenceFixture With {
+                    .RootPath = root,
+                    .ProgramPath = programPath,
+                    .UtilsPath = utilsPath,
+                    .SolutionPath = solutionPath
+                }
+            Catch
+                If Directory.Exists(root) Then
+                    Directory.Delete(root, recursive:=True)
+                End If
+
+                Throw
+            End Try
+        End Function
+
+        Private NotInheritable Class SdkVbConsoleCSharpReferenceFixture
+            Public Property RootPath As String
+            Public Property ProgramPath As String
+            Public Property UtilsPath As String
+            Public Property SolutionPath As String
+        End Class
+
+        Private Shared Async Function RestoreProjectAsync(projectOrSolutionPath As String) As Task
+            Dim startInfo As New ProcessStartInfo With {
+                .FileName = "dotnet",
+                .RedirectStandardError = True,
+                .RedirectStandardOutput = True,
+                .UseShellExecute = False
+            }
+            startInfo.ArgumentList.Add("restore")
+            startInfo.ArgumentList.Add(projectOrSolutionPath)
+
+            Using restoreProcess = Process.Start(startInfo)
+                Assert.NotNull(restoreProcess)
+
+                Dim standardOutput = restoreProcess.StandardOutput.ReadToEndAsync()
+                Dim standardError = restoreProcess.StandardError.ReadToEndAsync()
+
+                Using timeout As New CancellationTokenSource(TimeSpan.FromMinutes(2))
+                    Try
+                        Await restoreProcess.WaitForExitAsync(timeout.Token).ConfigureAwait(False)
+                    Catch ex As OperationCanceledException
+                        Try
+                            If Not restoreProcess.HasExited Then
+                                restoreProcess.Kill(entireProcessTree:=True)
+                            End If
+                        Catch
+                        End Try
+
+                        Assert.True(False, "dotnet restore timed out for test fixture: " & projectOrSolutionPath)
+                    End Try
+                End Using
+
+                Dim output = Await standardOutput.ConfigureAwait(False)
+                Dim [error] = Await standardError.ConfigureAwait(False)
+
+                Assert.True(
+                    restoreProcess.ExitCode = 0,
+                    "dotnet restore failed for test fixture:" & Environment.NewLine & output & Environment.NewLine & [error])
+            End Using
         End Function
     End Class
 

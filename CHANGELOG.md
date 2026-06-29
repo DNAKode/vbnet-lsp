@@ -16,6 +16,14 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.18
+
+### Fixed
+- Go to Definition from VB.NET into source-loaded C# `netstandard2.0` project references now maps metadata symbols back to their C# source declarations, resolving the "No definition found" result for `Utils.GetMessage()` in the issue #15 console sample.
+
+### Known issues
+- C# projects are still loaded for cross-project symbols only; the extension continues to serve VB.NET documents in the current phase.
+
 ## 0.1.17
 
 ### Fixed
