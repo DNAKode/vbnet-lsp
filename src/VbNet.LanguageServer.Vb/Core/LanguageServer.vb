@@ -22,6 +22,9 @@ Namespace Core
         Private ReadOnly _logger As ILogger(Of LanguageServer)
         Private ReadOnly _loggerFactory As ILoggerFactory
         Private ReadOnly _shutdownCts As CancellationTokenSource = New CancellationTokenSource()
+        Private ReadOnly _workspaceLoadGate As New Object()
+        Private _workspaceLoadCts As CancellationTokenSource
+        Private _workspaceLoadTask As Task = Task.CompletedTask
 
         ' Workspace layer components
         Private ReadOnly _workspaceManager As WorkspaceManager
@@ -73,6 +76,7 @@ Namespace Core
         Private ReadOnly _reportedLegacyWorkspaceWarnings As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
         Private _netFxWarningSent As Boolean
         Private _restoreHintSent As Boolean
+        Friend Property TestBeforeWorkspaceLoadAsync As Func(Of CancellationToken, Task)
 
         ''' <summary>
         ''' Server name reported in initialize response.
@@ -82,7 +86,7 @@ Namespace Core
         ''' <summary>
         ''' Server version reported in initialize response.
         ''' </summary>
-        Public Const ServerVersion As String = "0.1.18"
+        Public Const ServerVersion As String = "0.1.19"
 
         Public Sub New(transport As ITransport, loggerFactory As ILoggerFactory)
             If transport Is Nothing Then
@@ -472,10 +476,10 @@ Namespace Core
             Return Task.FromResult(result)
         End Function
 
-        Private Async Function HandleInitializedAsync(ct As CancellationToken) As Task
+        Private Function HandleInitializedAsync(ct As CancellationToken) As Task
             If _state <> ServerState.Initializing Then
                 _logger.LogWarning("Received initialized notification in unexpected state: {State}", _state)
-                Return
+                Return Task.CompletedTask
             End If
 
             _state = ServerState.Running
@@ -486,19 +490,71 @@ Namespace Core
 
             If Not _loadProjectsOnStart Then
                 _logger.LogInformation("Project load deferred (vbnet.loadProjectsOnStart = false).")
-                Return
+                _workspaceManager.SignalInitialLoadCompleted(False)
+                Return Task.CompletedTask
             End If
 
             If _initializeParams?.RootUri IsNot Nothing Then
                 _workspaceRootUri = _initializeParams.RootUri
-                Await LoadWorkspaceAsync(_initializeParams.RootUri, ct).ConfigureAwait(False)
+                StartInitialWorkspaceLoad(_initializeParams.RootUri)
             ElseIf _initializeParams?.WorkspaceFolders IsNot Nothing AndAlso _initializeParams.WorkspaceFolders.Length > 0 Then
                 _workspaceRootUri = _initializeParams.WorkspaceFolders(0).Uri
-                Await LoadWorkspaceAsync(_initializeParams.WorkspaceFolders(0).Uri, ct).ConfigureAwait(False)
+                StartInitialWorkspaceLoad(_initializeParams.WorkspaceFolders(0).Uri)
             Else
                 _logger.LogWarning("No workspace root provided, operating in single-file mode")
+                _workspaceManager.SignalInitialLoadCompleted(False)
             End If
+
+            Return Task.CompletedTask
         End Function
+
+        Private Sub StartInitialWorkspaceLoad(rootUri As String)
+            CancelWorkspaceLoad()
+
+            Dim loadCts = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token)
+            Dim loadTask = Task.Run(
+                Async Function()
+                    Try
+                        _logger.LogInformation("Initial workspace load started in background")
+                        Await LoadWorkspaceAsync(rootUri, loadCts.Token).ConfigureAwait(False)
+                        _logger.LogInformation("Initial workspace load completed")
+                    Catch ex As OperationCanceledException When loadCts.IsCancellationRequested
+                        _logger.LogInformation("Initial workspace load cancelled")
+                        _workspaceManager.SignalInitialLoadCompleted(False)
+                    Catch ex As Exception
+                        _logger.LogError(ex, "Initial workspace load failed")
+                        _workspaceManager.SignalInitialLoadCompleted(False)
+                    End Try
+                End Function)
+            Dim ignored = loadTask.ContinueWith(
+                Sub(t) loadCts.Dispose(),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default)
+
+            SyncLock _workspaceLoadGate
+                _workspaceLoadCts = loadCts
+                _workspaceLoadTask = loadTask
+            End SyncLock
+        End Sub
+
+        Private Sub CancelWorkspaceLoad()
+            Dim loadCts As CancellationTokenSource = Nothing
+
+            SyncLock _workspaceLoadGate
+                loadCts = _workspaceLoadCts
+                _workspaceLoadCts = Nothing
+            End SyncLock
+
+            If loadCts Is Nothing Then
+                Return
+            End If
+
+            Try
+                loadCts.Cancel()
+            Catch ex As ObjectDisposedException
+            End Try
+        End Sub
 
         ''' <summary>
         ''' Loads a workspace from the given root URI.
@@ -507,6 +563,10 @@ Namespace Core
         Private Async Function LoadWorkspaceAsync(rootUri As String, ct As CancellationToken) As Task
             Dim loadSucceeded = False
             Try
+                If TestBeforeWorkspaceLoadAsync IsNot Nothing Then
+                    Await TestBeforeWorkspaceLoadAsync(ct).ConfigureAwait(False)
+                End If
+
                 Dim rootPath = UriToLocalPath(rootUri)
 
                 If Not Directory.Exists(rootPath) Then
@@ -605,6 +665,8 @@ Namespace Core
                 End If
 
                 _logger.LogInformation("No solution or VB.NET projects found in workspace")
+            Catch ex As OperationCanceledException When ct.IsCancellationRequested
+                Throw
             Catch ex As Exception
                 _logger.LogError(ex, "Failed to load workspace from: {Uri}", rootUri)
             Finally
@@ -619,6 +681,7 @@ Namespace Core
             _logger.LogInformation("Shutdown request received")
             _state = ServerState.ShuttingDown
             _shutdownRequested = New TaskCompletionSource()
+            CancelWorkspaceLoad()
 
             Return Task.FromResult(Of Object)(Nothing)
         End Function
@@ -626,6 +689,7 @@ Namespace Core
         Private Function HandleExitAsync(ct As CancellationToken) As Task
             _logger.LogInformation("Exit notification received")
 
+            CancelWorkspaceLoad()
             _shutdownCts.Cancel()
             _shutdownRequested?.TrySetResult()
 
@@ -2115,6 +2179,11 @@ Namespace Core
 
         Private Async Function DisposeAsyncCore() As Task
             _shutdownCts.Cancel()
+            CancelWorkspaceLoad()
+            Dim loadTask = _workspaceLoadTask
+            If loadTask IsNot Nothing AndAlso Not loadTask.IsCompleted Then
+                Await Task.WhenAny(loadTask, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(False)
+            End If
             _shutdownCts.Dispose()
             _diagnosticsService.Dispose()
             Await _workspaceManager.DisposeAsync().ConfigureAwait(False)

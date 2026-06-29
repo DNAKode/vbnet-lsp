@@ -44,6 +44,7 @@ export class VbNetLanguageClient implements vscode.Disposable {
     private readonly onWorkspaceContextChangeEmitter = new vscode.EventEmitter<WorkspaceContext>();
     private ambiguousContextNotificationShown = false;
     private workspaceRestartTimer: NodeJS.Timeout | undefined;
+    private restartPromise: Promise<void> | undefined;
 
     public readonly onStateChange = this.onStateChangeEmitter.event;
     public readonly onWorkspaceContextChange = this.onWorkspaceContextChangeEmitter.event;
@@ -266,14 +267,21 @@ export class VbNetLanguageClient implements vscode.Disposable {
      * Stops the language client and server.
      */
     public async stop(): Promise<void> {
-        if (this.client) {
+        if (this.workspaceRestartTimer) {
+            clearTimeout(this.workspaceRestartTimer);
+            this.workspaceRestartTimer = undefined;
+        }
+
+        const clientToStop = this.client;
+        this.client = undefined;
+
+        if (clientToStop) {
             try {
-                await this.client.stop();
+                await clientToStop.stop();
                 this.channel.appendLine('Language client stopped');
             } catch (error) {
                 this.channel.appendLine(`Error stopping client: ${error}`);
             }
-            this.client = undefined;
         }
 
         this.traceConfigDisposable?.dispose();
@@ -282,10 +290,6 @@ export class VbNetLanguageClient implements vscode.Disposable {
         this.serverConfigDisposable = undefined;
         this.workspaceConfigDisposable?.dispose();
         this.workspaceConfigDisposable = undefined;
-        if (this.workspaceRestartTimer) {
-            clearTimeout(this.workspaceRestartTimer);
-            this.workspaceRestartTimer = undefined;
-        }
 
         await this.serverLauncher.stopServer();
     }
@@ -294,6 +298,20 @@ export class VbNetLanguageClient implements vscode.Disposable {
      * Restarts the language client and server.
      */
     public async restart(): Promise<void> {
+        if (this.restartPromise) {
+            this.channel.appendLine('VB.NET Language Server restart already in progress');
+            return this.restartPromise;
+        }
+
+        this.restartPromise = this.restartCore();
+        try {
+            await this.restartPromise;
+        } finally {
+            this.restartPromise = undefined;
+        }
+    }
+
+    private async restartCore(): Promise<void> {
         this.channel.appendLine('Restarting VB.NET Language Server...');
         await this.stop();
         await this.start();

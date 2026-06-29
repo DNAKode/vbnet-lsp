@@ -16,6 +16,15 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.19
+
+### Fixed
+- Large solution startup no longer blocks the language-server message loop while the initial MSBuild workspace load runs, so `didOpen`, hover/completion, and shutdown requests can be handled promptly during long workspace loads.
+- Workspace context changes now serialize language-client restarts, avoiding overlapping stop/start cycles that could time out and force-kill the active server, resolving the restart loop seen in issue #16.
+
+### Known issues
+- Very large solutions can still take time for Roslyn/MSBuildWorkspace to fully load; language features may be limited until the background workspace load completes.
+
 ## 0.1.18
 
 ### Fixed
