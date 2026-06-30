@@ -180,6 +180,11 @@ Namespace Services
         Public Async Function GetDiagnosticsAsync(uri As String, Optional cancellationToken As CancellationToken = Nothing) As Task(Of Protocol.Diagnostic())
             Dim document = _documentManager.GetRoslynDocument(uri)
             If document Is Nothing Then
+                If _workspaceManager.IsInitialLoadPending Then
+                    _logger.LogTrace("No Roslyn document found for: {Uri}. Workspace is still loading; deferring diagnostics.", uri)
+                    Return Array.Empty(Of Protocol.Diagnostic)()
+                End If
+
                 _logger.LogTrace("No Roslyn document found for: {Uri}. Falling back to standalone diagnostics.", uri)
                 Return Await GetStandaloneDiagnosticsAsync(uri, cancellationToken).ConfigureAwait(False)
             End If

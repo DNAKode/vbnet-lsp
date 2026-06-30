@@ -106,6 +106,31 @@ Namespace VbNet.LanguageServer.Tests.Services
         End Function
 
         <Fact>
+        Public Async Function ComputeAndPublishDiagnosticsAsync_DefersStandaloneDiagnosticsWhileInitialLoadPending() As Task
+            Dim uri = "file:///c:/test/module1.vb"
+
+            _workspaceManager.Initialize()
+            _diagnosticsService.Enabled = False
+            _documentManager.HandleDidOpen(New DidOpenTextDocumentParams With {
+                .TextDocument = New TextDocumentItem With {
+                    .Uri = uri,
+                    .LanguageId = "vb",
+                    .Version = 1,
+                    .Text = "Imports MissingNamespace" & vbLf &
+                            "Module Module1" & vbLf &
+                            "End Module"
+                }
+            })
+
+            _diagnosticsService.Enabled = True
+            Await _diagnosticsService.ComputeAndPublishDiagnosticsAsync(uri)
+
+            Assert.Single(_publishedDiagnostics)
+            Assert.Equal(uri, _publishedDiagnostics(0).Uri)
+            Assert.Empty(_publishedDiagnostics(0).Diagnostics)
+        End Function
+
+        <Fact>
         Public Async Function ComputeAndPublishDiagnosticsAsync_DoesNothingWhenDisabled() As Task
             Dim uri = "file:///c:/test/module1.vb"
 

@@ -142,6 +142,50 @@ Namespace VbNet.LanguageServer.Tests.Integration
             End Using
         End Function
 
+        <Fact>
+        Public Async Function DidChangeConfiguration_DoesNotBlockShutdownWhileWorkspaceLoads() As Task
+            Dim transport As New QueuedTransport()
+            Dim server As New LspServer(transport, NullLoggerFactory.Instance)
+            Dim loadStarted As New TaskCompletionSource(Of Object)(TaskCreationOptions.RunContinuationsAsynchronously)
+
+            server.TestBeforeWorkspaceLoadAsync =
+                Async Function(ct)
+                    loadStarted.TrySetResult(Nothing)
+                    Await Task.Delay(TimeSpan.FromSeconds(30), ct).ConfigureAwait(False)
+                End Function
+
+            Using runCts As New CancellationTokenSource()
+                Dim runTask = server.RunAsync(runCts.Token)
+
+                Try
+                    Dim rootUri = New Uri(TestProjectsRoot & Path.DirectorySeparatorChar).AbsoluteUri
+                    Dim initializeMessage =
+                        "{""jsonrpc"":""2.0"",""id"":1,""method"":""initialize"",""params"":{""rootUri"":" &
+                        JsonSerializer.Serialize(rootUri) &
+                        ",""clientInfo"":{""name"":""test"",""version"":""1.0""},""initializationOptions"":{""loadProjectsOnStart"":false}}}"
+
+                    transport.EnqueueMessage(initializeMessage)
+                    Await WaitForResponseIdAsync(transport, 1).ConfigureAwait(False)
+
+                    transport.EnqueueMessage("{""jsonrpc"":""2.0"",""method"":""initialized"",""params"":{}}")
+                    transport.EnqueueMessage("{""jsonrpc"":""2.0"",""method"":""workspace/didChangeConfiguration"",""params"":{""settings"":{""vbnet"":{""loadProjectsOnStart"":true}}}}")
+                    Await WaitWithTimeoutAsync(loadStarted.Task, TimeSpan.FromSeconds(3)).ConfigureAwait(False)
+
+                    transport.EnqueueMessage("{""jsonrpc"":""2.0"",""id"":2,""method"":""shutdown""}")
+                    Dim shutdownResponse = Await WaitForResponseIdAsync(transport, 2).ConfigureAwait(False)
+                    Assert.Contains("""id"":2", shutdownResponse)
+
+                    transport.EnqueueMessage("{""jsonrpc"":""2.0"",""method"":""exit""}")
+                    transport.Complete()
+                    Await WaitWithTimeoutAsync(runTask, TimeSpan.FromSeconds(3)).ConfigureAwait(False)
+                Finally
+                    transport.Complete()
+                    runCts.Cancel()
+                    server.DisposeAsync().AsTask().GetAwaiter().GetResult()
+                End Try
+            End Using
+        End Function
+
         Private Shared Async Function WaitForResponseIdAsync(transport As QueuedTransport, id As Integer) As Task(Of String)
             Using timeoutCts As New CancellationTokenSource(TimeSpan.FromSeconds(3))
                 While True

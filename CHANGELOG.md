@@ -16,6 +16,17 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.20
+
+### Fixed
+- Configured `vbnet.workspace.solutionPath` and `vbnet.workspace.projectPaths` are now honored before broad workspace `.vbproj` discovery, avoiding large-repository scans before loading the selected solution.
+- Workspace loads started by `workspace/didChangeConfiguration` now run in the same cancelable background path as initial startup loads, so configuration notifications cannot block later LSP requests during a long solution load.
+- Open documents no longer publish standalone missing-reference diagnostics while the initial workspace load is still pending; diagnostics are deferred until the document can be associated with the loaded Roslyn workspace.
+- Deferred project loading now preserves the workspace root so enabling `loadProjectsOnStart` from configuration can start the workspace load later.
+
+### Known issues
+- Very large solutions can still take time for Roslyn/MSBuildWorkspace to fully load; language features may be limited until the background workspace load completes.
+
 ## 0.1.19
 
 ### Fixed

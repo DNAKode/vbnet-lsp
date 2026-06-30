@@ -86,7 +86,7 @@ Namespace Core
         ''' <summary>
         ''' Server version reported in initialize response.
         ''' </summary>
-        Public Const ServerVersion As String = "0.1.19"
+        Public Const ServerVersion As String = "0.1.20"
 
         Public Sub New(transport As ITransport, loggerFactory As ILoggerFactory)
             If transport Is Nothing Then
@@ -488,18 +488,20 @@ Namespace Core
             _workspaceManager.Initialize()
             ApplyInitializationOptions()
 
+            If _initializeParams?.RootUri IsNot Nothing Then
+                _workspaceRootUri = _initializeParams.RootUri
+            ElseIf _initializeParams?.WorkspaceFolders IsNot Nothing AndAlso _initializeParams.WorkspaceFolders.Length > 0 Then
+                _workspaceRootUri = _initializeParams.WorkspaceFolders(0).Uri
+            End If
+
             If Not _loadProjectsOnStart Then
                 _logger.LogInformation("Project load deferred (vbnet.loadProjectsOnStart = false).")
                 _workspaceManager.SignalInitialLoadCompleted(False)
                 Return Task.CompletedTask
             End If
 
-            If _initializeParams?.RootUri IsNot Nothing Then
-                _workspaceRootUri = _initializeParams.RootUri
-                StartInitialWorkspaceLoad(_initializeParams.RootUri)
-            ElseIf _initializeParams?.WorkspaceFolders IsNot Nothing AndAlso _initializeParams.WorkspaceFolders.Length > 0 Then
-                _workspaceRootUri = _initializeParams.WorkspaceFolders(0).Uri
-                StartInitialWorkspaceLoad(_initializeParams.WorkspaceFolders(0).Uri)
+            If _workspaceRootUri IsNot Nothing Then
+                StartInitialWorkspaceLoad(_workspaceRootUri)
             Else
                 _logger.LogWarning("No workspace root provided, operating in single-file mode")
                 _workspaceManager.SignalInitialLoadCompleted(False)
@@ -509,20 +511,28 @@ Namespace Core
         End Function
 
         Private Sub StartInitialWorkspaceLoad(rootUri As String)
+            StartWorkspaceLoad(rootUri, "Initial workspace load", False)
+        End Sub
+
+        Private Sub StartWorkspaceLoad(rootUri As String, operationName As String, resetWorkspace As Boolean)
             CancelWorkspaceLoad()
 
             Dim loadCts = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token)
             Dim loadTask = Task.Run(
                 Async Function()
                     Try
-                        _logger.LogInformation("Initial workspace load started in background")
+                        _logger.LogInformation("{Operation} started in background", operationName)
+                        If resetWorkspace Then
+                            Await _workspaceManager.ResetWorkspaceAsync(loadCts.Token).ConfigureAwait(False)
+                        End If
+
                         Await LoadWorkspaceAsync(rootUri, loadCts.Token).ConfigureAwait(False)
-                        _logger.LogInformation("Initial workspace load completed")
+                        _logger.LogInformation("{Operation} completed", operationName)
                     Catch ex As OperationCanceledException When loadCts.IsCancellationRequested
-                        _logger.LogInformation("Initial workspace load cancelled")
+                        _logger.LogInformation("{Operation} cancelled", operationName)
                         _workspaceManager.SignalInitialLoadCompleted(False)
                     Catch ex As Exception
-                        _logger.LogError(ex, "Initial workspace load failed")
+                        _logger.LogError(ex, "{Operation} failed", operationName)
                         _workspaceManager.SignalInitialLoadCompleted(False)
                     End Try
                 End Function)
@@ -537,6 +547,12 @@ Namespace Core
                 _workspaceLoadTask = loadTask
             End SyncLock
         End Sub
+
+        Private Function IsWorkspaceLoadRunning() As Boolean
+            SyncLock _workspaceLoadGate
+                Return _workspaceLoadTask IsNot Nothing AndAlso Not _workspaceLoadTask.IsCompleted
+            End SyncLock
+        End Function
 
         Private Sub CancelWorkspaceLoad()
             Dim loadCts As CancellationTokenSource = Nothing
@@ -574,18 +590,10 @@ Namespace Core
                     Return
                 End If
 
-                Dim projectSearchRoots = GetProjectSearchRoots(rootPath)
-                Dim vbprojFiles = CollectVbProjFiles(
-                    projectSearchRoots,
-                    _workspaceExcludePaths,
-                    _workspaceMaxProjectResults,
-                    ct)
-
-                Await ReportNetFxSupportWarningsAsync(vbprojFiles, ct).ConfigureAwait(False)
-
                 If Not String.IsNullOrWhiteSpace(_workspaceSolutionPathOverride) Then
                     Dim explicitSolutionPath = ResolvePath(_workspaceSolutionPathOverride, rootPath)
                     If Not String.IsNullOrEmpty(explicitSolutionPath) Then
+                        _logger.LogInformation("Using configured solution path: {Path}", explicitSolutionPath)
                         Dim explicitProjects = GetSolutionProjectPaths(explicitSolutionPath)
                         Await ReportNetFxSupportWarningsAsync(explicitProjects, ct).ConfigureAwait(False)
                         loadSucceeded = Await _workspaceManager.LoadSolutionAsync(explicitSolutionPath, ct).ConfigureAwait(False)
@@ -595,21 +603,17 @@ Namespace Core
 
                 If _workspaceProjectPathsOverride IsNot Nothing AndAlso _workspaceProjectPathsOverride.Length > 0 Then
                     Dim anyLoaded = False
-                    Await ReportNetFxSupportWarningsAsync(_workspaceProjectPathsOverride, ct).ConfigureAwait(False)
-                    Dim loadedCount = 0
-                    For Each projectPath In _workspaceProjectPathsOverride
-                        If String.IsNullOrWhiteSpace(projectPath) OrElse Not projectPath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) Then
-                            Continue For
-                        End If
+                    Dim resolvedProjectPaths = _workspaceProjectPathsOverride _
+                        .Select(Function(projectPath) ResolvePath(projectPath, rootPath)) _
+                        .Where(Function(projectPath) Not String.IsNullOrWhiteSpace(projectPath) AndAlso projectPath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase)) _
+                        .ToList()
 
+                    Await ReportNetFxSupportWarningsAsync(resolvedProjectPaths, ct).ConfigureAwait(False)
+                    Dim loadedCount = 0
+                    For Each resolved In resolvedProjectPaths
                         If _workspaceMaxProjectCount > 0 AndAlso loadedCount >= _workspaceMaxProjectCount Then
                             _logger.LogWarning("Project load capped at {Max} projects (vbnet.maxProjectCount).", _workspaceMaxProjectCount)
                             Exit For
-                        End If
-
-                        Dim resolved = ResolvePath(projectPath, rootPath)
-                        If String.IsNullOrEmpty(resolved) Then
-                            Continue For
                         End If
 
                         Dim loaded = Await _workspaceManager.LoadProjectAsync(resolved, ct).ConfigureAwait(False)
@@ -626,6 +630,7 @@ Namespace Core
                     Return
                 End If
 
+                Dim vbprojFiles As List(Of String) = Nothing
                 If Not _ignoreSolutionFiles Then
                     Dim solutionCandidates = FindSolutionCandidates(rootPath)
                     If solutionCandidates.Count > 0 Then
@@ -644,6 +649,15 @@ Namespace Core
                         Next
                     End If
                 End If
+
+                Dim projectSearchRoots = GetProjectSearchRoots(rootPath)
+                vbprojFiles = CollectVbProjFiles(
+                    projectSearchRoots,
+                    _workspaceExcludePaths,
+                    _workspaceMaxProjectResults,
+                    ct)
+
+                Await ReportNetFxSupportWarningsAsync(vbprojFiles, ct).ConfigureAwait(False)
 
                 If _workspaceMaxProjectResults > 0 AndAlso vbprojFiles.Count >= _workspaceMaxProjectResults Then
                     _logger.LogInformation("Project search capped at {Max} results", _workspaceMaxProjectResults)
@@ -890,13 +904,16 @@ Namespace Core
 
             If _loadProjectsOnStart AndAlso needReload AndAlso _workspaceRootUri IsNot Nothing Then
                 _logger.LogInformation("Workspace configuration changed; reloading workspace")
-                Await _workspaceManager.ResetWorkspaceAsync(ct).ConfigureAwait(False)
-                Await LoadWorkspaceAsync(_workspaceRootUri, ct).ConfigureAwait(False)
+                StartWorkspaceLoad(_workspaceRootUri, "Workspace reload", True)
             End If
 
-            If _loadProjectsOnStart AndAlso Not _workspaceManager.IsLoaded AndAlso _workspaceRootUri IsNot Nothing Then
+            If _loadProjectsOnStart AndAlso
+               Not needReload AndAlso
+               Not _workspaceManager.IsLoaded AndAlso
+               Not IsWorkspaceLoadRunning() AndAlso
+               _workspaceRootUri IsNot Nothing Then
                 _logger.LogInformation("Project loading enabled after configuration change; loading workspace")
-                Await LoadWorkspaceAsync(_workspaceRootUri, ct).ConfigureAwait(False)
+                StartWorkspaceLoad(_workspaceRootUri, "Workspace load after configuration change", False)
             End If
         End Function
 

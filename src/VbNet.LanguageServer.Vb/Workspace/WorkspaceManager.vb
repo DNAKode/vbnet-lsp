@@ -69,6 +69,15 @@ Namespace Workspace
         End Property
 
         ''' <summary>
+        ''' Gets whether the initial workspace load has started but not completed.
+        ''' </summary>
+        Public ReadOnly Property IsInitialLoadPending As Boolean
+            Get
+                Return _workspace IsNot Nothing AndAlso Not _initialLoadTcs.Task.IsCompleted
+            End Get
+        End Property
+
+        ''' <summary>
         ''' Gets the path of the loaded solution, if any.
         ''' </summary>
         Public ReadOnly Property LoadedSolutionPath As String
