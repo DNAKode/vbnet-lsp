@@ -89,10 +89,10 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             archive_ext: tar.gz
-          - os: macos-14
+          - os: macos-15
             rid: osx-x64
             archive_ext: tar.gz
-          - os: macos-14
+          - os: macos-15
             rid: osx-arm64
             archive_ext: tar.gz
     runs-on: ${{ matrix.os }}

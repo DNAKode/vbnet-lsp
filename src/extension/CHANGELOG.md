@@ -16,6 +16,15 @@ All notable changes to this project will be documented in this file.
 ### Known issues
 - _None yet._
 
+## 0.1.21
+
+### Fixed
+- `vbnet.diagnostics.enable: false` now disables both pushed and pulled diagnostics. Changing the setting clears diagnostics already shown by VS Code. (#17)
+- Updated the bundled VB language server to Roslyn 5.0 to fix false `BC30649` errors on xUnit `Assert.Equal` calls with inferred array literals. (#17)
+
+### Changed
+- When Roslyn reports an unmatched assembly path for a project reference, `BC30002` diagnostics in the referring project now link to the referenced project and show the workspace-selected target when available. (#17)
+
 ## 0.1.20
 
 ### Fixed
