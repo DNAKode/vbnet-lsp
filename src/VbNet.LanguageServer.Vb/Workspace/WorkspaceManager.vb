@@ -10,6 +10,7 @@ Imports Microsoft.CodeAnalysis.VisualBasic
 Imports Microsoft.Extensions.Logging
 Imports System.Collections.Immutable
 Imports System.Reflection
+Imports System.Resources
 
 Namespace Workspace
 
@@ -20,7 +21,10 @@ Namespace Workspace
     Public NotInheritable Class WorkspaceManager
         Implements IAsyncDisposable
 
+        Private Shared ReadOnly MSBuildResources As New ResourceManager(
+            "Microsoft.CodeAnalysis.MSBuild.WorkspaceMSBuildResources", GetType(MSBuildWorkspace).Assembly)
         Private ReadOnly _logger As ILogger(Of WorkspaceManager)
+        Private ReadOnly _unmatchedReferences As New ConcurrentDictionary(Of ProjectId, ImmutableHashSet(Of String))()
         Private ReadOnly _loadLock As SemaphoreSlim = New SemaphoreSlim(1, 1)
         Private ReadOnly _initialLoadTcs As TaskCompletionSource(Of Boolean) =
             New TaskCompletionSource(Of Boolean)(TaskCreationOptions.RunContinuationsAsynchronously)
@@ -126,6 +130,7 @@ Namespace Workspace
 
             _workspace = MSBuildWorkspace.Create(properties, CreateHostServices())
             _currentSolution = _workspace.CurrentSolution
+            _unmatchedReferences.Clear()
             _workspaceFailedRegistration = _workspace.RegisterWorkspaceFailedHandler(AddressOf OnWorkspaceFailed)
 
             _logger.LogInformation("MSBuildWorkspace created successfully")
@@ -781,11 +786,49 @@ Namespace Workspace
         End Function
 
         Private Sub OnWorkspaceFailed(e As WorkspaceDiagnosticEventArgs)
+            Dim projectDiagnostic = TryCast(e.Diagnostic, ProjectDiagnostic)
+            If projectDiagnostic IsNot Nothing AndAlso projectDiagnostic.Kind = WorkspaceDiagnosticKind.Warning Then
+                Dim referencePath = GetUnmatchedReferencePath(projectDiagnostic.Message)
+                If referencePath IsNot Nothing Then
+                    _unmatchedReferences.AddOrUpdate(projectDiagnostic.ProjectId, ImmutableHashSet.Create(referencePath),
+                                                    Function(id, paths) paths.Add(referencePath))
+                End If
+            End If
+
             Dim level = If(e.Diagnostic.Kind = WorkspaceDiagnosticKind.Failure, LogLevel.Error, LogLevel.Warning)
             _logger.Log(level, "Workspace diagnostic: {Message}", e.Diagnostic.Message)
 
             RaiseEvent WorkspaceDiagnostic(Me, e)
         End Sub
+
+        Friend Function GetUnmatchedReferencePaths(projectId As ProjectId) As IReadOnlyCollection(Of String)
+            Dim paths As ImmutableHashSet(Of String) = Nothing
+            If _unmatchedReferences.TryGetValue(projectId, paths) Then
+                Return paths
+            End If
+            Return Array.Empty(Of String)()
+        End Function
+
+        Private Shared Function GetUnmatchedReferencePath(message As String) As String
+            ' Roslyn exposes the referring project ID, but gives this warning no diagnostic code.
+            Const englishTemplate As String = "Found project reference without a matching metadata reference: {0}"
+            Dim template As String = englishTemplate
+            Try
+                template = If(MSBuildResources.GetString("Found_project_reference_without_a_matching_metadata_reference_0"), englishTemplate)
+            Catch ex As MissingManifestResourceException
+                ' The neutral text still works if a future Roslyn package moves the resource.
+            End Try
+            Dim parts = template.Split("{0}", StringSplitOptions.None)
+            If parts.Length <> 2 OrElse
+               message.Length <= parts(0).Length + parts(1).Length OrElse
+               Not message.StartsWith(parts(0), StringComparison.Ordinal) OrElse
+               Not message.EndsWith(parts(1), StringComparison.Ordinal) Then
+                Return Nothing
+            End If
+
+            Dim referencePath = message.Substring(parts(0).Length, message.Length - parts(0).Length - parts(1).Length)
+            Return If(System.IO.Path.IsPathFullyQualified(referencePath), referencePath, Nothing)
+        End Function
 
         Public Function DisposeAsync() As ValueTask Implements IAsyncDisposable.DisposeAsync
             _loadLock.Dispose()

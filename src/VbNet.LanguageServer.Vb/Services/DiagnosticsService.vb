@@ -214,7 +214,7 @@ Namespace Services
             Dim lspDiagnostics = roslynDiagnostics _
                 .Where(Function(d) Not d.IsSuppressed) _
                 .Where(Function(d) ShouldIncludeDiagnostic(d)) _
-                .Select(Function(d) TranslateDiagnostic(d, sourceText)) _
+                .Select(Function(d) TranslateDiagnostic(d, sourceText, document.Project)) _
                 .Where(Function(d) d IsNot Nothing) _
                 .Cast(Of Protocol.Diagnostic)() _
                 .ToArray()
@@ -304,7 +304,7 @@ Namespace Services
             Return diagnostics _
                 .Where(Function(d) Not d.IsSuppressed) _
                 .Where(Function(d) ShouldIncludeDiagnostic(d)) _
-                .Select(Function(d) TranslateDiagnostic(d, sourceText)) _
+                .Select(Function(d) TranslateDiagnostic(d, sourceText, document.Project)) _
                 .Where(Function(d) d IsNot Nothing) _
                 .Cast(Of Protocol.Diagnostic)() _
                 .ToArray()
@@ -417,7 +417,7 @@ Namespace Services
         ''' <summary>
         ''' Translates a Roslyn Diagnostic to an LSP Diagnostic.
         ''' </summary>
-        Private Function TranslateDiagnostic(diagnostic As Microsoft.CodeAnalysis.Diagnostic, sourceText As SourceText) As Protocol.Diagnostic
+        Private Function TranslateDiagnostic(diagnostic As Microsoft.CodeAnalysis.Diagnostic, sourceText As SourceText, Optional project As Project = Nothing) As Protocol.Diagnostic
             If diagnostic.Location.Kind <> LocationKind.SourceFile Then
                 Return Nothing
             End If
@@ -433,7 +433,7 @@ Namespace Services
                 .Message = diagnostic.GetMessage(),
                 .CodeDescription = GetCodeDescription(diagnostic),
                 .Tags = GetDiagnosticTags(diagnostic),
-                .RelatedInformation = GetRelatedInformation(diagnostic)
+                .RelatedInformation = GetRelatedInformation(diagnostic, project)
             }
         End Function
 
@@ -490,14 +490,15 @@ Namespace Services
         ''' <summary>
         ''' Gets related information for a diagnostic (additional locations).
         ''' </summary>
-        Private Function GetRelatedInformation(diagnostic As Microsoft.CodeAnalysis.Diagnostic) As DiagnosticRelatedInformation()
-            Dim additionalLocations = diagnostic.AdditionalLocations
-            If additionalLocations.Count = 0 Then
+        Private Function GetRelatedInformation(diagnostic As Microsoft.CodeAnalysis.Diagnostic, project As Project) As DiagnosticRelatedInformation()
+            Dim unmatchedPaths = If(diagnostic.Id = "BC30002" AndAlso project IsNot Nothing,
+                                    _workspaceManager.GetUnmatchedReferencePaths(project.Id), Array.Empty(Of String)())
+            If diagnostic.AdditionalLocations.Count = 0 AndAlso unmatchedPaths.Count = 0 Then
                 Return Nothing
             End If
 
             Dim related As New List(Of DiagnosticRelatedInformation)()
-            For Each location In additionalLocations
+            For Each location In diagnostic.AdditionalLocations
                 If location.Kind <> LocationKind.SourceFile OrElse location.SourceTree Is Nothing Then
                     Continue For
                 End If
@@ -515,6 +516,19 @@ Namespace Services
                     .Message = "Related location"
                 })
             Next
+
+            If unmatchedPaths.Count > 0 Then
+                Dim pathComparison = If(OperatingSystem.IsWindows(), StringComparison.OrdinalIgnoreCase, StringComparison.Ordinal)
+                Dim projectReferences = project.ProjectReferences.Select(Function(reference) project.Solution.GetProject(reference.ProjectId))
+                For Each path In unmatchedPaths.OrderBy(Function(referencePath) referencePath, StringComparer.Ordinal)
+                    Dim selected = projectReferences.FirstOrDefault(Function(reference) String.Equals(reference?.FilePath, path, pathComparison))
+                    Dim binding = If(selected Is Nothing, String.Empty, $" The workspace is using '{selected.Name}'.")
+                    related.Add(New DiagnosticRelatedInformation With {
+                        .Location = New Protocol.Location With {.Uri = New Uri(path).AbsoluteUri},
+                        .Message = $"Roslyn could not match this project reference to an assembly during workspace load.{binding} If the type resolves in dotnet build, compare the target framework and MSBuild SDK used by the editor and the build."
+                    })
+                Next
+            End If
 
             Return If(related.Count > 0, related.ToArray(), Nothing)
         End Function

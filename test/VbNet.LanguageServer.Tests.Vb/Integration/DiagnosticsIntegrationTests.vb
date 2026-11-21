@@ -123,6 +123,55 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Assert.Contains("BC30512", errorCodes)
             Assert.Contains("BC30451", errorCodes)
             Assert.Contains("BC30002", errorCodes)
+            Assert.Null(Assert.Single(errors.Where(Function(d) d.Code = "BC30002")).RelatedInformation)
+        End Function
+
+        <Fact>
+        Public Async Function GetDiagnosticsAsync_MissingTypeWithUnmatchedProjectReference_IncludesProjectContext() As Task
+            Dim root = Directory.CreateTempSubdirectory("vbnet-lsp-reference-")
+            Dim consumerDirectory = Directory.CreateDirectory(Path.Combine(root.FullName, "Consumer")).FullName
+            Dim dependencyDirectory = Directory.CreateDirectory(Path.Combine(root.FullName, "Dependency")).FullName
+            Dim consumerProject = Path.Combine(consumerDirectory, "Consumer.vbproj")
+            Dim sourcePath = Path.Combine(consumerDirectory, "Consumer.vb")
+            Dim dependencyProject = Path.Combine(dependencyDirectory, "Dependency.csproj")
+            Try
+                File.WriteAllText(dependencyProject,
+                    <Project Sdk="Microsoft.NET.Sdk">
+                        <PropertyGroup>
+                            <TargetFramework>net10.0</TargetFramework>
+                        </PropertyGroup>
+                    </Project>.ToString())
+                File.WriteAllText(Path.Combine(dependencyDirectory, "AvailableType.cs"), "public class AvailableType {}")
+                File.WriteAllText(consumerProject,
+                    <Project Sdk="Microsoft.NET.Sdk">
+                        <PropertyGroup>
+                            <TargetFramework>net10.0</TargetFramework>
+                        </PropertyGroup>
+                        <ItemGroup>
+                            <ProjectReference Include="../Dependency/Dependency.csproj"/>
+                        </ItemGroup>
+                        <Target Name="OmitDependencyFromDesignTimeCompilerInputs"
+                                AfterTargets="ResolveAssemblyReferences"
+                                Condition="'$(DesignTimeBuild)' == 'true'">
+                            <ItemGroup>
+                                <ReferencePath Remove="@(ReferencePath)" Condition="'%(ReferencePath.Filename)' == 'Dependency'"/>
+                            </ItemGroup>
+                        </Target>
+                    </Project>.ToString())
+                File.WriteAllText(sourcePath, "Public Class TestClass
+    Inherits MissingType
+End Class")
+
+                Assert.True(Await _workspaceManager.LoadProjectAsync(consumerProject))
+                Dim diagnostics = Await _diagnosticsService.GetDiagnosticsAsync(New Uri(sourcePath).AbsoluteUri)
+
+                Dim missingType = Assert.Single(diagnostics.Where(Function(d) d.Code = "BC30002"))
+                Dim related = Assert.Single(missingType.RelatedInformation)
+                Assert.Equal(New Uri(dependencyProject).AbsoluteUri, related.Location.Uri)
+                Assert.Contains("The workspace is using 'Dependency'", related.Message)
+            Finally
+                root.Delete(recursive:=True)
+            End Try
         End Function
 
         <Fact>
