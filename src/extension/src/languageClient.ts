@@ -104,10 +104,12 @@ export class VbNetLanguageClient implements vscode.Disposable {
                 }
             });
 
+            // Restarting also clears the language client's cached pull diagnostics.
             this.serverConfigDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
                 if (event.affectsConfiguration('vbnet.server.backend') ||
                     event.affectsConfiguration('vbnet.server.path') ||
                     event.affectsConfiguration('vbnet.server.transportType') ||
+                    event.affectsConfiguration('vbnet.diagnostics.enable') ||
                     event.affectsConfiguration('vbnet.output.language') ||
                     event.affectsConfiguration('vbnet.roslyn.server.path') ||
                     event.affectsConfiguration('vbnet.roslyn.server.extensionPath')) {
@@ -374,14 +376,15 @@ export class VbNetLanguageClient implements vscode.Disposable {
         }, 300);
     }
 
-    private async buildInitializationOptions(): Promise<object | undefined> {
+    private async buildInitializationOptions(): Promise<object> {
+        const config = vscode.workspace.getConfiguration('vbnet');
+        const diagnosticsEnabled = config.get<boolean>('diagnostics.enable', true);
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders || workspaceFolders.length === 0) {
             this.setWorkspaceContext({ kind: 'empty' });
-            return undefined;
+            return { diagnostics: { enable: diagnosticsEnabled } };
         }
 
-        const config = vscode.workspace.getConfiguration('vbnet');
         const defaultExclude = '**/node_modules/**,**/.git/**,**/bower_components/**';
         const excludePattern = config.get<string>('workspace.projectFilesExcludePattern', defaultExclude);
         const maxProjectResults = config.get<number>('workspace.maxProjectResults', 250);
@@ -399,7 +402,6 @@ export class VbNetLanguageClient implements vscode.Disposable {
         const enableFormatting = config.get<boolean>('enableFormatting', true);
         const enableCodeActions = config.get<boolean>('enableCodeActions', true);
         const semanticTokens = config.get<boolean>('semanticTokens', true);
-        const diagnosticsEnabled = config.get<boolean>('diagnostics.enable', true);
         const completionEnabled = config.get<boolean>('completion.enable', true);
 
         const workspaceOptions: Record<string, unknown> = {

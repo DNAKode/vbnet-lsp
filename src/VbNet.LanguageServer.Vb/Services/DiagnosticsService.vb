@@ -46,7 +46,7 @@ Namespace Services
         Public Property MinimumSeverity As Protocol.DiagnosticSeverity = Protocol.DiagnosticSeverity.Warning
 
         ''' <summary>
-        ''' Enables or disables diagnostics publishing.
+        ''' Enables or disables push and pull diagnostics.
         ''' </summary>
         Public Property Enabled As Boolean = True
 
@@ -178,6 +178,10 @@ Namespace Services
         ''' Gets diagnostics for a document from Roslyn.
         ''' </summary>
         Public Async Function GetDiagnosticsAsync(uri As String, Optional cancellationToken As CancellationToken = Nothing) As Task(Of Protocol.Diagnostic())
+            If Not Enabled Then
+                Return Array.Empty(Of Protocol.Diagnostic)()
+            End If
+
             Dim document = _documentManager.GetRoslynDocument(uri)
             If document Is Nothing Then
                 If _workspaceManager.IsInitialLoadPending Then
@@ -231,7 +235,7 @@ Namespace Services
 
             Return New DocumentDiagnosticReport With {
                 .Kind = "full",
-                .Items = diagnostics
+                .Items = If(Enabled, diagnostics, Array.Empty(Of Protocol.Diagnostic)())
             }
         End Function
 
@@ -270,6 +274,13 @@ Namespace Services
                     })
                 Next
             Next
+
+            ' Keep the URIs so clients can clear earlier results, even if diagnostics were disabled mid-request.
+            If Not Enabled Then
+                For Each item In items
+                    item.Items = Array.Empty(Of Protocol.Diagnostic)()
+                Next
+            End If
 
             Return New WorkspaceDiagnosticReport With {
                 .Items = items.ToArray()

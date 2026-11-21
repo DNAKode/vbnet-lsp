@@ -27,6 +27,7 @@ Namespace Workspace
         Private _initialLoadSignaled As Integer
 
         Private _workspace As MSBuildWorkspace
+        Private _workspaceFailedRegistration As WorkspaceEventRegistration
         Private _currentSolution As Solution
         Private _loadedSolutionPath As String
         Private ReadOnly _loadedProjectPaths As New List(Of String)()
@@ -125,7 +126,7 @@ Namespace Workspace
 
             _workspace = MSBuildWorkspace.Create(properties, CreateHostServices())
             _currentSolution = _workspace.CurrentSolution
-            AddHandler _workspace.WorkspaceFailed, AddressOf OnWorkspaceFailed
+            _workspaceFailedRegistration = _workspace.RegisterWorkspaceFailedHandler(AddressOf OnWorkspaceFailed)
 
             _logger.LogInformation("MSBuildWorkspace created successfully")
         End Sub
@@ -151,7 +152,7 @@ Namespace Workspace
 
         Private Sub RecreateWorkspace()
             If _workspace IsNot Nothing Then
-                RemoveHandler _workspace.WorkspaceFailed, AddressOf OnWorkspaceFailed
+                _workspaceFailedRegistration.Dispose()
                 _workspace.Dispose()
                 _workspace = Nothing
             End If
@@ -779,7 +780,7 @@ Namespace Workspace
             Return System.IO.Path.GetFullPath(inputPath)
         End Function
 
-        Private Sub OnWorkspaceFailed(sender As Object, e As WorkspaceDiagnosticEventArgs)
+        Private Sub OnWorkspaceFailed(e As WorkspaceDiagnosticEventArgs)
             Dim level = If(e.Diagnostic.Kind = WorkspaceDiagnosticKind.Failure, LogLevel.Error, LogLevel.Warning)
             _logger.Log(level, "Workspace diagnostic: {Message}", e.Diagnostic.Message)
 
@@ -790,7 +791,7 @@ Namespace Workspace
             _loadLock.Dispose()
 
             If _workspace IsNot Nothing Then
-                RemoveHandler _workspace.WorkspaceFailed, AddressOf OnWorkspaceFailed
+                _workspaceFailedRegistration.Dispose()
                 _workspace.Dispose()
                 _workspace = Nothing
             End If

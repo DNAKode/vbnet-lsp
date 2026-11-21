@@ -54,7 +54,6 @@ Namespace Core
         Private _state As ServerState = ServerState.NotStarted
         Private _initializeParams As InitializeParams
         Private _shutdownRequested As TaskCompletionSource
-        Private _diagnosticsEnabled As Boolean = True
         Private _completionEnabled As Boolean = True
         Private _formattingEnabled As Boolean = True
         Private _codeActionsEnabled As Boolean = True
@@ -795,7 +794,7 @@ Namespace Core
         Private Sub ApplyFeatureSettings(settingsElement As JsonElement)
             Dim enableDiagnostics = GetBoolSetting(settingsElement, "diagnostics", "enable")
             If enableDiagnostics.HasValue Then
-                _diagnosticsEnabled = enableDiagnostics.Value
+                _diagnosticsService.Enabled = enableDiagnostics.Value
             End If
 
             Dim enableCompletion = GetBoolSetting(settingsElement, "completion", "enable")
@@ -848,10 +847,10 @@ Namespace Core
                 settingsElement = JsonSerializer.SerializeToElement(parameters.Settings, JsonSerializerOptionsProvider.Options)
             End If
 
-            Dim diagnosticsEnabledBefore = _diagnosticsEnabled
+            Dim diagnosticsEnabledBefore = _diagnosticsService.Enabled
             ApplyFeatureSettings(settingsElement)
-            If _diagnosticsEnabled <> diagnosticsEnabledBefore Then
-                If _diagnosticsEnabled Then
+            If _diagnosticsService.Enabled <> diagnosticsEnabledBefore Then
+                If _diagnosticsService.Enabled Then
                     TriggerDiagnosticsForOpenDocuments()
                 Else
                     Await ClearDiagnosticsForOpenDocumentsAsync(ct).ConfigureAwait(False)
@@ -975,7 +974,7 @@ Namespace Core
             Dim reloaded = Await _workspaceManager.ReloadWorkspaceAsync(ct).ConfigureAwait(False)
             _documentManager.ReassociateDocumentsWithWorkspace()
 
-            If reloaded AndAlso _diagnosticsEnabled Then
+            If reloaded AndAlso _diagnosticsService.Enabled Then
                 TriggerDiagnosticsForOpenDocuments()
             End If
         End Function
@@ -1257,7 +1256,7 @@ Namespace Core
 #Region "Diagnostics"
 
         Private Async Function PublishDiagnosticsAsync(method As String, parameters As PublishDiagnosticsParams, ct As CancellationToken) As Task
-            If Not _diagnosticsEnabled Then
+            If Not _diagnosticsService.Enabled AndAlso parameters.Diagnostics.Length > 0 Then
                 Return
             End If
 

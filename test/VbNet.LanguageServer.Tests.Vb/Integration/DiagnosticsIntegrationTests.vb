@@ -4,6 +4,8 @@ Imports System.IO
 Imports System.Linq
 Imports System.Threading
 Imports System.Threading.Tasks
+Imports Microsoft.CodeAnalysis.VisualBasic
+Imports MetadataReference = Microsoft.CodeAnalysis.MetadataReference
 Imports Microsoft.Extensions.Logging.Abstractions
 Imports VbNet.LanguageServer.Protocol
 Imports VbNet.LanguageServer.Services
@@ -121,6 +123,57 @@ Namespace VbNet.LanguageServer.Tests.Integration
             Assert.Contains("BC30512", errorCodes)
             Assert.Contains("BC30451", errorCodes)
             Assert.Contains("BC30002", errorCodes)
+        End Function
+
+        <Fact>
+        Public Async Function SemanticModel_XunitAssertEqualWithInferredArrayLiteral_HasNoErrors() As Task
+            Dim projectPath = Path.Combine(TestProjectsRoot, "SmallProject", "SmallProject.vbproj")
+            Assert.True(Await _workspaceManager.LoadProjectAsync(projectPath))
+            Dim project = Assert.Single(_workspaceManager.GetVbNetProjects())
+            Dim compilation = Await project.GetCompilationAsync()
+            Dim syntaxTree = VisualBasicSyntaxTree.ParseText(
+"Imports System.IO
+Imports System.Linq
+Imports Xunit
+
+Public Class ArrayAssertions
+    Public Sub Check(folder As String)
+        Assert.Equal({""x.pdf""}, Directory.GetFiles(folder).Select(Function(f) Path.GetFileName(f)).ToArray())
+    End Sub
+End Class")
+            compilation = compilation.
+                AddReferences(MetadataReference.CreateFromFile(GetType(Assert).Assembly.Location)).
+                AddSyntaxTrees(syntaxTree)
+
+            Dim errors = compilation.GetSemanticModel(syntaxTree).GetDiagnostics().
+                Where(Function(d) d.Severity = Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            Assert.Empty(errors)
+        End Function
+
+        <Fact>
+        Public Async Function PullDiagnostics_Disabled_ReturnsEmptyReportsForPreviouslyReportedDocuments() As Task
+            Dim projectDirectory = Path.Combine(TestProjectsRoot, "ErrorProject")
+            Assert.True(Await _workspaceManager.LoadProjectAsync(Path.Combine(projectDirectory, "ErrorProject.vbproj")))
+
+            Dim uri = New Uri(Path.Combine(projectDirectory, "ErrorClass.vb")).ToString()
+            Dim documentParams = New TextDocumentDiagnosticParams With {
+                .TextDocument = New TextDocumentIdentifier With {.Uri = uri}
+            }
+            Dim workspaceParams As New WorkspaceDiagnosticParams()
+
+            Assert.NotEmpty((Await _diagnosticsService.GetDocumentDiagnosticsReportAsync(documentParams)).Items)
+            Dim enabledReport = Await _diagnosticsService.GetWorkspaceDiagnosticsReportAsync(workspaceParams)
+            Assert.NotEmpty(Assert.Single(enabledReport.Items.Where(Function(item) item.Uri = uri)).Items)
+
+            _diagnosticsService.Enabled = False
+
+            Dim documentReport = Await _diagnosticsService.GetDocumentDiagnosticsReportAsync(documentParams)
+            Assert.Equal("full", documentReport.Kind)
+            Assert.Empty(documentReport.Items)
+            Dim workspaceReport = Await _diagnosticsService.GetWorkspaceDiagnosticsReportAsync(workspaceParams)
+            Dim workspaceDocumentReport = Assert.Single(workspaceReport.Items.Where(Function(item) item.Uri = uri))
+            Assert.Equal("full", workspaceDocumentReport.Kind)
+            Assert.All(workspaceReport.Items, Sub(item) Assert.Empty(item.Items))
         End Function
 
         <Fact>
