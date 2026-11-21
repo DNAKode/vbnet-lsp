@@ -8,6 +8,9 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
     Public Class LegacyVbProjectReaderTests
 
+        ' These fixtures use the Roslyn packages restored by the test project's dependencies.
+        Private Const RestoredRoslynVersion As String = "5.0.0"
+
         <Fact>
         Public Sub TryRead_OldStyleNet48Project_PreservesImportsReferencesAndOptions()
             Dim root = CreateLegacyProject()
@@ -185,7 +188,7 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
         <Fact>
         Public Sub TryRead_CsVbSummaryNet48Project_ResolvesRoslynPackageAliases()
-            Const roslynVersion = "4.12.0"
+            Const roslynVersion = RestoredRoslynVersion
             Dim source = String.Join(
                 Environment.NewLine,
                 "Imports Microsoft.CodeAnalysis",
@@ -287,7 +290,7 @@ Namespace VbNet.LanguageServer.Tests.Workspace
 
         <Fact>
         Public Sub TryRead_ResolvesPackagesConfigAssembliesFromGlobalNuGetCache()
-            Const roslynVersion = "4.12.0"
+            Const roslynVersion = RestoredRoslynVersion
             Dim root = CreateLegacyProject()
 
             Try
